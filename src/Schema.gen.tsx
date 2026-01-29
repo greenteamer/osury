@@ -18,6 +18,7 @@ export type schemaType =
   | "Boolean"
   | "Null"
   | { _tag: "Optional"; _0: schemaType }
+  | { _tag: "Nullable"; _0: schemaType }
   | { _tag: "Object"; _0: field[] }
   | { _tag: "Array"; _0: schemaType }
   | { _tag: "Ref"; _0: string }

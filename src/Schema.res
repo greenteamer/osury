@@ -26,6 +26,7 @@ and schemaType =
   | Boolean
   | Null
   | Optional(schemaType)
+  | Nullable(schemaType) // For JSON null (OpenAPI anyOf with null)
   | Object(array<field>)
   | Array(schemaType)
   | Ref(string)
@@ -146,11 +147,11 @@ and parseAnyOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
   let nonNullItems = items->Array.filter(item => !isNullType(item))
 
   if hasNull && Array.length(nonNullItems) == 1 {
-    // Nullable pattern: [T, null] → Optional(T)
+    // Nullable pattern: [T, null] → Nullable(T) for JSON null support
     switch nonNullItems->Array.get(0) {
     | Some(Object(dict)) =>
       switch parseObject(dict) {
-      | Ok(innerType) => Ok(Optional(innerType))
+      | Ok(innerType) => Ok(Nullable(innerType))
       | Error(e) => Error(e)
       }
     | Some(_) => Error([Errors.makeError(~kind=InvalidJson("anyOf item must be object"), ())])
@@ -178,7 +179,7 @@ and parseAnyOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
       Ok(Union(types))
     }
   } else if hasNull && Array.length(nonNullItems) >= 2 {
-    // Union with nullable: [A, B, null] → Optional(Union([A, B]))
+    // Union with nullable: [A, B, null] → Nullable(Union([A, B]))
     let results = nonNullItems->Array.map(parseSchema)
     let errors = results->Array.filterMap(r =>
       switch r {
@@ -196,7 +197,7 @@ and parseAnyOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
         | Error(_) => None
         }
       )
-      Ok(Optional(Union(types)))
+      Ok(Nullable(Union(types)))
     }
   } else {
     Error([Errors.makeError(~kind=InvalidJson("anyOf must have at least 2 items"), ())])
