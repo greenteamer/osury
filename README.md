@@ -9,6 +9,8 @@ Generate ReScript types with [Sury](https://github.com/DZakh/sury) schemas from 
 - `@genType` for TypeScript interop
 - Union types extracted as proper variants with `@tag("_tag")`
 - Automatic deduplication of identical union structures
+- Generates `module S = Sury` alias (required by sury-ppx)
+- Generates `Dict.gen.tsx` shim for TypeScript interop
 
 ## Installation
 
@@ -21,11 +23,12 @@ npm install -D osury
 ### CLI
 
 ```bash
-# Generate to default ./Generated.res
+# Generate to default ./Generated.res + ./Dict.gen.tsx
 npx osury openapi.json
 
-# Generate to specific file
+# Generate to specific directory
 npx osury openapi.json src/API.res
+# Creates: src/API.res + src/Dict.gen.tsx
 
 # With explicit output flag
 npx osury generate openapi.json -o src/Schema.res
@@ -57,8 +60,10 @@ Input:
 }
 ```
 
-Output:
+Output (`Schema.res`):
 ```rescript
+module S = Sury
+
 @genType
 @tag("_tag")
 @schema
@@ -71,6 +76,11 @@ type user = {
   name: string,
   role: option<adminOrGuest>
 }
+```
+
+Also generates `Dict.gen.tsx`:
+```typescript
+export type t<T> = { [key: string]: T };
 ```
 
 ## Generated Annotations

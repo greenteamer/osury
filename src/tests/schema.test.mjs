@@ -704,4 +704,26 @@ describe('Code Generator', () => {
         expect(code).toContain('value1: option<floatOrString>');
         expect(code).toContain('value2: option<floatOrString>');
     });
+
+    test('generateModule includes module S = Sury', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    User: { type: "object", properties: { name: { type: "string" } } }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        const code = Codegen.generateModule(parseResult._0);
+
+        expect(code.startsWith('module S = Sury')).toBe(true);
+    });
+
+    test('generateDictShim returns TypeScript shim', () => {
+        const shim = Codegen.generateDictShim();
+
+        expect(shim).toContain('export type t<T>');
+        expect(shim).toContain('[key: string]: T');
+    });
 });
