@@ -1,0 +1,24 @@
+# Source files (use compiled .res.mjs)
+*.res
+*.resi
+
+# Test files
+src/tests/
+src/test_ppx.*
+
+# Generated user output (example)
+src/__generated__/
+
+# Build artifacts
+*.bs.js
+lib/
+
+# Config
+rescript.json
+tsconfig.json
+jest.config.js
+
+# Development
+scripts/
+openapi.json
+.claude/
