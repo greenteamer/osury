@@ -28,6 +28,7 @@ let rec generateType = (schema: Schema.schemaType): string => {
     `[${variants}]`
   | Object(fields) => generateRecord(fields)
   | PolyVariant(cases) => generatePolyVariant(cases)
+  | Union(types) => generateUnion(types)
   }
 }
 
@@ -54,6 +55,36 @@ and generatePolyVariant = (cases: array<Schema.variantCase>): string => {
   let caseStrs = cases->Array.map(c => {
     let payloadStr = generateType(c.payload)
     `#${c.tag}(${payloadStr})`
+  })
+  `[${caseStrs->Array.join(" | ")}]`
+}
+
+// Helper: capitalize first letter
+and ucFirst = (s: string): string => {
+  if String.length(s) == 0 {
+    s
+  } else {
+    let first = s->String.charAt(0)->String.toUpperCase
+    let rest = s->String.sliceToEnd(~start=1)
+    first ++ rest
+  }
+}
+
+// Generate union type (anyOf without discriminator)
+// Each type in the union becomes a poly variant case: [#TypeName(typeName) | ...]
+and generateUnion = (types: array<Schema.schemaType>): string => {
+  let caseStrs = types->Array.map(t => {
+    switch t {
+    | Ref(name) =>
+      // Ref type: use the type name as tag, e.g., #Cat(cat)
+      let tag = ucFirst(name)
+      let payload = lcFirst(name)
+      `#${tag}(${payload})`
+    | _ =>
+      // For non-ref types, generate inline
+      let typeStr = generateType(t)
+      `#Value(${typeStr})`
+    }
   })
   `[${caseStrs->Array.join(" | ")}]`
 }

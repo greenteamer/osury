@@ -171,58 +171,109 @@ function parseArrayType(dict) {
 }
 
 function parseAnyOf(items) {
-  if (items.length !== 2) {
-    return {
-      TAG: "Error",
-      _0: [Errors.makeError({
-          TAG: "UnsupportedFeature",
-          _0: "anyOf with more than 2 items"
-        }, undefined, undefined, undefined)]
-    };
-  }
   let hasNull = items.some(isNullType);
-  if (!hasNull) {
-    return {
-      TAG: "Error",
-      _0: [Errors.makeError({
-          TAG: "UnsupportedFeature",
-          _0: "anyOf without null (union types)"
-        }, undefined, undefined, undefined)]
-    };
-  }
-  let nonNullItem = items.find(item => !isNullType(item));
-  if (nonNullItem === undefined) {
+  let nonNullItems = items.filter(item => !isNullType(item));
+  if (hasNull && nonNullItems.length === 1) {
+    let match = nonNullItems[0];
+    if (match === undefined) {
+      return {
+        TAG: "Error",
+        _0: [Errors.makeError({
+            TAG: "InvalidJson",
+            _0: "anyOf with only null types"
+          }, undefined, undefined, undefined)]
+      };
+    }
+    if (typeof match === "object" && match !== null && !Array.isArray(match)) {
+      let innerType = parseObject(match);
+      if (innerType.TAG === "Ok") {
+        return {
+          TAG: "Ok",
+          _0: {
+            _tag: "Optional",
+            _0: innerType._0
+          }
+        };
+      } else {
+        return {
+          TAG: "Error",
+          _0: innerType._0
+        };
+      }
+    }
     return {
       TAG: "Error",
       _0: [Errors.makeError({
           TAG: "InvalidJson",
-          _0: "anyOf with only null types"
+          _0: "anyOf item must be object"
         }, undefined, undefined, undefined)]
     };
   }
-  if (typeof nonNullItem === "object" && nonNullItem !== null && !Array.isArray(nonNullItem)) {
-    let innerType = parsePrimitiveType(nonNullItem);
-    if (innerType.TAG === "Ok") {
-      return {
-        TAG: "Ok",
-        _0: {
-          _tag: "Optional",
-          _0: innerType._0
-        }
-      };
-    } else {
+  if (!hasNull && nonNullItems.length >= 2) {
+    let results = nonNullItems.map(parseSchema);
+    let errors = Core__Array.filterMap(results, r => {
+      if (r.TAG === "Ok") {
+        return;
+      } else {
+        return r._0;
+      }
+    }).flat();
+    if (errors.length > 0) {
       return {
         TAG: "Error",
-        _0: innerType._0
+        _0: errors
       };
     }
+    let types = Core__Array.filterMap(results, r => {
+      if (r.TAG === "Ok") {
+        return r._0;
+      }
+    });
+    return {
+      TAG: "Ok",
+      _0: {
+        _tag: "Union",
+        _0: types
+      }
+    };
   }
+  if (!(hasNull && nonNullItems.length >= 2)) {
+    return {
+      TAG: "Error",
+      _0: [Errors.makeError({
+          TAG: "InvalidJson",
+          _0: "anyOf must have at least 2 items"
+        }, undefined, undefined, undefined)]
+    };
+  }
+  let results$1 = nonNullItems.map(parseSchema);
+  let errors$1 = Core__Array.filterMap(results$1, r => {
+    if (r.TAG === "Ok") {
+      return;
+    } else {
+      return r._0;
+    }
+  }).flat();
+  if (errors$1.length > 0) {
+    return {
+      TAG: "Error",
+      _0: errors$1
+    };
+  }
+  let types$1 = Core__Array.filterMap(results$1, r => {
+    if (r.TAG === "Ok") {
+      return r._0;
+    }
+  });
   return {
-    TAG: "Error",
-    _0: [Errors.makeError({
-        TAG: "InvalidJson",
-        _0: "anyOf item must be object"
-      }, undefined, undefined, undefined)]
+    TAG: "Ok",
+    _0: {
+      _tag: "Optional",
+      _0: {
+        _tag: "Union",
+        _0: types$1
+      }
+    }
   };
 }
 

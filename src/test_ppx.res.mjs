@@ -2,24 +2,21 @@
 
 import * as S from "sury/src/S.res.mjs";
 
-let userSchema = S.schema(s => ({
+let userSchema = S.schema((s) => ({
   id: s.m(S.int),
-  name: s.m(S.string)
+  name: s.m(S.string),
 }));
 
 let responseSchema = S.union([
-  S.schema(s => ({
+  S.schema((s) => ({
     _tag: "Success",
-    data: s.m(S.string)
+    data: s.m(S.string),
   })),
-  S.schema(s => ({
+  S.schema((s) => ({
     _tag: "Error",
-    message: s.m(S.string)
-  }))
+    message: s.m(S.string),
+  })),
 ]);
 
-export {
-  userSchema,
-  responseSchema,
-}
+export { userSchema, responseSchema };
 /* userSchema Not a pure module */

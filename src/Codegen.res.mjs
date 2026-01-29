@@ -41,6 +41,8 @@ function generateType(schema) {
         return generatePolyVariant(schema._0);
       case "Dict" :
         return `Dict.t<` + generateType(schema._0) + `>`;
+      case "Union" :
+        return generateUnion(schema._0);
     }
   }
 }
@@ -65,6 +67,29 @@ function generatePolyVariant(cases) {
   return `[` + caseStrs.join(" | ") + `]`;
 }
 
+function ucFirst(s) {
+  if (s.length === 0) {
+    return s;
+  }
+  let first = s.charAt(0).toUpperCase();
+  let rest = s.slice(1);
+  return first + rest;
+}
+
+function generateUnion(types) {
+  let caseStrs = types.map(t => {
+    if (typeof t === "object" && t._tag === "Ref") {
+      let name = t._0;
+      let tag = ucFirst(name);
+      let payload = lcFirst(name);
+      return `#` + tag + `(` + payload + `)`;
+    }
+    let typeStr = generateType(t);
+    return `#Value(` + typeStr + `)`;
+  });
+  return `[` + caseStrs.join(" | ") + `]`;
+}
+
 function generateTypeDef(namedSchema) {
   let typeName = lcFirst(namedSchema.name);
   let typeBody = generateType(namedSchema.schema);
@@ -81,6 +106,8 @@ export {
   generateType,
   generateRecord,
   generatePolyVariant,
+  ucFirst,
+  generateUnion,
   generateTypeDef,
   generateModule,
 }

@@ -23,4 +23,5 @@ export type schemaType =
   | { _tag: "Ref"; _0: string }
   | { _tag: "Enum"; _0: string[] }
   | { _tag: "PolyVariant"; _0: variantCase[] }
-  | { _tag: "Dict"; _0: schemaType };
+  | { _tag: "Dict"; _0: schemaType }
+  | { _tag: "Union"; _0: schemaType[] };

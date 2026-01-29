@@ -17,7 +17,7 @@
     "res:build": "rescript",
     "res:dev": "rescript watch",
     "codegen": "node scripts/codegen.mjs",
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "build:compile": "esbuild scripts/codegen.js --bundle --platform=node --outfile=dist/codegen.js --format=cjs --external:fs --external:path",
     "build:bundle": "npm run build:compile",
     "prepublishOnly": "npm run res:build && npm run build:bundle"

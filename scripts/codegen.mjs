@@ -8,7 +8,7 @@ const result = OpenAPIParser.parseDocument(doc);
 
 if (result.TAG === "Ok") {
   const code = Codegen.generateModule(result._0);
-  fs.writeFileSync("./Generated.res", code);
+  fs.writeFileSync("./src/__generated__/Generated.res", code);
   console.log("Generated " + result._0.length + " types to Generated.res");
 } else {
   console.error("Error:", result._0);
