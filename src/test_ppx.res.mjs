@@ -2,21 +2,48 @@
 
 import * as S from "sury/src/S.res.mjs";
 
-let userSchema = S.schema((s) => ({
+let userSchema = S.schema(s => ({
   id: s.m(S.int),
-  name: s.m(S.string),
+  name: s.m(S.string)
 }));
 
 let responseSchema = S.union([
-  S.schema((s) => ({
+  S.schema(s => ({
     _tag: "Success",
-    data: s.m(S.string),
+    data: s.m(S.string)
   })),
-  S.schema((s) => ({
+  S.schema(s => ({
     _tag: "Error",
-    message: s.m(S.string),
-  })),
+    message: s.m(S.string)
+  }))
 ]);
 
-export { userSchema, responseSchema };
+let adsSchema = S.schema(s => ({
+  _tag: s.m(S.literal("Ads")),
+  value: s.m(S.string)
+}));
+
+let originSchema = S.schema(s => ({
+  _tag: s.m(S.literal("Origin")),
+  value: s.m(S.string)
+}));
+
+let commonSchema = S.union([
+  S.schema(s => ({
+    _tag: "Origin",
+    _0: s.m(originSchema)
+  })),
+  S.schema(s => ({
+    _tag: "Ads",
+    _0: s.m(adsSchema)
+  }))
+]);
+
+export {
+  userSchema,
+  responseSchema,
+  adsSchema,
+  originSchema,
+  commonSchema,
+}
 /* userSchema Not a pure module */

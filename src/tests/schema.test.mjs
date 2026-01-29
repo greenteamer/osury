@@ -313,6 +313,40 @@ describe('Schema Parser', () => {
         expect(result._0._0).toBe('String');
     });
 
+    test('skip _tag field with const in object', () => {
+        const input = {
+            type: "object",
+            properties: {
+                _tag: { type: "string", const: "MyType" },
+                name: { type: "string" }
+            },
+            required: ["_tag", "name"]
+        };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Object');
+
+        const fields = result._0._0;
+        expect(fields.length).toBe(1);  // только name, без _tag
+        expect(fields[0].name).toBe('name');
+    });
+
+    test('field with default is required', () => {
+        const input = {
+            type: "object",
+            properties: {
+                count: { type: "integer", default: 0 }
+            }
+            // count НЕ в required[], но имеет default
+        };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        const field = result._0._0.find(f => f.name === 'count');
+        expect(field.required).toBe(true);
+    });
+
     test('parse OpenAPI components/schemas', () => {
         const doc = {
             openapi: "3.0.0",

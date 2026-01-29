@@ -21,3 +21,18 @@ type apiResult =
   | Loading
   | Data({value: user})
   | Failed({error: string, code: int})
+
+@genType @tag("_tag") @schema
+type ads = {
+  _tag: [#Ads],
+  value: string,
+}
+
+@genType @tag("_tag") @schema
+type origin = {
+  _tag: [#Origin],
+  value: string,
+}
+
+@genType @tag("_tag") @schema
+type common = Origin(origin) | Ads(ads)
