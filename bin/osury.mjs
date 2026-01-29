@@ -86,12 +86,8 @@ function generate(inputPath, outputPath) {
     const dictShimPath = path.join(outputDir || ".", "Dict.gen.tsx");
     fs.writeFileSync(dictShimPath, Codegen.generateDictShim());
 
-    // Write Null.gen.tsx shim for @genType
-    const nullShimPath = path.join(outputDir || ".", "Null.gen.tsx");
-    fs.writeFileSync(nullShimPath, Codegen.generateNullShim());
-
     console.log(`Generated ${result._0.length} types to ${outputPath}`);
-    console.log(`Generated shims: Dict.gen.tsx, Null.gen.tsx`);
+    console.log(`Generated shim: ${dictShimPath}`);
   } else {
     console.error("Parse errors:");
     result._0.forEach((err) => {

@@ -727,10 +727,4 @@ describe('Code Generator', () => {
         expect(shim).toContain('[key: string]: T');
     });
 
-    test('generateNullShim returns TypeScript shim', () => {
-        const shim = Codegen.generateNullShim();
-
-        expect(shim).toContain('export type t<T>');
-        expect(shim).toContain('T | null');
-    });
 });
