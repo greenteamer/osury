@@ -38,10 +38,8 @@ nullable          →  option<T>
 
 ## Rules
 
-1. No imports from `src/compiler/` (IC10 compiler)
-2. Use `src/compiler/` as architecture reference only
-3. Output goes to `src/generated/` or user-specified path
-4. Discriminant field for variants: `_tag` (Effect TS standard)
+1. Output goes to `src/generated/` or user-specified path
+2. Discriminant field for variants: `_tag` (Effect TS standard)
 
 ---
 
@@ -100,7 +98,7 @@ Error at #/components/schemas/User/properties/name:
 // Good: structured errors
 let parse: JSON.t => result<Schema.t, errors>
 
-// Bad: string errors (IC10 style - don't do this)
+// Bad: string errors (don't do this)
 let parse: JSON.t => result<Schema.t, string>
 ```
 
@@ -137,8 +135,8 @@ test('error: unknown type', () => {
 - Move forward with failing tests
 - Skip test for "later"
 
-**Test folder:** `src/codegen/openapi/tests/`
-**Test data:** `src/codegen/openapi/openapi.json`
+**Test folder:** `src/tests/`
+**Test data:** `openapi.json`
 
 ---
 
@@ -149,5 +147,5 @@ test('error: unknown type', () => {
 npm run res:build
 
 # Test
-npm test -- src/codegen/openapi/tests
+npm test
 ```

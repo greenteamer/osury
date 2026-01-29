@@ -32,6 +32,7 @@ and schemaType =
   | Enum(array<string>)
   | PolyVariant(array<variantCase>)
   | Dict(schemaType)
+  | Union(array<schemaType>)
 
 // Helper: check if schema is null type
 let isNullType = (json: JSON.t): bool => {
@@ -126,26 +127,66 @@ and parseArrayType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> =
   }
 }
 
-// Helper: parse anyOf (nullable pattern)
+// Helper: parse anyOf (nullable pattern or union type)
 and parseAnyOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
-  if Array.length(items) == 2 {
-    let hasNull = items->Array.some(isNullType)
-    if hasNull {
-      let nonNullItem = items->Array.find(item => !isNullType(item))
-      switch nonNullItem {
-      | Some(Object(dict)) =>
-        switch parsePrimitiveType(dict) {
-        | Ok(innerType) => Ok(Optional(innerType))
-        | Error(e) => Error(e)
-        }
-      | Some(_) => Error([Errors.makeError(~kind=InvalidJson("anyOf item must be object"), ())])
-      | None => Error([Errors.makeError(~kind=InvalidJson("anyOf with only null types"), ())])
+  let hasNull = items->Array.some(isNullType)
+  let nonNullItems = items->Array.filter(item => !isNullType(item))
+
+  if hasNull && Array.length(nonNullItems) == 1 {
+    // Nullable pattern: [T, null] → Optional(T)
+    switch nonNullItems->Array.get(0) {
+    | Some(Object(dict)) =>
+      switch parseObject(dict) {
+      | Ok(innerType) => Ok(Optional(innerType))
+      | Error(e) => Error(e)
       }
+    | Some(_) => Error([Errors.makeError(~kind=InvalidJson("anyOf item must be object"), ())])
+    | None => Error([Errors.makeError(~kind=InvalidJson("anyOf with only null types"), ())])
+    }
+  } else if !hasNull && Array.length(nonNullItems) >= 2 {
+    // Union type: [A, B, ...] → Union([A, B, ...])
+    let results = nonNullItems->Array.map(parseSchema)
+    let errors = results->Array.filterMap(r =>
+      switch r {
+      | Error(e) => Some(e)
+      | Ok(_) => None
+      }
+    )->Array.flat
+
+    if Array.length(errors) > 0 {
+      Error(errors)
     } else {
-      Error([Errors.makeError(~kind=UnsupportedFeature("anyOf without null (union types)"), ())])
+      let types = results->Array.filterMap(r =>
+        switch r {
+        | Ok(t) => Some(t)
+        | Error(_) => None
+        }
+      )
+      Ok(Union(types))
+    }
+  } else if hasNull && Array.length(nonNullItems) >= 2 {
+    // Union with nullable: [A, B, null] → Optional(Union([A, B]))
+    let results = nonNullItems->Array.map(parseSchema)
+    let errors = results->Array.filterMap(r =>
+      switch r {
+      | Error(e) => Some(e)
+      | Ok(_) => None
+      }
+    )->Array.flat
+
+    if Array.length(errors) > 0 {
+      Error(errors)
+    } else {
+      let types = results->Array.filterMap(r =>
+        switch r {
+        | Ok(t) => Some(t)
+        | Error(_) => None
+        }
+      )
+      Ok(Optional(Union(types)))
     }
   } else {
-    Error([Errors.makeError(~kind=UnsupportedFeature("anyOf with more than 2 items"), ())])
+    Error([Errors.makeError(~kind=InvalidJson("anyOf must have at least 2 items"), ())])
   }
 }
 
