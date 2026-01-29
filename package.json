@@ -1,15 +1,19 @@
 {
   "name": "osury",
   "type": "module",
-  "description": "Openapi schema to rescript sury schema with types",
-  "version": "0.1.5",
+  "description": "Generate ReScript types with Sury schemas from OpenAPI specifications",
+  "version": "0.2.0",
+  "license": "MIT",
   "bin": {
-    "osury": "./bin/osury.js"
+    "osury": "./bin/osury.mjs"
   },
   "files": [
     "bin/",
-    "dist/",
-    "package.json",
+    "src/Codegen.res.mjs",
+    "src/Errors.res.mjs",
+    "src/OpenAPIParser.res.mjs",
+    "src/Schema.res.mjs",
+    "src/Schema.gen.tsx",
     "README.md"
   ],
   "scripts": {
@@ -18,21 +22,39 @@
     "res:dev": "rescript watch",
     "codegen": "node scripts/codegen.mjs",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "build:compile": "esbuild scripts/codegen.js --bundle --platform=node --outfile=dist/codegen.js --format=cjs --external:fs --external:path",
-    "build:bundle": "npm run build:compile",
-    "prepublishOnly": "npm run res:build && npm run build:bundle"
+    "prepublishOnly": "npm run res:build && npm test"
   },
   "devDependencies": {
     "@rescript/core": "^1.6.1",
-    "@rescript/language-server": "^1.66.0",
-    "@types/node": "^18.0.0",
-    "esbuild": "^0.27.2",
     "gentype": "^4.5.0",
     "jest": "^30.2.0",
-    "rescript": "^12.1.0"
-  },
-  "dependencies": {
+    "rescript": "^12.1.0",
     "sury": "^11.0.0-alpha.4",
     "sury-ppx": "^11.0.0-alpha.2"
+  },
+  "peerDependencies": {
+    "sury": ">=11.0.0-alpha.4",
+    "sury-ppx": ">=11.0.0-alpha.2"
+  },
+  "peerDependenciesMeta": {
+    "sury": {
+      "optional": true
+    },
+    "sury-ppx": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "openapi",
+    "rescript",
+    "codegen",
+    "sury",
+    "schema",
+    "typescript",
+    "types"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropic/osury"
   }
 }

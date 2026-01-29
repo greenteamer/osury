@@ -53,3 +53,9 @@ Thumbs.db
 .cache/
 coverage/
 .nyc_output/
+
+# Claude
+.claude/
+CLAUDE.md
+TECHNICAL_DECISIONS.md
+*REFACTORING*.md
