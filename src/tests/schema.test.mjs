@@ -458,6 +458,48 @@ describe('Code Generator', () => {
         expect(result).toContain('@schema');
     });
 
+    test('skip @schema for types with inline Union (incompatible with Sury PPX)', () => {
+        const schema = {
+            name: 'Animal',
+            schema: {
+                _tag: 'Object',
+                _0: [
+                    { name: 'id', type: 'Integer', required: true },
+                    {
+                        name: 'pet',
+                        type: {
+                            _tag: 'Union',
+                            _0: [
+                                { _tag: 'Ref', _0: 'Cat' },
+                                { _tag: 'Ref', _0: 'Dog' }
+                            ]
+                        },
+                        required: true
+                    }
+                ]
+            }
+        };
+        const result = Codegen.generateTypeDef(schema);
+        expect(result).toContain('@genType');
+        expect(result).not.toContain('@schema');
+    });
+
+    test('include @schema for types without Union', () => {
+        const schema = {
+            name: 'User',
+            schema: {
+                _tag: 'Object',
+                _0: [
+                    { name: 'id', type: 'Integer', required: true },
+                    { name: 'name', type: 'String', required: true }
+                ]
+            }
+        };
+        const result = Codegen.generateTypeDef(schema);
+        expect(result).toContain('@genType');
+        expect(result).toContain('@schema');
+    });
+
     test('generate full module from OpenAPI doc', () => {
         const doc = {
             openapi: "3.0.0",
@@ -483,7 +525,11 @@ describe('Code Generator', () => {
         expect(parseResult.TAG).toBe('Ok');
 
         const code = Codegen.generateModule(parseResult._0);
-        expect(code).toContain('type rec user = {');
-        expect(code).toContain('and status = [#pending | #active]');
+        // Each type is now defined separately (topologically sorted)
+        expect(code).toContain('type user = {');
+        expect(code).toContain('type status = [#pending | #active]');
+        // Both should have annotations
+        expect(code).toContain('@genType');
+        expect(code).toContain('@schema');
     });
 });
