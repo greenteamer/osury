@@ -90,43 +90,61 @@ function parsePrimitiveType(dict) {
       case "object" :
         return parseObjectType(dict);
       case "string" :
-        let match$1 = dict["enum"];
-        if (match$1 === undefined) {
-          return {
-            TAG: "Ok",
-            _0: "String"
-          };
-        }
+        let match$1 = dict["const"];
         let exit = 0;
-        if (Array.isArray(match$1)) {
-          let values = parseEnumValues(match$1);
-          if (values !== undefined) {
+        if (match$1 !== undefined) {
+          if (typeof match$1 === "string") {
             return {
               TAG: "Ok",
               _0: {
                 _tag: "Enum",
-                _0: values
+                _0: [match$1]
               }
             };
-          } else {
+          }
+          exit = 2;
+        } else {
+          exit = 2;
+        }
+        if (exit === 2) {
+          let match$2 = dict["enum"];
+          if (match$2 === undefined) {
+            return {
+              TAG: "Ok",
+              _0: "String"
+            };
+          }
+          let exit$1 = 0;
+          if (Array.isArray(match$2)) {
+            let values = parseEnumValues(match$2);
+            if (values !== undefined) {
+              return {
+                TAG: "Ok",
+                _0: {
+                  _tag: "Enum",
+                  _0: values
+                }
+              };
+            } else {
+              return {
+                TAG: "Error",
+                _0: [Errors.makeError({
+                    TAG: "InvalidJson",
+                    _0: "enum values must be strings"
+                  }, undefined, undefined, undefined)]
+              };
+            }
+          }
+          exit$1 = 3;
+          if (exit$1 === 3) {
             return {
               TAG: "Error",
               _0: [Errors.makeError({
                   TAG: "InvalidJson",
-                  _0: "enum values must be strings"
+                  _0: "enum must be an array"
                 }, undefined, undefined, undefined)]
             };
           }
-        }
-        exit = 2;
-        if (exit === 2) {
-          return {
-            TAG: "Error",
-            _0: [Errors.makeError({
-                TAG: "InvalidJson",
-                _0: "enum must be an array"
-              }, undefined, undefined, undefined)]
-          };
         }
         break;
       default:

@@ -115,6 +115,18 @@ describe('Schema Parser', () => {
         expect(result._0._0).toEqual(["pending", "active", "closed"]);
     });
 
+    test('parse const as single-value enum (for _tag literal)', () => {
+        const input = {
+            type: "string",
+            const: "AdsExecutiveSummaryResponseSchema"
+        };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Enum');
+        expect(result._0._0).toEqual(["AdsExecutiveSummaryResponseSchema"]);
+    });
+
     test('parse nullable object', () => {
         const input = {
             anyOf: [
@@ -431,6 +443,21 @@ describe('Code Generator', () => {
         expect(result).toContain('name: string');
     });
 
+    test('generate type with @genType and @schema annotations', () => {
+        const schema = {
+            name: 'User',
+            schema: {
+                _tag: 'Object',
+                _0: [
+                    { name: 'id', type: 'Integer', required: true }
+                ]
+            }
+        };
+        const result = Codegen.generateTypeDef(schema);
+        expect(result).toContain('@genType');
+        expect(result).toContain('@schema');
+    });
+
     test('generate full module from OpenAPI doc', () => {
         const doc = {
             openapi: "3.0.0",
@@ -456,7 +483,7 @@ describe('Code Generator', () => {
         expect(parseResult.TAG).toBe('Ok');
 
         const code = Codegen.generateModule(parseResult._0);
-        expect(code).toContain('type user = {');
-        expect(code).toContain('type status = [#pending | #active]');
+        expect(code).toContain('type rec user = {');
+        expect(code).toContain('and status = [#pending | #active]');
     });
 });
