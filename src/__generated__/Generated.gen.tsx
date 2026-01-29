@@ -5,93 +5,13 @@
 
 import type {t as Dict_t} from './Dict.gen';
 
-export type timelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diff = 
+export type floatOrDict = 
     { _tag: "Float"; _0: number }
   | { _tag: "Dict"; _0: Dict_t<string> };
 
-export type timelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type timelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type timelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type timelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type timelineDataPoint_dict__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type validationError_loc = 
+export type stringOrInt = 
     { _tag: "String"; _0: string }
   | { _tag: "Int"; _0: number };
-
-export type whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diff = 
-    { _tag: "Float"; _0: number }
-  | { _tag: "Dict"; _0: Dict_t<string> };
 
 export type adsExecutiveSummaryResponseSchema = {
   readonly ad_sales: number; 
@@ -337,11 +257,11 @@ export type timelineDataPoint_dict_ = {
   readonly value: Dict_t<string>; 
   readonly compare_value: (undefined | Dict_t<string>); 
   readonly compare_diff: (undefined | Dict_t<string>); 
-  readonly compare_percent_diff: (undefined | timelineDataPoint_dict__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type validationError = {
-  readonly loc: validationError_loc[]; 
+  readonly loc: stringOrInt[]; 
   readonly msg: string; 
   readonly type: string
 };
@@ -373,7 +293,7 @@ export type timelineDataPoint_AdsExecutiveSummaryResponseSchema_ = {
   readonly value: adsExecutiveSummaryResponseSchema; 
   readonly compare_value: (undefined | adsExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | adsExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | timelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_ = {
@@ -383,10 +303,10 @@ export type whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_ = {
   readonly baseline: adsExecutiveSummaryResponseSchema; 
   readonly projected: (undefined | adsExecutiveSummaryResponseSchema); 
   readonly diff: (undefined | adsExecutiveSummaryResponseSchema); 
-  readonly percent_diff: (undefined | whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__percent_diff); 
+  readonly percent_diff: (undefined | floatOrDict); 
   readonly compare_value: (undefined | adsExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | adsExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type attributionExecutiveSummaryWithForecastBreakdown = {
@@ -413,7 +333,7 @@ export type timelineDataPoint_AttributionExecutiveSummaryResponseSchema_ = {
   readonly value: attributionExecutiveSummaryResponseSchema; 
   readonly compare_value: (undefined | attributionExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | attributionExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | timelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_ = {
@@ -423,10 +343,10 @@ export type whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_ =
   readonly baseline: attributionExecutiveSummaryResponseSchema; 
   readonly projected: (undefined | attributionExecutiveSummaryResponseSchema); 
   readonly diff: (undefined | attributionExecutiveSummaryResponseSchema); 
-  readonly percent_diff: (undefined | whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__percent_diff); 
+  readonly percent_diff: (undefined | floatOrDict); 
   readonly compare_value: (undefined | attributionExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | attributionExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type cFOExecutiveSummaryWithForecastBreakdown = {
@@ -454,7 +374,7 @@ export type timelineDataPoint_CFOExecutiveSummaryResponseSchema_ = {
   readonly value: cFOExecutiveSummaryResponseSchema; 
   readonly compare_value: (undefined | cFOExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | cFOExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | timelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_ = {
@@ -464,10 +384,10 @@ export type whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_ = {
   readonly baseline: cFOExecutiveSummaryResponseSchema; 
   readonly projected: (undefined | cFOExecutiveSummaryResponseSchema); 
   readonly diff: (undefined | cFOExecutiveSummaryResponseSchema); 
-  readonly percent_diff: (undefined | whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__percent_diff); 
+  readonly percent_diff: (undefined | floatOrDict); 
   readonly compare_value: (undefined | cFOExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | cFOExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type tierLevelForecastParams = {
@@ -575,7 +495,7 @@ export type timelineDataPoint_InventoryExecutiveSummaryResponseSchema_ = {
   readonly value: inventoryExecutiveSummaryResponseSchema; 
   readonly compare_value: (undefined | inventoryExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | inventoryExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | timelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_ = {
@@ -585,10 +505,10 @@ export type whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_ = {
   readonly baseline: inventoryExecutiveSummaryResponseSchema; 
   readonly projected: (undefined | inventoryExecutiveSummaryResponseSchema); 
   readonly diff: (undefined | inventoryExecutiveSummaryResponseSchema); 
-  readonly percent_diff: (undefined | whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__percent_diff); 
+  readonly percent_diff: (undefined | floatOrDict); 
   readonly compare_value: (undefined | inventoryExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | inventoryExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type marketIntelligenceExecutiveSummaryWithForecastBreakdown = {
@@ -613,7 +533,7 @@ export type timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_ 
   readonly value: marketIntelligenceExecutiveSummaryResponseSchema; 
   readonly compare_value: (undefined | marketIntelligenceExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | marketIntelligenceExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
@@ -623,10 +543,10 @@ export type whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSc
   readonly baseline: marketIntelligenceExecutiveSummaryResponseSchema; 
   readonly projected: (undefined | marketIntelligenceExecutiveSummaryResponseSchema); 
   readonly diff: (undefined | marketIntelligenceExecutiveSummaryResponseSchema); 
-  readonly percent_diff: (undefined | whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__percent_diff); 
+  readonly percent_diff: (undefined | floatOrDict); 
   readonly compare_value: (undefined | marketIntelligenceExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | marketIntelligenceExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type organicExecutiveSummaryWithForecastBreakdown = {
@@ -648,10 +568,10 @@ export type whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema_ = {
   readonly baseline: organicExecutiveSummaryResponseSchema; 
   readonly projected: (undefined | organicExecutiveSummaryResponseSchema); 
   readonly diff: (undefined | organicExecutiveSummaryResponseSchema); 
-  readonly percent_diff: (undefined | whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__percent_diff); 
+  readonly percent_diff: (undefined | floatOrDict); 
   readonly compare_value: (undefined | organicExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | organicExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type timelineDataPoint_TotalExecutiveSummaryResponseSchema_ = {
@@ -661,7 +581,7 @@ export type timelineDataPoint_TotalExecutiveSummaryResponseSchema_ = {
   readonly value: totalExecutiveSummaryResponseSchema; 
   readonly compare_value: (undefined | totalExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | totalExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | timelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type totalExecutiveSummaryWithForecastBreakdown = {
@@ -688,67 +608,19 @@ export type whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema_ = {
   readonly baseline: totalExecutiveSummaryResponseSchema; 
   readonly projected: (undefined | totalExecutiveSummaryResponseSchema); 
   readonly diff: (undefined | totalExecutiveSummaryResponseSchema); 
-  readonly percent_diff: (undefined | whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__percent_diff); 
+  readonly percent_diff: (undefined | floatOrDict); 
   readonly compare_value: (undefined | totalExecutiveSummaryResponseSchema); 
   readonly compare_diff: (undefined | totalExecutiveSummaryResponseSchema); 
-  readonly compare_percent_diff: (undefined | whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diff)
+  readonly compare_percent_diff: (undefined | floatOrDict)
 };
 
 export type inventoryMetricsResponse = { readonly daily_metrics: dailyInventoryMetrics[]; readonly total_metrics: totalInventoryMetrics };
 
-export type whatifResponse_AdsExecutiveSummaryResponseSchema__whatif_applied = 
+export type whatifAppliedEntryOrDict = 
     { _tag: "WhatifAppliedEntry"; _0: whatifAppliedEntry }
   | { _tag: "Dict"; _0: Dict_t<string> };
 
-export type whatifResponse_AttributionExecutiveSummaryResponseSchema__whatif_applied = 
-    { _tag: "WhatifAppliedEntry"; _0: whatifAppliedEntry }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_CFOExecutiveSummaryResponseSchema__whatif_applied = 
-    { _tag: "WhatifAppliedEntry"; _0: whatifAppliedEntry }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_InventoryExecutiveSummaryResponseSchema__whatif_applied = 
-    { _tag: "WhatifAppliedEntry"; _0: whatifAppliedEntry }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__whatif_applied = 
-    { _tag: "WhatifAppliedEntry"; _0: whatifAppliedEntry }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_OrganicExecutiveSummaryResponseSchema__whatif_applied = 
-    { _tag: "WhatifAppliedEntry"; _0: whatifAppliedEntry }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_TotalExecutiveSummaryResponseSchema__whatif_applied = 
-    { _tag: "WhatifAppliedEntry"; _0: whatifAppliedEntry }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_AdsExecutiveSummaryResponseSchema__model_info = 
-    { _tag: "WhatifModelInfo"; _0: whatifModelInfo }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_AttributionExecutiveSummaryResponseSchema__model_info = 
-    { _tag: "WhatifModelInfo"; _0: whatifModelInfo }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_CFOExecutiveSummaryResponseSchema__model_info = 
-    { _tag: "WhatifModelInfo"; _0: whatifModelInfo }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_InventoryExecutiveSummaryResponseSchema__model_info = 
-    { _tag: "WhatifModelInfo"; _0: whatifModelInfo }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__model_info = 
-    { _tag: "WhatifModelInfo"; _0: whatifModelInfo }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_OrganicExecutiveSummaryResponseSchema__model_info = 
-    { _tag: "WhatifModelInfo"; _0: whatifModelInfo }
-  | { _tag: "Dict"; _0: Dict_t<string> };
-
-export type whatifResponse_TotalExecutiveSummaryResponseSchema__model_info = 
+export type whatifModelInfoOrDict = 
     { _tag: "WhatifModelInfo"; _0: whatifModelInfo }
   | { _tag: "Dict"; _0: Dict_t<string> };
 
@@ -857,8 +729,8 @@ export type whatifResponse_AdsExecutiveSummaryResponseSchema_ = {
   readonly projected: adsExecutiveSummaryResponseSchema; 
   readonly diff: Dict_t<(undefined | number)>; 
   readonly percent_diff: Dict_t<(undefined | number)>; 
-  readonly whatif_applied: Dict_t<whatifResponse_AdsExecutiveSummaryResponseSchema__whatif_applied>; 
-  readonly model_info: whatifResponse_AdsExecutiveSummaryResponseSchema__model_info; 
+  readonly whatif_applied: Dict_t<whatifAppliedEntryOrDict>; 
+  readonly model_info: whatifModelInfoOrDict; 
   readonly warnings: (undefined | string[])
 };
 
@@ -867,8 +739,8 @@ export type whatifResponse_AttributionExecutiveSummaryResponseSchema_ = {
   readonly projected: attributionExecutiveSummaryResponseSchema; 
   readonly diff: Dict_t<(undefined | number)>; 
   readonly percent_diff: Dict_t<(undefined | number)>; 
-  readonly whatif_applied: Dict_t<whatifResponse_AttributionExecutiveSummaryResponseSchema__whatif_applied>; 
-  readonly model_info: whatifResponse_AttributionExecutiveSummaryResponseSchema__model_info; 
+  readonly whatif_applied: Dict_t<whatifAppliedEntryOrDict>; 
+  readonly model_info: whatifModelInfoOrDict; 
   readonly warnings: (undefined | string[])
 };
 
@@ -877,8 +749,8 @@ export type whatifResponse_CFOExecutiveSummaryResponseSchema_ = {
   readonly projected: cFOExecutiveSummaryResponseSchema; 
   readonly diff: Dict_t<(undefined | number)>; 
   readonly percent_diff: Dict_t<(undefined | number)>; 
-  readonly whatif_applied: Dict_t<whatifResponse_CFOExecutiveSummaryResponseSchema__whatif_applied>; 
-  readonly model_info: whatifResponse_CFOExecutiveSummaryResponseSchema__model_info; 
+  readonly whatif_applied: Dict_t<whatifAppliedEntryOrDict>; 
+  readonly model_info: whatifModelInfoOrDict; 
   readonly warnings: (undefined | string[])
 };
 
@@ -887,8 +759,8 @@ export type whatifResponse_InventoryExecutiveSummaryResponseSchema_ = {
   readonly projected: inventoryExecutiveSummaryResponseSchema; 
   readonly diff: Dict_t<(undefined | number)>; 
   readonly percent_diff: Dict_t<(undefined | number)>; 
-  readonly whatif_applied: Dict_t<whatifResponse_InventoryExecutiveSummaryResponseSchema__whatif_applied>; 
-  readonly model_info: whatifResponse_InventoryExecutiveSummaryResponseSchema__model_info; 
+  readonly whatif_applied: Dict_t<whatifAppliedEntryOrDict>; 
+  readonly model_info: whatifModelInfoOrDict; 
   readonly warnings: (undefined | string[])
 };
 
@@ -897,8 +769,8 @@ export type whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
   readonly projected: marketIntelligenceExecutiveSummaryResponseSchema; 
   readonly diff: Dict_t<(undefined | number)>; 
   readonly percent_diff: Dict_t<(undefined | number)>; 
-  readonly whatif_applied: Dict_t<whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__whatif_applied>; 
-  readonly model_info: whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__model_info; 
+  readonly whatif_applied: Dict_t<whatifAppliedEntryOrDict>; 
+  readonly model_info: whatifModelInfoOrDict; 
   readonly warnings: (undefined | string[])
 };
 
@@ -907,8 +779,8 @@ export type whatifResponse_OrganicExecutiveSummaryResponseSchema_ = {
   readonly projected: organicExecutiveSummaryResponseSchema; 
   readonly diff: Dict_t<(undefined | number)>; 
   readonly percent_diff: Dict_t<(undefined | number)>; 
-  readonly whatif_applied: Dict_t<whatifResponse_OrganicExecutiveSummaryResponseSchema__whatif_applied>; 
-  readonly model_info: whatifResponse_OrganicExecutiveSummaryResponseSchema__model_info; 
+  readonly whatif_applied: Dict_t<whatifAppliedEntryOrDict>; 
+  readonly model_info: whatifModelInfoOrDict; 
   readonly warnings: (undefined | string[])
 };
 
@@ -917,7 +789,7 @@ export type whatifResponse_TotalExecutiveSummaryResponseSchema_ = {
   readonly projected: totalExecutiveSummaryResponseSchema; 
   readonly diff: Dict_t<(undefined | number)>; 
   readonly percent_diff: Dict_t<(undefined | number)>; 
-  readonly whatif_applied: Dict_t<whatifResponse_TotalExecutiveSummaryResponseSchema__whatif_applied>; 
-  readonly model_info: whatifResponse_TotalExecutiveSummaryResponseSchema__model_info; 
+  readonly whatif_applied: Dict_t<whatifAppliedEntryOrDict>; 
+  readonly model_info: whatifModelInfoOrDict; 
   readonly warnings: (undefined | string[])
 };

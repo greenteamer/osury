@@ -149,41 +149,68 @@ type extractedUnion = {
   schema: Schema.schemaType,
 }
 
+// Generate a structural name for a Union type based on its members
+// Union([String, Number]) → "stringOrFloat"
+// Union([Ref("Cat"), Ref("Dog")]) → "catOrDog"
+let getUnionName = (types: array<Schema.schemaType>): string => {
+  let names = types->Array.map(t => {
+    switch t {
+    | String => "string"
+    | Number => "float"
+    | Integer => "int"
+    | Boolean => "bool"
+    | Null => "null"
+    | Ref(name) => lcFirst(name)
+    | Dict(_) => "dict"
+    | Array(_) => "array"
+    | _ => "unknown"
+    }
+  })
+  // Join with "Or": [a, b, c] → "aOrBOrC"
+  if Array.length(names) == 0 {
+    "emptyUnion"
+  } else {
+    let first = names->Array.get(0)->Option.getOr("unknown")
+    let rest = names->Array.sliceToEnd(~start=1)
+    first ++ rest->Array.map(n => "Or" ++ ucFirst(n))->Array.join("")
+  }
+}
+
 // Extract Union types from schema fields
 // Returns array of {name, schema} for each Union found
-let rec extractUnions = (parentName: string, schema: Schema.schemaType): array<extractedUnion> => {
+// Uses structural naming based on Union members
+let rec extractUnions = (_parentName: string, schema: Schema.schemaType): array<extractedUnion> => {
   switch schema {
   | Object(fields) =>
     fields->Array.flatMap(field => {
-      let fieldUnions = extractUnionsFromType(lcFirst(parentName) ++ "_" ++ field.name, field.type_)
-      fieldUnions
+      extractUnionsFromType(field.type_)
     })
   | _ => []
   }
 }
 
 // Extract Union from a type, handling wrappers like Optional, Array, Dict
-and extractUnionsFromType = (name: string, schema: Schema.schemaType): array<extractedUnion> => {
+and extractUnionsFromType = (schema: Schema.schemaType): array<extractedUnion> => {
   switch schema {
-  | Union(_) => [{name, schema}]
-  | Optional(inner) => extractUnionsFromType(name, inner)
-  | Array(inner) => extractUnionsFromType(name, inner)
-  | Dict(inner) => extractUnionsFromType(name, inner)
+  | Union(types) =>
+    let name = getUnionName(types)
+    [{name, schema}]
+  | Optional(inner) => extractUnionsFromType(inner)
+  | Array(inner) => extractUnionsFromType(inner)
+  | Dict(inner) => extractUnionsFromType(inner)
   | Object(fields) =>
     // Nested object - extract unions from its fields
-    fields->Array.flatMap(field => {
-      extractUnionsFromType(name ++ "_" ++ field.name, field.type_)
-    })
+    fields->Array.flatMap(field => extractUnionsFromType(field.type_))
   | _ => []
   }
 }
 
-// Replace Union types with Ref to extracted type
-let rec replaceUnions = (parentName: string, schema: Schema.schemaType): Schema.schemaType => {
+// Replace Union types with Ref to extracted type (using structural name)
+let rec replaceUnions = (_parentName: string, schema: Schema.schemaType): Schema.schemaType => {
   switch schema {
   | Object(fields) =>
     let newFields = fields->Array.map(field => {
-      let newType = replaceUnionInType(lcFirst(parentName) ++ "_" ++ field.name, field.type_)
+      let newType = replaceUnionInType(field.type_)
       {...field, type_: newType}
     })
     Object(newFields)
@@ -192,16 +219,16 @@ let rec replaceUnions = (parentName: string, schema: Schema.schemaType): Schema.
 }
 
 // Replace Union in a type, handling wrappers like Optional, Array, Dict
-and replaceUnionInType = (name: string, schema: Schema.schemaType): Schema.schemaType => {
+and replaceUnionInType = (schema: Schema.schemaType): Schema.schemaType => {
   switch schema {
-  | Union(_) => Ref(name)
-  | Optional(inner) => Optional(replaceUnionInType(name, inner))
-  | Array(inner) => Array(replaceUnionInType(name, inner))
-  | Dict(inner) => Dict(replaceUnionInType(name, inner))
+  | Union(types) => Ref(getUnionName(types))
+  | Optional(inner) => Optional(replaceUnionInType(inner))
+  | Array(inner) => Array(replaceUnionInType(inner))
+  | Dict(inner) => Dict(replaceUnionInType(inner))
   | Object(fields) =>
     // Nested object - replace unions in its fields
     let newFields = fields->Array.map(field => {
-      let newType = replaceUnionInType(name ++ "_" ++ field.name, field.type_)
+      let newType = replaceUnionInType(field.type_)
       {...field, type_: newType}
     })
     Object(newFields)
@@ -407,8 +434,9 @@ type ${typeName} = ${typeBody}`
 
 // Generate full module from array of schemas
 // 1. Extract inline Union types into separate named types
-// 2. Replace inline Union with Ref to extracted type
-// 3. Sort topologically and generate
+// 2. Deduplicate identical unions by structural name
+// 3. Replace inline Union with Ref to extracted type
+// 4. Sort topologically and generate
 let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
   // Step 1: Extract all unions from each schema
   let extractedUnions = schemas->Array.flatMap(s => {
@@ -417,15 +445,26 @@ let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
     })
   })
 
-  // Step 2: Replace unions with refs in original schemas
+  // Step 2: Deduplicate by name (structural names are same for identical unions)
+  let seen = Dict.make()
+  let uniqueUnions = extractedUnions->Array.filter(u => {
+    if seen->Dict.get(u.name)->Option.isSome {
+      false
+    } else {
+      seen->Dict.set(u.name, true)
+      true
+    }
+  })
+
+  // Step 3: Replace unions with refs in original schemas
   let modifiedSchemas = schemas->Array.map(s => {
     {OpenAPIParser.name: s.name, schema: replaceUnions(s.name, s.schema)}
   })
 
-  // Step 3: Combine extracted unions + modified originals
-  let allSchemas = Array.concat(extractedUnions, modifiedSchemas)
+  // Step 4: Combine unique unions + modified originals
+  let allSchemas = Array.concat(uniqueUnions, modifiedSchemas)
 
-  // Step 4: Sort topologically and generate
+  // Step 5: Sort topologically and generate
   let sorted = topologicalSort(allSchemas)
   let skipSet = Dict.make() // Not needed anymore, all types have @schema
   sorted->Array.map(s => generateTypeDefWithSkipSet(s, skipSet))->Array.join("\n\n")

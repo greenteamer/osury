@@ -546,7 +546,8 @@ describe('Code Generator', () => {
         const extracted = Codegen.extractUnions('Parent', schema);
 
         expect(extracted.length).toBe(1);
-        expect(extracted[0].name).toBe('parent_value');
+        // Structural name based on union members
+        expect(extracted[0].name).toBe('aOrB');
         expect(extracted[0].schema._tag).toBe('Union');
     });
 
@@ -565,7 +566,8 @@ describe('Code Generator', () => {
         const extracted = Codegen.extractUnions('Parent', schema);
 
         expect(extracted.length).toBe(1);
-        expect(extracted[0].name).toBe('parent_value');
+        // Structural name based on union members
+        expect(extracted[0].name).toBe('aOrB');
     });
 
     test('replaceUnions replaces Union with Ref', () => {
@@ -581,7 +583,8 @@ describe('Code Generator', () => {
 
         const field = replaced._0.find(f => f.name === 'value');
         expect(field.type._tag).toBe('Ref');
-        expect(field.type._0).toBe('parent_value');
+        // Structural name based on union members
+        expect(field.type._0).toBe('aOrB');
     });
 
     test('generate variant type with @tag annotation', () => {
@@ -664,7 +667,41 @@ describe('Code Generator', () => {
         expect(code).toContain('@schema');
         // Extracted union should have @tag
         expect(code).toContain('@tag("_tag")');
-        // Should have the extracted union type
-        expect(code).toContain('parent_value');
+        // Should have the extracted union type (structural name)
+        expect(code).toContain('typeAOrTypeB');
+    });
+
+    test('deduplicates identical Union structures', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    TypeA: {
+                        type: "object",
+                        properties: {
+                            value1: { anyOf: [{ type: "number" }, { type: "string" }] }
+                        }
+                    },
+                    TypeB: {
+                        type: "object",
+                        properties: {
+                            value2: { anyOf: [{ type: "number" }, { type: "string" }] }  // same structure
+                        }
+                    }
+                }
+            }
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+
+        // Should have ONE shared union type, not two
+        const unionMatches = code.match(/type\s+\w+\s*=\s*Float\(float\)\s*\|\s*String\(string\)/g);
+        expect(unionMatches.length).toBe(1);
+        // Both types should reference the same shared type (with option wrapper since not required)
+        expect(code).toContain('value1: option<floatOrString>');
+        expect(code).toContain('value2: option<floatOrString>');
     });
 });

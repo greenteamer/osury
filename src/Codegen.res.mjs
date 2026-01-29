@@ -225,7 +225,43 @@ function hasUnion(_schema) {
   };
 }
 
-function extractUnionsFromType(name, _schema) {
+function getUnionName(types) {
+  let names = types.map(t => {
+    if (typeof t !== "object") {
+      switch (t) {
+        case "String" :
+          return "string";
+        case "Number" :
+          return "float";
+        case "Integer" :
+          return "int";
+        case "Boolean" :
+          return "bool";
+        case "Null" :
+          return "null";
+      }
+    } else {
+      switch (t._tag) {
+        case "Array" :
+          return "array";
+        case "Ref" :
+          return lcFirst(t._0);
+        case "Dict" :
+          return "dict";
+        default:
+          return "unknown";
+      }
+    }
+  });
+  if (names.length === 0) {
+    return "emptyUnion";
+  }
+  let first = Core__Option.getOr(names[0], "unknown");
+  let rest = names.slice(1);
+  return first + rest.map(n => "Or" + ucFirst(n)).join("");
+}
+
+function extractUnionsFromType(_schema) {
   while (true) {
     let schema = _schema;
     if (typeof schema !== "object") {
@@ -233,13 +269,14 @@ function extractUnionsFromType(name, _schema) {
     }
     switch (schema._tag) {
       case "Object" :
-        return schema._0.flatMap(field => extractUnionsFromType(name + "_" + field.name, field.type));
+        return schema._0.flatMap(field => extractUnionsFromType(field.type));
       case "Optional" :
       case "Array" :
       case "Dict" :
         _schema = schema._0;
         continue;
       case "Union" :
+        let name = getUnionName(schema._0);
         return [{
             name: name,
             schema: schema
@@ -250,17 +287,17 @@ function extractUnionsFromType(name, _schema) {
   };
 }
 
-function extractUnions(parentName, schema) {
+function extractUnions(_parentName, schema) {
   if (typeof schema !== "object") {
     return [];
   } else if (schema._tag === "Object") {
-    return schema._0.flatMap(field => extractUnionsFromType(lcFirst(parentName) + "_" + field.name, field.type));
+    return schema._0.flatMap(field => extractUnionsFromType(field.type));
   } else {
     return [];
   }
 }
 
-function replaceUnionInType(name, schema) {
+function replaceUnionInType(schema) {
   if (typeof schema !== "object") {
     return schema;
   }
@@ -268,11 +305,11 @@ function replaceUnionInType(name, schema) {
     case "Optional" :
       return {
         _tag: "Optional",
-        _0: replaceUnionInType(name, schema._0)
+        _0: replaceUnionInType(schema._0)
       };
     case "Object" :
       let newFields = schema._0.map(field => {
-        let newType = replaceUnionInType(name + "_" + field.name, field.type);
+        let newType = replaceUnionInType(field.type);
         return {
           name: field.name,
           type: newType,
@@ -286,24 +323,24 @@ function replaceUnionInType(name, schema) {
     case "Array" :
       return {
         _tag: "Array",
-        _0: replaceUnionInType(name, schema._0)
+        _0: replaceUnionInType(schema._0)
       };
     case "Dict" :
       return {
         _tag: "Dict",
-        _0: replaceUnionInType(name, schema._0)
+        _0: replaceUnionInType(schema._0)
       };
     case "Union" :
       return {
         _tag: "Ref",
-        _0: name
+        _0: getUnionName(schema._0)
       };
     default:
       return schema;
   }
 }
 
-function replaceUnions(parentName, schema) {
+function replaceUnions(_parentName, schema) {
   if (typeof schema !== "object") {
     return schema;
   }
@@ -311,7 +348,7 @@ function replaceUnions(parentName, schema) {
     return schema;
   }
   let newFields = schema._0.map(field => {
-    let newType = replaceUnionInType(lcFirst(parentName) + "_" + field.name, field.type);
+    let newType = replaceUnionInType(field.type);
     return {
       name: field.name,
       type: newType,
@@ -494,11 +531,20 @@ function generateModule(schemas) {
     name: extracted.name,
     schema: extracted.schema
   })));
+  let seen = {};
+  let uniqueUnions = extractedUnions.filter(u => {
+    if (Core__Option.isSome(seen[u.name])) {
+      return false;
+    } else {
+      seen[u.name] = true;
+      return true;
+    }
+  });
   let modifiedSchemas = schemas.map(s => ({
     name: s.name,
     schema: replaceUnions(s.name, s.schema)
   }));
-  let allSchemas = extractedUnions.concat(modifiedSchemas);
+  let allSchemas = uniqueUnions.concat(modifiedSchemas);
   let sorted = topologicalSort(allSchemas);
   let skipSet = {};
   return sorted.map(s => generateTypeDefWithSkipSet(s, skipSet)).join("\n\n");
@@ -516,6 +562,7 @@ export {
   getTagForType,
   generateUnion,
   hasUnion,
+  getUnionName,
   extractUnions,
   extractUnionsFromType,
   replaceUnions,
