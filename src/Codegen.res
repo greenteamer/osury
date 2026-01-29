@@ -78,11 +78,16 @@ and generateRecord = (fields: array<Schema.field>): string => {
       } else {
         `option<${typeStr}>`
       }
-      // Build field with attributes
-      let nullableAttr = if isNullableType(field.type_) { "@s.nullable " } else { "" }
+      // Add @s.nullable attribute on the type (not field) for Nullable types
+      let finalType = if isNullableType(field.type_) {
+        `@s.nullable ${optionalType}`
+      } else {
+        optionalType
+      }
+      // Build field with @as attribute for reserved keywords
       let asAttr = if isReservedKeyword(field.name) { `@as("${field.name}") ` } else { "" }
       let fieldName = if isReservedKeyword(field.name) { `${field.name}_` } else { field.name }
-      `${nullableAttr}${asAttr}${fieldName}: ${optionalType}`
+      `${asAttr}${fieldName}: ${finalType}`
     })
     `{\n  ${fieldStrs->Array.join(",\n  ")}\n}`
   }
