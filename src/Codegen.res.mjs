@@ -144,10 +144,10 @@ function generateRecord(fields) {
   let fieldStrs = fields.map(field => {
     let typeStr = generateType(field.type);
     let optionalType = field.required || isOptionalType(field.type) ? typeStr : `option<` + typeStr + `>`;
-    let nullableAttr = isNullableType(field.type) ? "@s.nullable " : "";
+    let finalType = isNullableType(field.type) ? `@s.nullable ` + optionalType : optionalType;
     let asAttr = reservedKeywords.includes(field.name) ? `@as("` + field.name + `") ` : "";
     let fieldName = reservedKeywords.includes(field.name) ? field.name + `_` : field.name;
-    return nullableAttr + asAttr + fieldName + `: ` + optionalType;
+    return asAttr + fieldName + `: ` + finalType;
   });
   return `{\n  ` + fieldStrs.join(",\n  ") + `\n}`;
 }
