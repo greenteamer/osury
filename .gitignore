@@ -1,0 +1,55 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log
+.pnp.js
+.pnp.cjs
+
+# ReScript / BuckleScript / bs-platform build artifacts
+lib/
+lib/bs/
+lib/bs/___incremental/
+lib/bs/build.ninja
+lib/bs/install.ninja
+*.cmj
+*.cmo
+*.cmi
+*.cmt
+*.d
+
+# TypeScript / build outputs
+dist/
+out/
+build/
+*.js
+*.js.map
+*.d.ts
+# Но не игнорировать JS-файлы в tests/, bin/ и scripts/
+!tests/**/*.js
+!bin/**/*.js
+!scripts/**/*.js
+
+# VSCode
+.vscode/
+.history/
+
+# Logs
+logs/
+*.log
+
+# Coverage
+coverage/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+.cache/
+coverage/
+.nyc_output/

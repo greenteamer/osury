@@ -1,0 +1,30 @@
+{
+  "name": "osury",
+  "sources": [
+    {
+      "dir": "src",
+      "subdirs": true
+    },
+    {
+      "dir": "scripts",
+      "subdirs": true
+    }
+  ],
+  "package-specs": [
+    {
+      "module": "esmodule",
+      "in-source": true
+    }
+  ],
+  "suffix": ".res.mjs",
+  "dependencies": ["@rescript/core", "sury"],
+  "compiler-flags": ["-open RescriptCore"],
+  "ppx-flags": ["sury-ppx/bin"],
+  "gentypeconfig": {
+    "language": "typescript",
+    "shims": {},
+    "debug": {
+      "all": false
+    }
+  }
+}
