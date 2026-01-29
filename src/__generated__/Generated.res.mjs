@@ -2,7 +2,7 @@
 
 import * as S from "sury/src/S.res.mjs";
 
-let timelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
+let floatOrDictSchema = S.union([
   S.schema(s => ({
     _tag: "Float",
     _0: s.m(S.float)
@@ -13,73 +13,7 @@ let timelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diffSch
   }))
 ]);
 
-let timelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let timelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let timelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let timelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let timelineDataPoint_dict__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let validationError_locSchema = S.union([
+let stringOrIntSchema = S.union([
   S.schema(s => ({
     _tag: "String",
     _0: s.m(S.string)
@@ -87,160 +21,6 @@ let validationError_locSchema = S.union([
   S.schema(s => ({
     _tag: "Int",
     _0: s.m(S.int)
-  }))
-]);
-
-let whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diffSchema = S.union([
-  S.schema(s => ({
-    _tag: "Float",
-    _0: s.m(S.float)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
   }))
 ]);
 
@@ -488,11 +268,11 @@ let timelineDataPoint_dict_Schema = S.schema(s => ({
   value: s.m(S.dict(S.string)),
   compare_value: s.m(S.option(S.dict(S.string))),
   compare_diff: s.m(S.option(S.dict(S.string))),
-  compare_percent_diff: s.m(S.option(timelineDataPoint_dict__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let validationErrorSchema = S.schema(s => ({
-  loc: s.m(S.array(validationError_locSchema)),
+  loc: s.m(S.array(stringOrIntSchema)),
   msg: s.m(S.string),
   type: s.m(S.string)
 }));
@@ -524,7 +304,7 @@ let timelineDataPoint_AdsExecutiveSummaryResponseSchema_Schema = S.schema(s => (
   value: s.m(adsExecutiveSummaryResponseSchemaSchema),
   compare_value: s.m(S.option(adsExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(adsExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(timelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_Schema = S.schema(s => ({
@@ -534,10 +314,10 @@ let whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_Schema = S.schema(
   baseline: s.m(adsExecutiveSummaryResponseSchemaSchema),
   projected: s.m(S.option(adsExecutiveSummaryResponseSchemaSchema)),
   diff: s.m(S.option(adsExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(S.option(whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__percent_diffSchema)),
+  percent_diff: s.m(S.option(floatOrDictSchema)),
   compare_value: s.m(S.option(adsExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(adsExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let attributionExecutiveSummaryWithForecastBreakdownSchema = S.schema(s => ({
@@ -564,7 +344,7 @@ let timelineDataPoint_AttributionExecutiveSummaryResponseSchema_Schema = S.schem
   value: s.m(attributionExecutiveSummaryResponseSchemaSchema),
   compare_value: s.m(S.option(attributionExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(attributionExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(timelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_Schema = S.schema(s => ({
@@ -574,10 +354,10 @@ let whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_Schema = S
   baseline: s.m(attributionExecutiveSummaryResponseSchemaSchema),
   projected: s.m(S.option(attributionExecutiveSummaryResponseSchemaSchema)),
   diff: s.m(S.option(attributionExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(S.option(whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__percent_diffSchema)),
+  percent_diff: s.m(S.option(floatOrDictSchema)),
   compare_value: s.m(S.option(attributionExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(attributionExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let cFOExecutiveSummaryWithForecastBreakdownSchema = S.schema(s => ({
@@ -605,7 +385,7 @@ let timelineDataPoint_CFOExecutiveSummaryResponseSchema_Schema = S.schema(s => (
   value: s.m(cFOExecutiveSummaryResponseSchemaSchema),
   compare_value: s.m(S.option(cFOExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(cFOExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(timelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_Schema = S.schema(s => ({
@@ -615,10 +395,10 @@ let whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_Schema = S.schema(
   baseline: s.m(cFOExecutiveSummaryResponseSchemaSchema),
   projected: s.m(S.option(cFOExecutiveSummaryResponseSchemaSchema)),
   diff: s.m(S.option(cFOExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(S.option(whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__percent_diffSchema)),
+  percent_diff: s.m(S.option(floatOrDictSchema)),
   compare_value: s.m(S.option(cFOExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(cFOExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let tierLevelForecastParamsSchema = S.schema(s => ({
@@ -726,7 +506,7 @@ let timelineDataPoint_InventoryExecutiveSummaryResponseSchema_Schema = S.schema(
   value: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
   compare_value: s.m(S.option(inventoryExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(inventoryExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(timelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_Schema = S.schema(s => ({
@@ -736,10 +516,10 @@ let whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_Schema = S.s
   baseline: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
   projected: s.m(S.option(inventoryExecutiveSummaryResponseSchemaSchema)),
   diff: s.m(S.option(inventoryExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(S.option(whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__percent_diffSchema)),
+  percent_diff: s.m(S.option(floatOrDictSchema)),
   compare_value: s.m(S.option(inventoryExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(inventoryExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let marketIntelligenceExecutiveSummaryWithForecastBreakdownSchema = S.schema(s => ({
@@ -764,7 +544,7 @@ let timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_Schema = 
   value: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
   compare_value: s.m(S.option(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_Schema = S.schema(s => ({
@@ -774,10 +554,10 @@ let whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_Sch
   baseline: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
   projected: s.m(S.option(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
   diff: s.m(S.option(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(S.option(whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__percent_diffSchema)),
+  percent_diff: s.m(S.option(floatOrDictSchema)),
   compare_value: s.m(S.option(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let organicExecutiveSummaryWithForecastBreakdownSchema = S.schema(s => ({
@@ -799,10 +579,10 @@ let whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema_Schema = S.sch
   baseline: s.m(organicExecutiveSummaryResponseSchemaSchema),
   projected: s.m(S.option(organicExecutiveSummaryResponseSchemaSchema)),
   diff: s.m(S.option(organicExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(S.option(whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__percent_diffSchema)),
+  percent_diff: s.m(S.option(floatOrDictSchema)),
   compare_value: s.m(S.option(organicExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(organicExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let timelineDataPoint_TotalExecutiveSummaryResponseSchema_Schema = S.schema(s => ({
@@ -812,7 +592,7 @@ let timelineDataPoint_TotalExecutiveSummaryResponseSchema_Schema = S.schema(s =>
   value: s.m(totalExecutiveSummaryResponseSchemaSchema),
   compare_value: s.m(S.option(totalExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(totalExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(timelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let totalExecutiveSummaryWithForecastBreakdownSchema = S.schema(s => ({
@@ -839,10 +619,10 @@ let whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema_Schema = S.schem
   baseline: s.m(totalExecutiveSummaryResponseSchemaSchema),
   projected: s.m(S.option(totalExecutiveSummaryResponseSchemaSchema)),
   diff: s.m(S.option(totalExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(S.option(whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__percent_diffSchema)),
+  percent_diff: s.m(S.option(floatOrDictSchema)),
   compare_value: s.m(S.option(totalExecutiveSummaryResponseSchemaSchema)),
   compare_diff: s.m(S.option(totalExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(S.option(whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diffSchema))
+  compare_percent_diff: s.m(S.option(floatOrDictSchema))
 }));
 
 let inventoryMetricsResponseSchema = S.schema(s => ({
@@ -850,7 +630,7 @@ let inventoryMetricsResponseSchema = S.schema(s => ({
   total_metrics: s.m(totalInventoryMetricsSchema)
 }));
 
-let whatifResponse_AdsExecutiveSummaryResponseSchema__whatif_appliedSchema = S.union([
+let whatifAppliedEntryOrDictSchema = S.union([
   S.schema(s => ({
     _tag: "WhatifAppliedEntry",
     _0: s.m(whatifAppliedEntrySchema)
@@ -861,139 +641,7 @@ let whatifResponse_AdsExecutiveSummaryResponseSchema__whatif_appliedSchema = S.u
   }))
 ]);
 
-let whatifResponse_AttributionExecutiveSummaryResponseSchema__whatif_appliedSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifAppliedEntry",
-    _0: s.m(whatifAppliedEntrySchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_CFOExecutiveSummaryResponseSchema__whatif_appliedSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifAppliedEntry",
-    _0: s.m(whatifAppliedEntrySchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_InventoryExecutiveSummaryResponseSchema__whatif_appliedSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifAppliedEntry",
-    _0: s.m(whatifAppliedEntrySchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__whatif_appliedSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifAppliedEntry",
-    _0: s.m(whatifAppliedEntrySchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_OrganicExecutiveSummaryResponseSchema__whatif_appliedSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifAppliedEntry",
-    _0: s.m(whatifAppliedEntrySchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_TotalExecutiveSummaryResponseSchema__whatif_appliedSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifAppliedEntry",
-    _0: s.m(whatifAppliedEntrySchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_AdsExecutiveSummaryResponseSchema__model_infoSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifModelInfo",
-    _0: s.m(whatifModelInfoSchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_AttributionExecutiveSummaryResponseSchema__model_infoSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifModelInfo",
-    _0: s.m(whatifModelInfoSchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_CFOExecutiveSummaryResponseSchema__model_infoSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifModelInfo",
-    _0: s.m(whatifModelInfoSchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_InventoryExecutiveSummaryResponseSchema__model_infoSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifModelInfo",
-    _0: s.m(whatifModelInfoSchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__model_infoSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifModelInfo",
-    _0: s.m(whatifModelInfoSchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_OrganicExecutiveSummaryResponseSchema__model_infoSchema = S.union([
-  S.schema(s => ({
-    _tag: "WhatifModelInfo",
-    _0: s.m(whatifModelInfoSchema)
-  })),
-  S.schema(s => ({
-    _tag: "Dict",
-    _0: s.m(S.dict(S.string))
-  }))
-]);
-
-let whatifResponse_TotalExecutiveSummaryResponseSchema__model_infoSchema = S.union([
+let whatifModelInfoOrDictSchema = S.union([
   S.schema(s => ({
     _tag: "WhatifModelInfo",
     _0: s.m(whatifModelInfoSchema)
@@ -1111,8 +759,8 @@ let whatifResponse_AdsExecutiveSummaryResponseSchema_Schema = S.schema(s => ({
   projected: s.m(adsExecutiveSummaryResponseSchemaSchema),
   diff: s.m(S.dict(S.option(S.float))),
   percent_diff: s.m(S.dict(S.option(S.float))),
-  whatif_applied: s.m(S.dict(whatifResponse_AdsExecutiveSummaryResponseSchema__whatif_appliedSchema)),
-  model_info: s.m(whatifResponse_AdsExecutiveSummaryResponseSchema__model_infoSchema),
+  whatif_applied: s.m(S.dict(whatifAppliedEntryOrDictSchema)),
+  model_info: s.m(whatifModelInfoOrDictSchema),
   warnings: s.m(S.option(S.array(S.string)))
 }));
 
@@ -1121,8 +769,8 @@ let whatifResponse_AttributionExecutiveSummaryResponseSchema_Schema = S.schema(s
   projected: s.m(attributionExecutiveSummaryResponseSchemaSchema),
   diff: s.m(S.dict(S.option(S.float))),
   percent_diff: s.m(S.dict(S.option(S.float))),
-  whatif_applied: s.m(S.dict(whatifResponse_AttributionExecutiveSummaryResponseSchema__whatif_appliedSchema)),
-  model_info: s.m(whatifResponse_AttributionExecutiveSummaryResponseSchema__model_infoSchema),
+  whatif_applied: s.m(S.dict(whatifAppliedEntryOrDictSchema)),
+  model_info: s.m(whatifModelInfoOrDictSchema),
   warnings: s.m(S.option(S.array(S.string)))
 }));
 
@@ -1131,8 +779,8 @@ let whatifResponse_CFOExecutiveSummaryResponseSchema_Schema = S.schema(s => ({
   projected: s.m(cFOExecutiveSummaryResponseSchemaSchema),
   diff: s.m(S.dict(S.option(S.float))),
   percent_diff: s.m(S.dict(S.option(S.float))),
-  whatif_applied: s.m(S.dict(whatifResponse_CFOExecutiveSummaryResponseSchema__whatif_appliedSchema)),
-  model_info: s.m(whatifResponse_CFOExecutiveSummaryResponseSchema__model_infoSchema),
+  whatif_applied: s.m(S.dict(whatifAppliedEntryOrDictSchema)),
+  model_info: s.m(whatifModelInfoOrDictSchema),
   warnings: s.m(S.option(S.array(S.string)))
 }));
 
@@ -1141,8 +789,8 @@ let whatifResponse_InventoryExecutiveSummaryResponseSchema_Schema = S.schema(s =
   projected: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
   diff: s.m(S.dict(S.option(S.float))),
   percent_diff: s.m(S.dict(S.option(S.float))),
-  whatif_applied: s.m(S.dict(whatifResponse_InventoryExecutiveSummaryResponseSchema__whatif_appliedSchema)),
-  model_info: s.m(whatifResponse_InventoryExecutiveSummaryResponseSchema__model_infoSchema),
+  whatif_applied: s.m(S.dict(whatifAppliedEntryOrDictSchema)),
+  model_info: s.m(whatifModelInfoOrDictSchema),
   warnings: s.m(S.option(S.array(S.string)))
 }));
 
@@ -1151,8 +799,8 @@ let whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema_Schema = S.s
   projected: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
   diff: s.m(S.dict(S.option(S.float))),
   percent_diff: s.m(S.dict(S.option(S.float))),
-  whatif_applied: s.m(S.dict(whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__whatif_appliedSchema)),
-  model_info: s.m(whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__model_infoSchema),
+  whatif_applied: s.m(S.dict(whatifAppliedEntryOrDictSchema)),
+  model_info: s.m(whatifModelInfoOrDictSchema),
   warnings: s.m(S.option(S.array(S.string)))
 }));
 
@@ -1161,8 +809,8 @@ let whatifResponse_OrganicExecutiveSummaryResponseSchema_Schema = S.schema(s => 
   projected: s.m(organicExecutiveSummaryResponseSchemaSchema),
   diff: s.m(S.dict(S.option(S.float))),
   percent_diff: s.m(S.dict(S.option(S.float))),
-  whatif_applied: s.m(S.dict(whatifResponse_OrganicExecutiveSummaryResponseSchema__whatif_appliedSchema)),
-  model_info: s.m(whatifResponse_OrganicExecutiveSummaryResponseSchema__model_infoSchema),
+  whatif_applied: s.m(S.dict(whatifAppliedEntryOrDictSchema)),
+  model_info: s.m(whatifModelInfoOrDictSchema),
   warnings: s.m(S.option(S.array(S.string)))
 }));
 
@@ -1171,34 +819,14 @@ let whatifResponse_TotalExecutiveSummaryResponseSchema_Schema = S.schema(s => ({
   projected: s.m(totalExecutiveSummaryResponseSchemaSchema),
   diff: s.m(S.dict(S.option(S.float))),
   percent_diff: s.m(S.dict(S.option(S.float))),
-  whatif_applied: s.m(S.dict(whatifResponse_TotalExecutiveSummaryResponseSchema__whatif_appliedSchema)),
-  model_info: s.m(whatifResponse_TotalExecutiveSummaryResponseSchema__model_infoSchema),
+  whatif_applied: s.m(S.dict(whatifAppliedEntryOrDictSchema)),
+  model_info: s.m(whatifModelInfoOrDictSchema),
   warnings: s.m(S.option(S.array(S.string)))
 }));
 
 export {
-  timelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  timelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  timelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  timelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  timelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  timelineDataPoint_dict__compare_percent_diffSchema,
-  validationError_locSchema,
-  whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__percent_diffSchema,
-  whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__percent_diffSchema,
-  whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__percent_diffSchema,
-  whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__percent_diffSchema,
-  whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__percent_diffSchema,
-  whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__percent_diffSchema,
-  whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__compare_percent_diffSchema,
-  whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__percent_diffSchema,
-  whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diffSchema,
+  floatOrDictSchema,
+  stringOrIntSchema,
   adsExecutiveSummaryResponseSchemaSchema,
   attributionExecutiveSummaryResponseSchemaSchema,
   cFOExecutiveSummaryResponseSchemaSchema,
@@ -1237,20 +865,8 @@ export {
   totalExecutiveSummaryWithForecastBreakdownSchema,
   whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema_Schema,
   inventoryMetricsResponseSchema,
-  whatifResponse_AdsExecutiveSummaryResponseSchema__whatif_appliedSchema,
-  whatifResponse_AttributionExecutiveSummaryResponseSchema__whatif_appliedSchema,
-  whatifResponse_CFOExecutiveSummaryResponseSchema__whatif_appliedSchema,
-  whatifResponse_InventoryExecutiveSummaryResponseSchema__whatif_appliedSchema,
-  whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__whatif_appliedSchema,
-  whatifResponse_OrganicExecutiveSummaryResponseSchema__whatif_appliedSchema,
-  whatifResponse_TotalExecutiveSummaryResponseSchema__whatif_appliedSchema,
-  whatifResponse_AdsExecutiveSummaryResponseSchema__model_infoSchema,
-  whatifResponse_AttributionExecutiveSummaryResponseSchema__model_infoSchema,
-  whatifResponse_CFOExecutiveSummaryResponseSchema__model_infoSchema,
-  whatifResponse_InventoryExecutiveSummaryResponseSchema__model_infoSchema,
-  whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__model_infoSchema,
-  whatifResponse_OrganicExecutiveSummaryResponseSchema__model_infoSchema,
-  whatifResponse_TotalExecutiveSummaryResponseSchema__model_infoSchema,
+  whatifAppliedEntryOrDictSchema,
+  whatifModelInfoOrDictSchema,
   timelineResponse_dict_Schema,
   hTTPValidationErrorSchema,
   timelineResponse_AdsExecutiveSummaryResponseSchema_Schema,
@@ -1274,4 +890,4 @@ export {
   whatifResponse_OrganicExecutiveSummaryResponseSchema_Schema,
   whatifResponse_TotalExecutiveSummaryResponseSchema_Schema,
 }
-/* timelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diffSchema Not a pure module */
+/* floatOrDictSchema Not a pure module */
