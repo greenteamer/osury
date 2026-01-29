@@ -4,9 +4,134 @@ import * as Errors from "./Errors.res.mjs";
 import * as Schema from "./Schema.res.mjs";
 import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 
-function parseDocument(json) {
-  if (typeof json === "object" && json !== null && !Array.isArray(json)) {
-    let match = json["components"];
+function pathToName(path) {
+  return path.split("/").filter(s => {
+    if (s !== "") {
+      return !s.startsWith("{");
+    } else {
+      return false;
+    }
+  }).map(segment => segment.split("-").map(part => {
+    let first = part.charAt(0).toUpperCase();
+    let rest = part.slice(1);
+    return first + rest;
+  }).join("")).join("");
+}
+
+function ucFirst(s) {
+  let first = s.charAt(0).toUpperCase();
+  let rest = s.slice(1);
+  return first + rest;
+}
+
+function parsePathResponses(pathsJson) {
+  if (typeof pathsJson !== "object" || pathsJson === null || Array.isArray(pathsJson)) {
+    return {
+      TAG: "Ok",
+      _0: []
+    };
+  }
+  let results = Object.entries(pathsJson).flatMap(param => {
+    let methodsJson = param[1];
+    let path = param[0];
+    if (typeof methodsJson === "object" && methodsJson !== null && !Array.isArray(methodsJson)) {
+      return Core__Array.filterMap(Object.entries(methodsJson), param => {
+        let opJson = param[1];
+        let method = param[0];
+        let httpMethods = [
+          "get",
+          "post",
+          "put",
+          "patch",
+          "delete"
+        ];
+        if (!httpMethods.includes(method)) {
+          return;
+        }
+        if (typeof opJson !== "object" || opJson === null || Array.isArray(opJson)) {
+          return;
+        }
+        let match = opJson["responses"];
+        if (match === undefined) {
+          return;
+        }
+        if (typeof match !== "object" || match === null || Array.isArray(match)) {
+          return;
+        }
+        let r = match["200"];
+        let responseJson = r !== undefined ? r : match["201"];
+        if (responseJson === undefined) {
+          return;
+        }
+        if (typeof responseJson !== "object" || responseJson === null || Array.isArray(responseJson)) {
+          return;
+        }
+        let match$1 = responseJson["content"];
+        if (match$1 === undefined) {
+          return;
+        }
+        if (typeof match$1 !== "object" || match$1 === null || Array.isArray(match$1)) {
+          return;
+        }
+        let match$2 = match$1["application/json"];
+        if (match$2 === undefined) {
+          return;
+        }
+        if (typeof match$2 !== "object" || match$2 === null || Array.isArray(match$2)) {
+          return;
+        }
+        let schemaJson = match$2["schema"];
+        if (schemaJson === undefined) {
+          return;
+        }
+        let name = ucFirst(method) + pathToName(path) + "Response";
+        let schemaType = Schema.parse(schemaJson);
+        if (schemaType.TAG === "Ok") {
+          return {
+            TAG: "Ok",
+            _0: {
+              name: name,
+              schema: schemaType._0
+            }
+          };
+        } else {
+          return {
+            TAG: "Error",
+            _0: schemaType._0
+          };
+        }
+      });
+    } else {
+      return [];
+    }
+  });
+  let errors = Core__Array.filterMap(results, r => {
+    if (r.TAG === "Ok") {
+      return;
+    } else {
+      return r._0;
+    }
+  }).flat();
+  if (errors.length > 0) {
+    return {
+      TAG: "Error",
+      _0: errors
+    };
+  }
+  let schemas = Core__Array.filterMap(results, r => {
+    if (r.TAG === "Ok") {
+      return r._0;
+    }
+  });
+  return {
+    TAG: "Ok",
+    _0: schemas
+  };
+}
+
+function parseComponentSchemas(componentsJson) {
+  if (typeof componentsJson === "object" && componentsJson !== null && !Array.isArray(componentsJson)) {
+    let match = componentsJson["schemas"];
     if (match === undefined) {
       return {
         TAG: "Ok",
@@ -15,76 +140,102 @@ function parseDocument(json) {
     }
     let exit = 0;
     if (typeof match === "object" && match !== null && !Array.isArray(match)) {
-      let match$1 = match["schemas"];
-      if (match$1 === undefined) {
-        return {
-          TAG: "Ok",
-          _0: []
-        };
-      }
-      let exit$1 = 0;
-      if (typeof match$1 === "object" && match$1 !== null && !Array.isArray(match$1)) {
-        let entries = Object.entries(match$1);
-        let results = entries.map(param => {
-          let schemaType = Schema.parse(param[1]);
-          if (schemaType.TAG === "Ok") {
-            return {
-              TAG: "Ok",
-              _0: {
-                name: param[0],
-                schema: schemaType._0
-              }
-            };
-          } else {
-            return {
-              TAG: "Error",
-              _0: schemaType._0
-            };
-          }
-        });
-        let errors = Core__Array.filterMap(results, r => {
-          if (r.TAG === "Ok") {
-            return;
-          } else {
-            return r._0;
-          }
-        }).flat();
-        if (errors.length > 0) {
+      let entries = Object.entries(match);
+      let results = entries.map(param => {
+        let schemaType = Schema.parse(param[1]);
+        if (schemaType.TAG === "Ok") {
+          return {
+            TAG: "Ok",
+            _0: {
+              name: param[0],
+              schema: schemaType._0
+            }
+          };
+        } else {
           return {
             TAG: "Error",
-            _0: errors
+            _0: schemaType._0
           };
         }
-        let schemas = Core__Array.filterMap(results, r => {
-          if (r.TAG === "Ok") {
-            return r._0;
-          }
-        });
-        return {
-          TAG: "Ok",
-          _0: schemas
-        };
-      }
-      exit$1 = 3;
-      if (exit$1 === 3) {
+      });
+      let errors = Core__Array.filterMap(results, r => {
+        if (r.TAG === "Ok") {
+          return;
+        } else {
+          return r._0;
+        }
+      }).flat();
+      if (errors.length > 0) {
         return {
           TAG: "Error",
-          _0: [Errors.makeError({
-              TAG: "InvalidJson",
-              _0: "schemas must be an object"
-            }, undefined, undefined, undefined)]
+          _0: errors
         };
       }
-    } else {
-      exit = 2;
+      let schemas = Core__Array.filterMap(results, r => {
+        if (r.TAG === "Ok") {
+          return r._0;
+        }
+      });
+      return {
+        TAG: "Ok",
+        _0: schemas
+      };
     }
+    exit = 2;
     if (exit === 2) {
       return {
         TAG: "Error",
         _0: [Errors.makeError({
             TAG: "InvalidJson",
-            _0: "components must be an object"
+            _0: "schemas must be an object"
           }, undefined, undefined, undefined)]
+      };
+    }
+  }
+  return {
+    TAG: "Error",
+    _0: [Errors.makeError({
+        TAG: "InvalidJson",
+        _0: "components must be an object"
+      }, undefined, undefined, undefined)]
+  };
+}
+
+function parseDocument(json) {
+  if (typeof json === "object" && json !== null && !Array.isArray(json)) {
+    let componentsJson = json["components"];
+    let componentSchemas = componentsJson !== undefined ? parseComponentSchemas(componentsJson) : ({
+        TAG: "Ok",
+        _0: []
+      });
+    let pathsJson = json["paths"];
+    let pathSchemas = pathsJson !== undefined ? parsePathResponses(pathsJson) : ({
+        TAG: "Ok",
+        _0: []
+      });
+    if (componentSchemas.TAG === "Ok") {
+      if (pathSchemas.TAG === "Ok") {
+        return {
+          TAG: "Ok",
+          _0: componentSchemas._0.concat(pathSchemas._0)
+        };
+      } else {
+        return {
+          TAG: "Error",
+          _0: pathSchemas._0
+        };
+      }
+    }
+    let e = componentSchemas._0;
+    if (pathSchemas.TAG === "Ok") {
+      return {
+        TAG: "Error",
+        _0: e
+      };
+    } else {
+      return {
+        TAG: "Error",
+        _0: e.concat(pathSchemas._0)
       };
     }
   }
@@ -98,6 +249,10 @@ function parseDocument(json) {
 }
 
 export {
+  pathToName,
+  ucFirst,
+  parsePathResponses,
+  parseComponentSchemas,
   parseDocument,
 }
 /* No side effect */
