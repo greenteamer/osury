@@ -344,42 +344,89 @@ let buildSkipSchemaSet = (schemas: array<OpenAPIParser.namedSchema>): Dict.t<boo
   skipSet
 }
 
+// Generate variant body for Union type (extracted unions)
+// Union([Ref("A"), Ref("B")]) → "A(a) | B(b)"
+let generateVariantBody = (types: array<Schema.schemaType>): string => {
+  types->Array.map(t => {
+    let tag = getTagForType(t)
+    let payload = generateType(t)
+    `${tag}(${payload})`
+  })->Array.join(" | ")
+}
+
 // Generate type definition from named schema
 // skipSchema: set of type names that should skip @schema
 let generateTypeDefWithSkipSet = (
   namedSchema: OpenAPIParser.namedSchema,
-  skipSet: Dict.t<bool>
+  _skipSet: Dict.t<bool>
 ): string => {
   let typeName = lcFirst(namedSchema.name)
-  let typeBody = generateType(namedSchema.schema)
-  let shouldSkip = skipSet->Dict.get(namedSchema.name)->Option.isSome
-  let annotations = if shouldSkip {
-    "@genType"
-  } else {
-    "@genType\n@schema"
-  }
-  `${annotations}
+
+  switch namedSchema.schema {
+  | Union(types) =>
+    // Extracted union → generate variant with @tag("_tag")
+    // Always has @schema since Union is now a proper variant type
+    let variantBody = generateVariantBody(types)
+    `@genType
+@tag("_tag")
+@schema
+type ${typeName} = ${variantBody}`
+  | _ =>
+    // Regular type - always has @schema now (no inline unions after extraction)
+    let typeBody = generateType(namedSchema.schema)
+    `@genType
+@schema
 type ${typeName} = ${typeBody}`
+  }
 }
 
 // Public API: Generate type definition (for single schema without context)
 let generateTypeDef = (namedSchema: OpenAPIParser.namedSchema): string => {
-  let annotations = if hasUnion(namedSchema.schema) {
-    "@genType"
-  } else {
-    "@genType\n@schema"
-  }
   let typeName = lcFirst(namedSchema.name)
-  let typeBody = generateType(namedSchema.schema)
-  `${annotations}
+
+  switch namedSchema.schema {
+  | Union(types) =>
+    // Extracted union → generate variant with @tag("_tag")
+    let variantBody = generateVariantBody(types)
+    `@genType
+@tag("_tag")
+@schema
+type ${typeName} = ${variantBody}`
+  | _ =>
+    // Regular type
+    let annotations = if hasUnion(namedSchema.schema) {
+      "@genType"
+    } else {
+      "@genType\n@schema"
+    }
+    let typeBody = generateType(namedSchema.schema)
+    `${annotations}
 type ${typeName} = ${typeBody}`
+  }
 }
 
 // Generate full module from array of schemas
-// Sorts types topologically so dependencies are defined first
-// Propagates @schema skip through references
+// 1. Extract inline Union types into separate named types
+// 2. Replace inline Union with Ref to extracted type
+// 3. Sort topologically and generate
 let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
-  let sorted = topologicalSort(schemas)
-  let skipSet = buildSkipSchemaSet(schemas)
+  // Step 1: Extract all unions from each schema
+  let extractedUnions = schemas->Array.flatMap(s => {
+    extractUnions(s.name, s.schema)->Array.map(extracted => {
+      {OpenAPIParser.name: extracted.name, schema: extracted.schema}
+    })
+  })
+
+  // Step 2: Replace unions with refs in original schemas
+  let modifiedSchemas = schemas->Array.map(s => {
+    {OpenAPIParser.name: s.name, schema: replaceUnions(s.name, s.schema)}
+  })
+
+  // Step 3: Combine extracted unions + modified originals
+  let allSchemas = Array.concat(extractedUnions, modifiedSchemas)
+
+  // Step 4: Sort topologically and generate
+  let sorted = topologicalSort(allSchemas)
+  let skipSet = Dict.make() // Not needed anymore, all types have @schema
   sorted->Array.map(s => generateTypeDefWithSkipSet(s, skipSet))->Array.join("\n\n")
 }

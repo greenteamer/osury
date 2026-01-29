@@ -1,15 +1,124 @@
 @genType
+@tag("_tag")
+@schema
+type timelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type timelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type timelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type timelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type timelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type timelineDataPoint_dict__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type validationError_loc = String(string) | Int(int)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diff = Float(float) | Dict(Dict.t<string>)
+
+@genType
 @schema
 type adsExecutiveSummaryResponseSchema = {
-  _tag: option<[#AdsExecutiveSummaryResponseSchema]>,
-  ad_sales: option<float>,
-  ad_spend: option<float>,
-  ad_impressions: option<float>,
+  ad_sales: float,
+  ad_spend: float,
+  ad_impressions: float,
   ad_ctr: option<float>,
-  ad_clicks: option<float>,
+  ad_clicks: float,
   ad_cvr: option<float>,
-  ad_orders: option<float>,
-  ad_units_sold: option<float>,
+  ad_orders: float,
+  ad_units_sold: float,
   acos: option<float>,
   roas: option<float>,
   cpc: option<float>,
@@ -22,7 +131,6 @@ type adsExecutiveSummaryResponseSchema = {
 @genType
 @schema
 type attributionExecutiveSummaryResponseSchema = {
-  _tag: option<[#AttributionExecutiveSummaryResponseSchema]>,
   attribution_sales: option<float>,
   attribution_spend: option<float>,
   attribution_impressions: option<float>,
@@ -40,7 +148,6 @@ type attributionExecutiveSummaryResponseSchema = {
 @genType
 @schema
 type cFOExecutiveSummaryResponseSchema = {
-  _tag: option<[#CFOExecutiveSummaryResponseSchema]>,
   available_capital: option<float>,
   frozen_capital: option<float>,
   borrowed_capital: option<float>,
@@ -153,7 +260,6 @@ type forecastParams = {
 @genType
 @schema
 type insightResponse = {
-  _tag: option<[#InsightResponse]>,
   summary: string,
   date_start: string,
   date_end: string,
@@ -164,7 +270,6 @@ type insightResponse = {
 @genType
 @schema
 type inventoryExecutiveSummaryResponseSchema = {
-  _tag: option<[#InventoryExecutiveSummaryResponseSchema]>,
   fba_in_stock_rate: option<float>,
   fbt_in_stock_rate: option<float>,
   three_pl_in_stock_rate: option<float>,
@@ -181,7 +286,6 @@ type inventoryExecutiveSummaryResponseSchema = {
 @genType
 @schema
 type marketIntelligenceExecutiveSummaryResponseSchema = {
-  _tag: option<[#MarketIntelligenceExecutiveSummaryResponseSchema]>,
   market_total_sales: option<float>,
   brand_market_share: option<float>,
   market_average_price: option<float>,
@@ -197,7 +301,6 @@ type marketIntelligenceExecutiveSummaryResponseSchema = {
 @genType
 @schema
 type organicExecutiveSummaryResponseSchema = {
-  _tag: option<[#OrganicExecutiveSummaryResponseSchema]>,
   organic_sales: float,
   organic_impressions: option<float>,
   organic_ctr: option<float>,
@@ -210,7 +313,6 @@ type organicExecutiveSummaryResponseSchema = {
 @genType
 @schema
 type strategicPlanResponse = {
-  _tag: option<[#StrategicPlanResponse]>,
   plan: string,
   forecast_period: string,
   projected_total_sales: float,
@@ -226,21 +328,8 @@ type strategicPlanResponse = {
 }
 
 @genType
-type timelineDataPoint_dict_ = {
-  _tag: option<[#TimelineDataPoint]>,
-  period_start: string,
-  period_end: string,
-  is_forecast: option<bool>,
-  value: Dict.t<string>,
-  compare_value: option<Dict.t<string>>,
-  compare_diff: option<Dict.t<string>>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
-}
-
-@genType
 @schema
 type totalExecutiveSummaryResponseSchema = {
-  _tag: option<[#TotalExecutiveSummaryResponseSchema]>,
   total_sales: option<float>,
   total_spend: option<float>,
   total_impressions: option<float>,
@@ -269,13 +358,6 @@ type totalInventoryMetrics = {
 }
 
 @genType
-type validationError = {
-  loc: array<[#String(string) | #Int(int)]>,
-  msg: string,
-  @as("type") type_: string
-}
-
-@genType
 @schema
 type whatifAppliedEntry = {
   current_value: option<float>,
@@ -293,16 +375,35 @@ type whatifModelInfo = {
 
 @genType
 @schema
+type timelineDataPoint_dict_ = {
+  period_start: string,
+  period_end: string,
+  is_forecast: bool,
+  value: Dict.t<string>,
+  compare_value: option<Dict.t<string>>,
+  compare_diff: option<Dict.t<string>>,
+  compare_percent_diff: option<timelineDataPoint_dict__compare_percent_diff>
+}
+
+@genType
+@schema
+type validationError = {
+  loc: array<validationError_loc>,
+  msg: string,
+  @as("type") type_: string
+}
+
+@genType
+@schema
 type adsExecutiveSummaryWithForecastBreakdown = {
-  _tag: option<[#AdsExecutiveSummaryWithForecastBreakdown]>,
-  ad_sales: option<float>,
-  ad_spend: option<float>,
-  ad_impressions: option<float>,
+  ad_sales: float,
+  ad_spend: float,
+  ad_impressions: float,
   ad_ctr: option<float>,
-  ad_clicks: option<float>,
+  ad_clicks: float,
   ad_cvr: option<float>,
-  ad_orders: option<float>,
-  ad_units_sold: option<float>,
+  ad_orders: float,
+  ad_units_sold: float,
   acos: option<float>,
   roas: option<float>,
   cpc: option<float>,
@@ -315,36 +416,35 @@ type adsExecutiveSummaryWithForecastBreakdown = {
 }
 
 @genType
+@schema
 type timelineDataPoint_AdsExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   value: adsExecutiveSummaryResponseSchema,
   compare_value: option<adsExecutiveSummaryResponseSchema>,
   compare_diff: option<adsExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<timelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
+@schema
 type whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   baseline: adsExecutiveSummaryResponseSchema,
   projected: option<adsExecutiveSummaryResponseSchema>,
   diff: option<adsExecutiveSummaryResponseSchema>,
-  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  percent_diff: option<whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__percent_diff>,
   compare_value: option<adsExecutiveSummaryResponseSchema>,
   compare_diff: option<adsExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
 @schema
 type attributionExecutiveSummaryWithForecastBreakdown = {
-  _tag: option<[#AttributionExecutiveSummaryWithForecastBreakdown]>,
   attribution_sales: option<float>,
   attribution_spend: option<float>,
   attribution_impressions: option<float>,
@@ -362,36 +462,35 @@ type attributionExecutiveSummaryWithForecastBreakdown = {
 }
 
 @genType
+@schema
 type timelineDataPoint_AttributionExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   value: attributionExecutiveSummaryResponseSchema,
   compare_value: option<attributionExecutiveSummaryResponseSchema>,
   compare_diff: option<attributionExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<timelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
+@schema
 type whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   baseline: attributionExecutiveSummaryResponseSchema,
   projected: option<attributionExecutiveSummaryResponseSchema>,
   diff: option<attributionExecutiveSummaryResponseSchema>,
-  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  percent_diff: option<whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__percent_diff>,
   compare_value: option<attributionExecutiveSummaryResponseSchema>,
   compare_diff: option<attributionExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
 @schema
 type cFOExecutiveSummaryWithForecastBreakdown = {
-  _tag: option<[#CFOExecutiveSummaryWithForecastBreakdown]>,
   available_capital: option<float>,
   frozen_capital: option<float>,
   borrowed_capital: option<float>,
@@ -410,30 +509,30 @@ type cFOExecutiveSummaryWithForecastBreakdown = {
 }
 
 @genType
+@schema
 type timelineDataPoint_CFOExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   value: cFOExecutiveSummaryResponseSchema,
   compare_value: option<cFOExecutiveSummaryResponseSchema>,
   compare_diff: option<cFOExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<timelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
+@schema
 type whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   baseline: cFOExecutiveSummaryResponseSchema,
   projected: option<cFOExecutiveSummaryResponseSchema>,
   diff: option<cFOExecutiveSummaryResponseSchema>,
-  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  percent_diff: option<whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__percent_diff>,
   compare_value: option<cFOExecutiveSummaryResponseSchema>,
   compare_diff: option<cFOExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
@@ -523,7 +622,6 @@ type tierLevelForecastParams = {
 @genType
 @schema
 type inventoryExecutiveSummaryWithForecastBreakdown = {
-  _tag: option<[#InventoryExecutiveSummaryWithForecastBreakdown]>,
   fba_in_stock_rate: option<float>,
   fbt_in_stock_rate: option<float>,
   three_pl_in_stock_rate: option<float>,
@@ -540,36 +638,35 @@ type inventoryExecutiveSummaryWithForecastBreakdown = {
 }
 
 @genType
+@schema
 type timelineDataPoint_InventoryExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   value: inventoryExecutiveSummaryResponseSchema,
   compare_value: option<inventoryExecutiveSummaryResponseSchema>,
   compare_diff: option<inventoryExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<timelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
+@schema
 type whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   baseline: inventoryExecutiveSummaryResponseSchema,
   projected: option<inventoryExecutiveSummaryResponseSchema>,
   diff: option<inventoryExecutiveSummaryResponseSchema>,
-  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  percent_diff: option<whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__percent_diff>,
   compare_value: option<inventoryExecutiveSummaryResponseSchema>,
   compare_diff: option<inventoryExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
 @schema
 type marketIntelligenceExecutiveSummaryWithForecastBreakdown = {
-  _tag: option<[#MarketIntelligenceExecutiveSummaryWithForecastBreakdown]>,
   market_total_sales: option<float>,
   brand_market_share: option<float>,
   market_average_price: option<float>,
@@ -585,36 +682,35 @@ type marketIntelligenceExecutiveSummaryWithForecastBreakdown = {
 }
 
 @genType
+@schema
 type timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   value: marketIntelligenceExecutiveSummaryResponseSchema,
   compare_value: option<marketIntelligenceExecutiveSummaryResponseSchema>,
   compare_diff: option<marketIntelligenceExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
+@schema
 type whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   baseline: marketIntelligenceExecutiveSummaryResponseSchema,
   projected: option<marketIntelligenceExecutiveSummaryResponseSchema>,
   diff: option<marketIntelligenceExecutiveSummaryResponseSchema>,
-  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  percent_diff: option<whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__percent_diff>,
   compare_value: option<marketIntelligenceExecutiveSummaryResponseSchema>,
   compare_diff: option<marketIntelligenceExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
 @schema
 type organicExecutiveSummaryWithForecastBreakdown = {
-  _tag: option<[#OrganicExecutiveSummaryWithForecastBreakdown]>,
   organic_sales: float,
   organic_impressions: option<float>,
   organic_ctr: option<float>,
@@ -627,45 +723,35 @@ type organicExecutiveSummaryWithForecastBreakdown = {
 }
 
 @genType
+@schema
 type whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   baseline: organicExecutiveSummaryResponseSchema,
   projected: option<organicExecutiveSummaryResponseSchema>,
   diff: option<organicExecutiveSummaryResponseSchema>,
-  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  percent_diff: option<whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__percent_diff>,
   compare_value: option<organicExecutiveSummaryResponseSchema>,
   compare_diff: option<organicExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
-type timelineResponse_dict_ = {
-  _tag: option<[#TimelineResponse]>,
-  data: array<timelineDataPoint_dict_>,
-  period_start: string,
-  period_end: string,
-  period: option<string>
-}
-
-@genType
+@schema
 type timelineDataPoint_TotalExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   value: totalExecutiveSummaryResponseSchema,
   compare_value: option<totalExecutiveSummaryResponseSchema>,
   compare_diff: option<totalExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<timelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
 @schema
 type totalExecutiveSummaryWithForecastBreakdown = {
-  _tag: option<[#TotalExecutiveSummaryWithForecastBreakdown]>,
   total_sales: option<float>,
   total_spend: option<float>,
   total_impressions: option<float>,
@@ -683,120 +769,115 @@ type totalExecutiveSummaryWithForecastBreakdown = {
 }
 
 @genType
+@schema
 type whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineDataPoint]>,
   period_start: string,
   period_end: string,
-  is_forecast: option<bool>,
+  is_forecast: bool,
   baseline: totalExecutiveSummaryResponseSchema,
   projected: option<totalExecutiveSummaryResponseSchema>,
   diff: option<totalExecutiveSummaryResponseSchema>,
-  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  percent_diff: option<whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__percent_diff>,
   compare_value: option<totalExecutiveSummaryResponseSchema>,
   compare_diff: option<totalExecutiveSummaryResponseSchema>,
-  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
+  compare_percent_diff: option<whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema__compare_percent_diff>
 }
 
 @genType
 @schema
 type inventoryMetricsResponse = {
-  _tag: option<[#InventoryMetricsResponse]>,
   daily_metrics: array<dailyInventoryMetrics>,
   total_metrics: totalInventoryMetrics
 }
 
 @genType
+@tag("_tag")
+@schema
+type whatifResponse_AdsExecutiveSummaryResponseSchema__whatif_applied = WhatifAppliedEntry(whatifAppliedEntry) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_AttributionExecutiveSummaryResponseSchema__whatif_applied = WhatifAppliedEntry(whatifAppliedEntry) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_CFOExecutiveSummaryResponseSchema__whatif_applied = WhatifAppliedEntry(whatifAppliedEntry) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_InventoryExecutiveSummaryResponseSchema__whatif_applied = WhatifAppliedEntry(whatifAppliedEntry) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__whatif_applied = WhatifAppliedEntry(whatifAppliedEntry) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_OrganicExecutiveSummaryResponseSchema__whatif_applied = WhatifAppliedEntry(whatifAppliedEntry) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_TotalExecutiveSummaryResponseSchema__whatif_applied = WhatifAppliedEntry(whatifAppliedEntry) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_AdsExecutiveSummaryResponseSchema__model_info = WhatifModelInfo(whatifModelInfo) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_AttributionExecutiveSummaryResponseSchema__model_info = WhatifModelInfo(whatifModelInfo) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_CFOExecutiveSummaryResponseSchema__model_info = WhatifModelInfo(whatifModelInfo) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_InventoryExecutiveSummaryResponseSchema__model_info = WhatifModelInfo(whatifModelInfo) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__model_info = WhatifModelInfo(whatifModelInfo) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_OrganicExecutiveSummaryResponseSchema__model_info = WhatifModelInfo(whatifModelInfo) | Dict(Dict.t<string>)
+
+@genType
+@tag("_tag")
+@schema
+type whatifResponse_TotalExecutiveSummaryResponseSchema__model_info = WhatifModelInfo(whatifModelInfo) | Dict(Dict.t<string>)
+
+@genType
+@schema
+type timelineResponse_dict_ = {
+  data: array<timelineDataPoint_dict_>,
+  period_start: string,
+  period_end: string,
+  period: option<string>
+}
+
+@genType
+@schema
 type hTTPValidationError = {
   detail: option<array<validationError>>
 }
 
 @genType
-type whatifResponse_AdsExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifResponse]>,
-  baseline: adsExecutiveSummaryResponseSchema,
-  projected: adsExecutiveSummaryResponseSchema,
-  diff: Dict.t<option<float>>,
-  percent_diff: Dict.t<option<float>>,
-  whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
-  model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<array<string>>
-}
-
-@genType
-type whatifResponse_AttributionExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifResponse]>,
-  baseline: attributionExecutiveSummaryResponseSchema,
-  projected: attributionExecutiveSummaryResponseSchema,
-  diff: Dict.t<option<float>>,
-  percent_diff: Dict.t<option<float>>,
-  whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
-  model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<array<string>>
-}
-
-@genType
-type whatifResponse_CFOExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifResponse]>,
-  baseline: cFOExecutiveSummaryResponseSchema,
-  projected: cFOExecutiveSummaryResponseSchema,
-  diff: Dict.t<option<float>>,
-  percent_diff: Dict.t<option<float>>,
-  whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
-  model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<array<string>>
-}
-
-@genType
-type whatifResponse_InventoryExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifResponse]>,
-  baseline: inventoryExecutiveSummaryResponseSchema,
-  projected: inventoryExecutiveSummaryResponseSchema,
-  diff: Dict.t<option<float>>,
-  percent_diff: Dict.t<option<float>>,
-  whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
-  model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<array<string>>
-}
-
-@genType
-type whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifResponse]>,
-  baseline: marketIntelligenceExecutiveSummaryResponseSchema,
-  projected: marketIntelligenceExecutiveSummaryResponseSchema,
-  diff: Dict.t<option<float>>,
-  percent_diff: Dict.t<option<float>>,
-  whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
-  model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<array<string>>
-}
-
-@genType
-type whatifResponse_OrganicExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifResponse]>,
-  baseline: organicExecutiveSummaryResponseSchema,
-  projected: organicExecutiveSummaryResponseSchema,
-  diff: Dict.t<option<float>>,
-  percent_diff: Dict.t<option<float>>,
-  whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
-  model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<array<string>>
-}
-
-@genType
-type whatifResponse_TotalExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifResponse]>,
-  baseline: totalExecutiveSummaryResponseSchema,
-  projected: totalExecutiveSummaryResponseSchema,
-  diff: Dict.t<option<float>>,
-  percent_diff: Dict.t<option<float>>,
-  whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
-  model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<array<string>>
-}
-
-@genType
+@schema
 type timelineResponse_AdsExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineResponse]>,
   data: array<timelineDataPoint_AdsExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -804,8 +885,8 @@ type timelineResponse_AdsExecutiveSummaryResponseSchema_ = {
 }
 
 @genType
+@schema
 type whatifTimelineResponse_AdsExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineResponse]>,
   data: array<whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -813,8 +894,8 @@ type whatifTimelineResponse_AdsExecutiveSummaryResponseSchema_ = {
 }
 
 @genType
+@schema
 type timelineResponse_AttributionExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineResponse]>,
   data: array<timelineDataPoint_AttributionExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -822,8 +903,8 @@ type timelineResponse_AttributionExecutiveSummaryResponseSchema_ = {
 }
 
 @genType
+@schema
 type whatifTimelineResponse_AttributionExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineResponse]>,
   data: array<whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -831,8 +912,8 @@ type whatifTimelineResponse_AttributionExecutiveSummaryResponseSchema_ = {
 }
 
 @genType
+@schema
 type timelineResponse_CFOExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineResponse]>,
   data: array<timelineDataPoint_CFOExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -840,8 +921,8 @@ type timelineResponse_CFOExecutiveSummaryResponseSchema_ = {
 }
 
 @genType
+@schema
 type whatifTimelineResponse_CFOExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineResponse]>,
   data: array<whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -849,8 +930,8 @@ type whatifTimelineResponse_CFOExecutiveSummaryResponseSchema_ = {
 }
 
 @genType
+@schema
 type timelineResponse_InventoryExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineResponse]>,
   data: array<timelineDataPoint_InventoryExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -858,8 +939,8 @@ type timelineResponse_InventoryExecutiveSummaryResponseSchema_ = {
 }
 
 @genType
+@schema
 type whatifTimelineResponse_InventoryExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineResponse]>,
   data: array<whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -867,8 +948,8 @@ type whatifTimelineResponse_InventoryExecutiveSummaryResponseSchema_ = {
 }
 
 @genType
+@schema
 type timelineResponse_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineResponse]>,
   data: array<timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -876,8 +957,8 @@ type timelineResponse_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
 }
 
 @genType
+@schema
 type whatifTimelineResponse_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineResponse]>,
   data: array<whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -885,8 +966,8 @@ type whatifTimelineResponse_MarketIntelligenceExecutiveSummaryResponseSchema_ = 
 }
 
 @genType
+@schema
 type whatifTimelineResponse_OrganicExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineResponse]>,
   data: array<whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -894,8 +975,8 @@ type whatifTimelineResponse_OrganicExecutiveSummaryResponseSchema_ = {
 }
 
 @genType
+@schema
 type timelineResponse_TotalExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#TimelineResponse]>,
   data: array<timelineDataPoint_TotalExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
@@ -903,10 +984,94 @@ type timelineResponse_TotalExecutiveSummaryResponseSchema_ = {
 }
 
 @genType
+@schema
 type whatifTimelineResponse_TotalExecutiveSummaryResponseSchema_ = {
-  _tag: option<[#WhatifTimelineResponse]>,
   data: array<whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
   period: option<string>
+}
+
+@genType
+@schema
+type whatifResponse_AdsExecutiveSummaryResponseSchema_ = {
+  baseline: adsExecutiveSummaryResponseSchema,
+  projected: adsExecutiveSummaryResponseSchema,
+  diff: Dict.t<option<float>>,
+  percent_diff: Dict.t<option<float>>,
+  whatif_applied: Dict.t<whatifResponse_AdsExecutiveSummaryResponseSchema__whatif_applied>,
+  model_info: whatifResponse_AdsExecutiveSummaryResponseSchema__model_info,
+  warnings: option<array<string>>
+}
+
+@genType
+@schema
+type whatifResponse_AttributionExecutiveSummaryResponseSchema_ = {
+  baseline: attributionExecutiveSummaryResponseSchema,
+  projected: attributionExecutiveSummaryResponseSchema,
+  diff: Dict.t<option<float>>,
+  percent_diff: Dict.t<option<float>>,
+  whatif_applied: Dict.t<whatifResponse_AttributionExecutiveSummaryResponseSchema__whatif_applied>,
+  model_info: whatifResponse_AttributionExecutiveSummaryResponseSchema__model_info,
+  warnings: option<array<string>>
+}
+
+@genType
+@schema
+type whatifResponse_CFOExecutiveSummaryResponseSchema_ = {
+  baseline: cFOExecutiveSummaryResponseSchema,
+  projected: cFOExecutiveSummaryResponseSchema,
+  diff: Dict.t<option<float>>,
+  percent_diff: Dict.t<option<float>>,
+  whatif_applied: Dict.t<whatifResponse_CFOExecutiveSummaryResponseSchema__whatif_applied>,
+  model_info: whatifResponse_CFOExecutiveSummaryResponseSchema__model_info,
+  warnings: option<array<string>>
+}
+
+@genType
+@schema
+type whatifResponse_InventoryExecutiveSummaryResponseSchema_ = {
+  baseline: inventoryExecutiveSummaryResponseSchema,
+  projected: inventoryExecutiveSummaryResponseSchema,
+  diff: Dict.t<option<float>>,
+  percent_diff: Dict.t<option<float>>,
+  whatif_applied: Dict.t<whatifResponse_InventoryExecutiveSummaryResponseSchema__whatif_applied>,
+  model_info: whatifResponse_InventoryExecutiveSummaryResponseSchema__model_info,
+  warnings: option<array<string>>
+}
+
+@genType
+@schema
+type whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
+  baseline: marketIntelligenceExecutiveSummaryResponseSchema,
+  projected: marketIntelligenceExecutiveSummaryResponseSchema,
+  diff: Dict.t<option<float>>,
+  percent_diff: Dict.t<option<float>>,
+  whatif_applied: Dict.t<whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__whatif_applied>,
+  model_info: whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema__model_info,
+  warnings: option<array<string>>
+}
+
+@genType
+@schema
+type whatifResponse_OrganicExecutiveSummaryResponseSchema_ = {
+  baseline: organicExecutiveSummaryResponseSchema,
+  projected: organicExecutiveSummaryResponseSchema,
+  diff: Dict.t<option<float>>,
+  percent_diff: Dict.t<option<float>>,
+  whatif_applied: Dict.t<whatifResponse_OrganicExecutiveSummaryResponseSchema__whatif_applied>,
+  model_info: whatifResponse_OrganicExecutiveSummaryResponseSchema__model_info,
+  warnings: option<array<string>>
+}
+
+@genType
+@schema
+type whatifResponse_TotalExecutiveSummaryResponseSchema_ = {
+  baseline: totalExecutiveSummaryResponseSchema,
+  projected: totalExecutiveSummaryResponseSchema,
+  diff: Dict.t<option<float>>,
+  percent_diff: Dict.t<option<float>>,
+  whatif_applied: Dict.t<whatifResponse_TotalExecutiveSummaryResponseSchema__whatif_applied>,
+  model_info: whatifResponse_TotalExecutiveSummaryResponseSchema__model_info,
+  warnings: option<array<string>>
 }
