@@ -115,13 +115,21 @@ function generateType(schema) {
   }
 }
 
+function isOptionalType(schema) {
+  if (typeof schema !== "object") {
+    return false;
+  } else {
+    return schema._tag === "Optional";
+  }
+}
+
 function generateRecord(fields) {
   if (fields.length === 0) {
     return "{}";
   }
   let fieldStrs = fields.map(field => {
     let typeStr = generateType(field.type);
-    let optionalType = field.required ? typeStr : `option<` + typeStr + `>`;
+    let optionalType = field.required || isOptionalType(field.type) ? typeStr : `option<` + typeStr + `>`;
     if (reservedKeywords.includes(field.name)) {
       return `@as("` + field.name + `") ` + field.name + `_: ` + optionalType;
     } else {
@@ -191,6 +199,30 @@ function generateUnion(types) {
     return `#` + tag + `(` + payload + `)`;
   });
   return `[` + caseStrs.join(" | ") + `]`;
+}
+
+function hasUnion(_schema) {
+  while (true) {
+    let schema = _schema;
+    if (typeof schema !== "object") {
+      return false;
+    }
+    switch (schema._tag) {
+      case "Object" :
+        return schema._0.some(f => hasUnion(f.type));
+      case "PolyVariant" :
+        return schema._0.some(c => hasUnion(c.payload));
+      case "Optional" :
+      case "Array" :
+      case "Dict" :
+        _schema = schema._0;
+        continue;
+      case "Union" :
+        return true;
+      default:
+        return false;
+    }
+  };
 }
 
 function getDependencies(_schema) {
@@ -289,16 +321,56 @@ function topologicalSort(schemas) {
   return result;
 }
 
-function generateTypeDef(namedSchema) {
+function buildSkipSchemaSet(schemas) {
+  let skipSet = {};
+  schemas.forEach(s => {
+    if (hasUnion(s.schema)) {
+      skipSet[s.name] = true;
+      return;
+    }
+  });
+  let changed = {
+    contents: true
+  };
+  while (changed.contents) {
+    changed.contents = false;
+    schemas.forEach(s => {
+      if (!Core__Option.isNone(skipSet[s.name])) {
+        return;
+      }
+      let refs = getDependencies(s.schema);
+      let refsSkipSchema = refs.some(refName => Core__Option.isSome(skipSet[refName]));
+      if (refsSkipSchema) {
+        skipSet[s.name] = true;
+        changed.contents = true;
+        return;
+      }
+    });
+  };
+  return skipSet;
+}
+
+function generateTypeDefWithSkipSet(namedSchema, skipSet) {
   let typeName = lcFirst(namedSchema.name);
   let typeBody = generateType(namedSchema.schema);
-  return `@genType
+  let shouldSkip = Core__Option.isSome(skipSet[namedSchema.name]);
+  let annotations = shouldSkip ? "@genType" : "@genType\n@schema";
+  return annotations + `
+type ` + typeName + ` = ` + typeBody;
+}
+
+function generateTypeDef(namedSchema) {
+  let annotations = hasUnion(namedSchema.schema) ? "@genType" : "@genType\n@schema";
+  let typeName = lcFirst(namedSchema.name);
+  let typeBody = generateType(namedSchema.schema);
+  return annotations + `
 type ` + typeName + ` = ` + typeBody;
 }
 
 function generateModule(schemas) {
   let sorted = topologicalSort(schemas);
-  return sorted.map(generateTypeDef).join("\n\n");
+  let skipSet = buildSkipSchemaSet(schemas);
+  return sorted.map(s => generateTypeDefWithSkipSet(s, skipSet)).join("\n\n");
 }
 
 export {
@@ -306,13 +378,17 @@ export {
   isReservedKeyword,
   lcFirst,
   generateType,
+  isOptionalType,
   generateRecord,
   generatePolyVariant,
   ucFirst,
   getTagForType,
   generateUnion,
+  hasUnion,
   getDependencies,
   topologicalSort,
+  buildSkipSchemaSet,
+  generateTypeDefWithSkipSet,
   generateTypeDef,
   generateModule,
 }

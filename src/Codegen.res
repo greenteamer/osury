@@ -48,6 +48,14 @@ let rec generateType = (schema: Schema.schemaType): string => {
   }
 }
 
+// Check if schema type is already Optional
+and isOptionalType = (schema: Schema.schemaType): bool => {
+  switch schema {
+  | Optional(_) => true
+  | _ => false
+  }
+}
+
 // Generate record type from fields
 and generateRecord = (fields: array<Schema.field>): string => {
   if Array.length(fields) == 0 {
@@ -55,7 +63,8 @@ and generateRecord = (fields: array<Schema.field>): string => {
   } else {
     let fieldStrs = fields->Array.map(field => {
       let typeStr = generateType(field.type_)
-      let optionalType = if field.required {
+      // Don't double-wrap in option if type is already Optional
+      let optionalType = if field.required || isOptionalType(field.type_) {
         typeStr
       } else {
         `option<${typeStr}>`
@@ -119,6 +128,19 @@ and generateUnion = (types: array<Schema.schemaType>): string => {
     `#${tag}(${payload})`
   })
   `[${caseStrs->Array.join(" | ")}]`
+}
+
+// Check if schema contains inline Union types (incompatible with @schema PPX)
+let rec hasUnion = (schema: Schema.schemaType): bool => {
+  switch schema {
+  | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) => false
+  | Union(_) => true
+  | Optional(inner) => hasUnion(inner)
+  | Array(inner) => hasUnion(inner)
+  | Dict(inner) => hasUnion(inner)
+  | Object(fields) => fields->Array.some(f => hasUnion(f.type_))
+  | PolyVariant(cases) => cases->Array.some(c => hasUnion(c.payload))
+  }
 }
 
 // Extract all Ref dependencies from a schema type
@@ -222,17 +244,76 @@ let topologicalSort = (schemas: array<OpenAPIParser.namedSchema>): array<OpenAPI
   result
 }
 
+// Build set of type names that should skip @schema
+// Types skip @schema if: they have inline Union OR reference a type that skips @schema
+let buildSkipSchemaSet = (schemas: array<OpenAPIParser.namedSchema>): Dict.t<bool> => {
+  let skipSet = Dict.make()
+
+  // First pass: mark types with inline Union
+  schemas->Array.forEach(s => {
+    if hasUnion(s.schema) {
+      skipSet->Dict.set(s.name, true)
+    }
+  })
+
+  // Second pass: propagate through references (iterate until no changes)
+  let changed = ref(true)
+  while changed.contents {
+    changed := false
+    schemas->Array.forEach(s => {
+      if skipSet->Dict.get(s.name)->Option.isNone {
+        // Check if this type references any type that skips @schema
+        let refs = getDependencies(s.schema)
+        let refsSkipSchema = refs->Array.some(refName =>
+          skipSet->Dict.get(refName)->Option.isSome
+        )
+        if refsSkipSchema {
+          skipSet->Dict.set(s.name, true)
+          changed := true
+        }
+      }
+    })
+  }
+
+  skipSet
+}
+
 // Generate type definition from named schema
-let generateTypeDef = (namedSchema: OpenAPIParser.namedSchema): string => {
+// skipSchema: set of type names that should skip @schema
+let generateTypeDefWithSkipSet = (
+  namedSchema: OpenAPIParser.namedSchema,
+  skipSet: Dict.t<bool>
+): string => {
   let typeName = lcFirst(namedSchema.name)
   let typeBody = generateType(namedSchema.schema)
-  `@genType
+  let shouldSkip = skipSet->Dict.get(namedSchema.name)->Option.isSome
+  let annotations = if shouldSkip {
+    "@genType"
+  } else {
+    "@genType\n@schema"
+  }
+  `${annotations}
+type ${typeName} = ${typeBody}`
+}
+
+// Public API: Generate type definition (for single schema without context)
+let generateTypeDef = (namedSchema: OpenAPIParser.namedSchema): string => {
+  let annotations = if hasUnion(namedSchema.schema) {
+    "@genType"
+  } else {
+    "@genType\n@schema"
+  }
+  let typeName = lcFirst(namedSchema.name)
+  let typeBody = generateType(namedSchema.schema)
+  `${annotations}
 type ${typeName} = ${typeBody}`
 }
 
 // Generate full module from array of schemas
 // Sorts types topologically so dependencies are defined first
+// Propagates @schema skip through references
 let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
   let sorted = topologicalSort(schemas)
-  sorted->Array.map(generateTypeDef)->Array.join("\n\n")
+  let skipSet = buildSkipSchemaSet(schemas)
+  sorted->Array.map(s => generateTypeDefWithSkipSet(s, skipSet))->Array.join("\n\n")
 }

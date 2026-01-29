@@ -1,59 +1,63 @@
 @genType
+@schema
 type adsExecutiveSummaryResponseSchema = {
   _tag: option<[#AdsExecutiveSummaryResponseSchema]>,
   ad_sales: option<float>,
   ad_spend: option<float>,
   ad_impressions: option<float>,
-  ad_ctr: option<option<float>>,
+  ad_ctr: option<float>,
   ad_clicks: option<float>,
-  ad_cvr: option<option<float>>,
+  ad_cvr: option<float>,
   ad_orders: option<float>,
   ad_units_sold: option<float>,
-  acos: option<option<float>>,
-  roas: option<option<float>>,
-  cpc: option<option<float>>,
-  cpm: option<option<float>>,
-  time_in_budget: option<option<float>>,
-  ad_tos_is: option<option<float>>,
-  ads_non_optimal_spend: option<option<float>>
+  acos: option<float>,
+  roas: option<float>,
+  cpc: option<float>,
+  cpm: option<float>,
+  time_in_budget: option<float>,
+  ad_tos_is: option<float>,
+  ads_non_optimal_spend: option<float>
 }
 
 @genType
+@schema
 type attributionExecutiveSummaryResponseSchema = {
   _tag: option<[#AttributionExecutiveSummaryResponseSchema]>,
-  attribution_sales: option<option<float>>,
-  attribution_spend: option<option<float>>,
-  attribution_impressions: option<option<float>>,
-  attribution_ctr: option<option<float>>,
-  attribution_clicks: option<option<float>>,
-  attribution_cvr: option<option<float>>,
-  attribution_orders: option<option<float>>,
-  attribution_units_sold: option<option<float>>,
-  attribution_acos: option<option<float>>,
-  attribution_roas: option<option<float>>,
-  attribution_cpc: option<option<float>>,
-  attribution_cpm: option<option<float>>
+  attribution_sales: option<float>,
+  attribution_spend: option<float>,
+  attribution_impressions: option<float>,
+  attribution_ctr: option<float>,
+  attribution_clicks: option<float>,
+  attribution_cvr: option<float>,
+  attribution_orders: option<float>,
+  attribution_units_sold: option<float>,
+  attribution_acos: option<float>,
+  attribution_roas: option<float>,
+  attribution_cpc: option<float>,
+  attribution_cpm: option<float>
 }
 
 @genType
+@schema
 type cFOExecutiveSummaryResponseSchema = {
   _tag: option<[#CFOExecutiveSummaryResponseSchema]>,
-  available_capital: option<option<float>>,
-  frozen_capital: option<option<float>>,
-  borrowed_capital: option<option<float>>,
-  gross_profit: option<option<float>>,
-  gross_margin: option<option<float>>,
-  contribution_profit: option<option<float>>,
-  contribution_margin: option<option<float>>,
-  net_profit: option<option<float>>,
-  net_margin: option<option<float>>,
-  opex: option<option<float>>,
-  roi: option<option<float>>,
+  available_capital: option<float>,
+  frozen_capital: option<float>,
+  borrowed_capital: option<float>,
+  gross_profit: option<float>,
+  gross_margin: option<float>,
+  contribution_profit: option<float>,
+  contribution_margin: option<float>,
+  net_profit: option<float>,
+  net_margin: option<float>,
+  opex: option<float>,
+  roi: option<float>,
   cost_of_goods_sold: float,
   amazon_fees: float
 }
 
 @genType
+@schema
 type dailyInventoryMetrics = {
   date: string,
   available_stock: float,
@@ -67,131 +71,136 @@ type dailyInventoryMetrics = {
 }
 
 @genType
+@schema
 type forecastParams = {
-  impressions_what_if: option<option<float>>,
-  clicks_what_if: option<option<float>>,
-  orders_what_if: option<option<float>>,
-  units_sold_what_if: option<option<float>>,
-  sales_what_if: option<option<float>>,
-  ad_spend_what_if: option<option<float>>,
-  ad_impressions_what_if: option<option<float>>,
-  ad_clicks_what_if: option<option<float>>,
-  ad_orders_what_if: option<option<float>>,
-  ad_sales_what_if: option<option<float>>,
-  ad_units_sold_what_if: option<option<float>>,
-  ad_ctr_what_if: option<option<float>>,
-  ad_cvr_what_if: option<option<float>>,
-  cpc_what_if: option<option<float>>,
-  cpm_what_if: option<option<float>>,
-  organic_impressions_what_if: option<option<float>>,
-  organic_clicks_what_if: option<option<float>>,
-  organic_orders_what_if: option<option<float>>,
-  organic_sales_what_if: option<option<float>>,
-  organic_units_sold_what_if: option<option<float>>,
-  total_sales_what_if: option<option<float>>,
-  total_spend_what_if: option<option<float>>,
-  total_impressions_what_if: option<option<float>>,
-  total_clicks_what_if: option<option<float>>,
-  total_orders_what_if: option<option<float>>,
-  total_units_sold_what_if: option<option<float>>,
-  lost_sales_what_if: option<option<float>>,
-  ctr_what_if: option<option<float>>,
-  cvr_what_if: option<option<float>>,
-  acos_what_if: option<option<float>>,
-  tacos_what_if: option<option<float>>,
-  roas_what_if: option<option<float>>,
-  mer_what_if: option<option<float>>,
-  aov_what_if: option<option<float>>,
-  gross_profit_what_if: option<option<float>>,
-  gross_margin_what_if: option<option<float>>,
-  contribution_profit_what_if: option<option<float>>,
-  contribution_margin_what_if: option<option<float>>,
-  net_profit_what_if: option<option<float>>,
-  net_margin_what_if: option<option<float>>,
-  roi_what_if: option<option<float>>,
-  available_capital_what_if: option<option<float>>,
-  frozen_capital_what_if: option<option<float>>,
-  ebitda_what_if: option<option<float>>,
-  cogs_what_if: option<option<float>>,
-  cost_of_goods_sold_what_if: option<option<float>>,
-  amazon_fees_what_if: option<option<float>>,
-  opex_what_if: option<option<float>>,
-  discount_what_if: option<option<float>>,
-  coupon_what_if: option<option<float>>,
-  subscribe_save_what_if: option<option<float>>,
-  text_score_what_if: option<option<float>>,
-  image_score_what_if: option<option<float>>,
-  video_score_what_if: option<option<float>>,
-  a_plus_score_what_if: option<option<float>>,
-  fba_in_stock_rate_what_if: option<option<float>>,
-  inventory_turnover_what_if: option<option<float>>,
-  safety_stock_what_if: option<option<float>>,
-  storage_costs_what_if: option<option<float>>,
-  shipping_costs_what_if: option<option<float>>,
-  market_total_sales_what_if: option<option<float>>,
-  brand_market_share_what_if: option<option<float>>,
-  market_average_price_what_if: option<option<float>>,
-  attribution_sales_what_if: option<option<float>>,
-  attribution_spend_what_if: option<option<float>>,
-  attribution_impressions_what_if: option<option<float>>,
-  attribution_clicks_what_if: option<option<float>>,
-  attribution_orders_what_if: option<option<float>>,
-  attribution_units_sold_what_if: option<option<float>>,
-  attribution_ctr_what_if: option<option<float>>,
-  attribution_cvr_what_if: option<option<float>>,
-  attribution_acos_what_if: option<option<float>>,
-  attribution_roas_what_if: option<option<float>>,
-  attribution_cpc_what_if: option<option<float>>,
-  attribution_cpm_what_if: option<option<float>>
+  impressions_what_if: option<float>,
+  clicks_what_if: option<float>,
+  orders_what_if: option<float>,
+  units_sold_what_if: option<float>,
+  sales_what_if: option<float>,
+  ad_spend_what_if: option<float>,
+  ad_impressions_what_if: option<float>,
+  ad_clicks_what_if: option<float>,
+  ad_orders_what_if: option<float>,
+  ad_sales_what_if: option<float>,
+  ad_units_sold_what_if: option<float>,
+  ad_ctr_what_if: option<float>,
+  ad_cvr_what_if: option<float>,
+  cpc_what_if: option<float>,
+  cpm_what_if: option<float>,
+  organic_impressions_what_if: option<float>,
+  organic_clicks_what_if: option<float>,
+  organic_orders_what_if: option<float>,
+  organic_sales_what_if: option<float>,
+  organic_units_sold_what_if: option<float>,
+  total_sales_what_if: option<float>,
+  total_spend_what_if: option<float>,
+  total_impressions_what_if: option<float>,
+  total_clicks_what_if: option<float>,
+  total_orders_what_if: option<float>,
+  total_units_sold_what_if: option<float>,
+  lost_sales_what_if: option<float>,
+  ctr_what_if: option<float>,
+  cvr_what_if: option<float>,
+  acos_what_if: option<float>,
+  tacos_what_if: option<float>,
+  roas_what_if: option<float>,
+  mer_what_if: option<float>,
+  aov_what_if: option<float>,
+  gross_profit_what_if: option<float>,
+  gross_margin_what_if: option<float>,
+  contribution_profit_what_if: option<float>,
+  contribution_margin_what_if: option<float>,
+  net_profit_what_if: option<float>,
+  net_margin_what_if: option<float>,
+  roi_what_if: option<float>,
+  available_capital_what_if: option<float>,
+  frozen_capital_what_if: option<float>,
+  ebitda_what_if: option<float>,
+  cogs_what_if: option<float>,
+  cost_of_goods_sold_what_if: option<float>,
+  amazon_fees_what_if: option<float>,
+  opex_what_if: option<float>,
+  discount_what_if: option<float>,
+  coupon_what_if: option<float>,
+  subscribe_save_what_if: option<float>,
+  text_score_what_if: option<float>,
+  image_score_what_if: option<float>,
+  video_score_what_if: option<float>,
+  a_plus_score_what_if: option<float>,
+  fba_in_stock_rate_what_if: option<float>,
+  inventory_turnover_what_if: option<float>,
+  safety_stock_what_if: option<float>,
+  storage_costs_what_if: option<float>,
+  shipping_costs_what_if: option<float>,
+  market_total_sales_what_if: option<float>,
+  brand_market_share_what_if: option<float>,
+  market_average_price_what_if: option<float>,
+  attribution_sales_what_if: option<float>,
+  attribution_spend_what_if: option<float>,
+  attribution_impressions_what_if: option<float>,
+  attribution_clicks_what_if: option<float>,
+  attribution_orders_what_if: option<float>,
+  attribution_units_sold_what_if: option<float>,
+  attribution_ctr_what_if: option<float>,
+  attribution_cvr_what_if: option<float>,
+  attribution_acos_what_if: option<float>,
+  attribution_roas_what_if: option<float>,
+  attribution_cpc_what_if: option<float>,
+  attribution_cpm_what_if: option<float>
 }
 
 @genType
+@schema
 type insightResponse = {
   _tag: option<[#InsightResponse]>,
   summary: string,
   date_start: string,
   date_end: string,
-  asin: option<option<string>>,
+  asin: option<string>,
   agent: string
 }
 
 @genType
+@schema
 type inventoryExecutiveSummaryResponseSchema = {
   _tag: option<[#InventoryExecutiveSummaryResponseSchema]>,
-  fba_in_stock_rate: option<option<float>>,
-  fbt_in_stock_rate: option<option<float>>,
-  three_pl_in_stock_rate: option<option<float>>,
-  storage_costs: option<option<float>>,
-  shipping_costs: option<option<float>>,
-  forecasting_accuracy: option<option<float>>,
-  inventory_turnover: option<option<float>>,
-  safety_stock: option<option<float>>,
-  doi_available: option<option<float>>,
-  total_doi: option<option<float>>,
-  estimated_stock_out_date: option<option<string>>
+  fba_in_stock_rate: option<float>,
+  fbt_in_stock_rate: option<float>,
+  three_pl_in_stock_rate: option<float>,
+  storage_costs: option<float>,
+  shipping_costs: option<float>,
+  forecasting_accuracy: option<float>,
+  inventory_turnover: option<float>,
+  safety_stock: option<float>,
+  doi_available: option<float>,
+  total_doi: option<float>,
+  estimated_stock_out_date: option<string>
 }
 
 @genType
+@schema
 type marketIntelligenceExecutiveSummaryResponseSchema = {
   _tag: option<[#MarketIntelligenceExecutiveSummaryResponseSchema]>,
-  market_total_sales: option<option<float>>,
-  brand_market_share: option<option<float>>,
-  market_average_price: option<option<float>>,
-  market_total_units_sold: option<option<float>>,
-  market_asin_count: option<option<int>>,
-  market_promotion_value: option<option<float>>,
-  market_promotion_count: option<option<int>>,
-  market_review_score: option<option<float>>,
-  market_pos: option<option<float>>,
-  market_ad_spend: option<option<float>>
+  market_total_sales: option<float>,
+  brand_market_share: option<float>,
+  market_average_price: option<float>,
+  market_total_units_sold: option<float>,
+  market_asin_count: option<int>,
+  market_promotion_value: option<float>,
+  market_promotion_count: option<int>,
+  market_review_score: option<float>,
+  market_pos: option<float>,
+  market_ad_spend: option<float>
 }
 
 @genType
+@schema
 type organicExecutiveSummaryResponseSchema = {
   _tag: option<[#OrganicExecutiveSummaryResponseSchema]>,
   organic_sales: float,
-  organic_impressions: option<option<float>>,
-  organic_ctr: option<option<float>>,
+  organic_impressions: option<float>,
+  organic_ctr: option<float>,
   organic_clicks: float,
   organic_cvr: float,
   organic_orders: float,
@@ -199,6 +208,7 @@ type organicExecutiveSummaryResponseSchema = {
 }
 
 @genType
+@schema
 type strategicPlanResponse = {
   _tag: option<[#StrategicPlanResponse]>,
   plan: string,
@@ -207,12 +217,12 @@ type strategicPlanResponse = {
   projected_net_profit: float,
   projected_gross_profit: float,
   projected_roi: float,
-  total_sales_diff_pct: option<option<float>>,
-  net_profit_diff_pct: option<option<float>>,
-  gross_profit_diff_pct: option<option<float>>,
-  roi_diff_pct: option<option<float>>,
+  total_sales_diff_pct: option<float>,
+  net_profit_diff_pct: option<float>,
+  gross_profit_diff_pct: option<float>,
+  roi_diff_pct: option<float>,
   goals: option<array<Dict.t<string>>>,
-  asin: option<option<string>>
+  asin: option<string>
 }
 
 @genType
@@ -222,29 +232,31 @@ type timelineDataPoint_dict_ = {
   period_end: string,
   is_forecast: option<bool>,
   value: Dict.t<string>,
-  compare_value: option<option<Dict.t<string>>>,
-  compare_diff: option<option<Dict.t<string>>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  compare_value: option<Dict.t<string>>,
+  compare_diff: option<Dict.t<string>>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
+@schema
 type totalExecutiveSummaryResponseSchema = {
   _tag: option<[#TotalExecutiveSummaryResponseSchema]>,
-  total_sales: option<option<float>>,
-  total_spend: option<option<float>>,
-  total_impressions: option<option<float>>,
-  ctr: option<option<float>>,
-  total_clicks: option<option<float>>,
-  cvr: option<option<float>>,
-  total_orders: option<option<float>>,
-  total_units_sold: option<option<float>>,
-  total_ntb_orders: option<option<float>>,
-  tacos: option<option<float>>,
-  mer: option<option<float>>,
-  lost_sales: option<option<float>>
+  total_sales: option<float>,
+  total_spend: option<float>,
+  total_impressions: option<float>,
+  ctr: option<float>,
+  total_clicks: option<float>,
+  cvr: option<float>,
+  total_orders: option<float>,
+  total_units_sold: option<float>,
+  total_ntb_orders: option<float>,
+  tacos: option<float>,
+  mer: option<float>,
+  lost_sales: option<float>
 }
 
 @genType
+@schema
 type totalInventoryMetrics = {
   available_stock: float,
   in_transit: float,
@@ -264,6 +276,7 @@ type validationError = {
 }
 
 @genType
+@schema
 type whatifAppliedEntry = {
   current_value: option<float>,
   percentage_change: float,
@@ -271,6 +284,7 @@ type whatifAppliedEntry = {
 }
 
 @genType
+@schema
 type whatifModelInfo = {
   metrics_count: int,
   correlations_count: int,
@@ -278,23 +292,24 @@ type whatifModelInfo = {
 }
 
 @genType
+@schema
 type adsExecutiveSummaryWithForecastBreakdown = {
   _tag: option<[#AdsExecutiveSummaryWithForecastBreakdown]>,
   ad_sales: option<float>,
   ad_spend: option<float>,
   ad_impressions: option<float>,
-  ad_ctr: option<option<float>>,
+  ad_ctr: option<float>,
   ad_clicks: option<float>,
-  ad_cvr: option<option<float>>,
+  ad_cvr: option<float>,
   ad_orders: option<float>,
   ad_units_sold: option<float>,
-  acos: option<option<float>>,
-  roas: option<option<float>>,
-  cpc: option<option<float>>,
-  cpm: option<option<float>>,
-  time_in_budget: option<option<float>>,
-  ad_tos_is: option<option<float>>,
-  ads_non_optimal_spend: option<option<float>>,
+  acos: option<float>,
+  roas: option<float>,
+  cpc: option<float>,
+  cpm: option<float>,
+  time_in_budget: option<float>,
+  ad_tos_is: option<float>,
+  ads_non_optimal_spend: option<float>,
   real: adsExecutiveSummaryResponseSchema,
   forecasted: adsExecutiveSummaryResponseSchema
 }
@@ -306,9 +321,9 @@ type timelineDataPoint_AdsExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   value: adsExecutiveSummaryResponseSchema,
-  compare_value: option<option<adsExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<adsExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  compare_value: option<adsExecutiveSummaryResponseSchema>,
+  compare_diff: option<adsExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
@@ -318,29 +333,30 @@ type whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   baseline: adsExecutiveSummaryResponseSchema,
-  projected: option<option<adsExecutiveSummaryResponseSchema>>,
-  diff: option<option<adsExecutiveSummaryResponseSchema>>,
-  percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>,
-  compare_value: option<option<adsExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<adsExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  projected: option<adsExecutiveSummaryResponseSchema>,
+  diff: option<adsExecutiveSummaryResponseSchema>,
+  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  compare_value: option<adsExecutiveSummaryResponseSchema>,
+  compare_diff: option<adsExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
+@schema
 type attributionExecutiveSummaryWithForecastBreakdown = {
   _tag: option<[#AttributionExecutiveSummaryWithForecastBreakdown]>,
-  attribution_sales: option<option<float>>,
-  attribution_spend: option<option<float>>,
-  attribution_impressions: option<option<float>>,
-  attribution_ctr: option<option<float>>,
-  attribution_clicks: option<option<float>>,
-  attribution_cvr: option<option<float>>,
-  attribution_orders: option<option<float>>,
-  attribution_units_sold: option<option<float>>,
-  attribution_acos: option<option<float>>,
-  attribution_roas: option<option<float>>,
-  attribution_cpc: option<option<float>>,
-  attribution_cpm: option<option<float>>,
+  attribution_sales: option<float>,
+  attribution_spend: option<float>,
+  attribution_impressions: option<float>,
+  attribution_ctr: option<float>,
+  attribution_clicks: option<float>,
+  attribution_cvr: option<float>,
+  attribution_orders: option<float>,
+  attribution_units_sold: option<float>,
+  attribution_acos: option<float>,
+  attribution_roas: option<float>,
+  attribution_cpc: option<float>,
+  attribution_cpm: option<float>,
   real: attributionExecutiveSummaryResponseSchema,
   forecasted: attributionExecutiveSummaryResponseSchema
 }
@@ -352,9 +368,9 @@ type timelineDataPoint_AttributionExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   value: attributionExecutiveSummaryResponseSchema,
-  compare_value: option<option<attributionExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<attributionExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  compare_value: option<attributionExecutiveSummaryResponseSchema>,
+  compare_diff: option<attributionExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
@@ -364,28 +380,29 @@ type whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   baseline: attributionExecutiveSummaryResponseSchema,
-  projected: option<option<attributionExecutiveSummaryResponseSchema>>,
-  diff: option<option<attributionExecutiveSummaryResponseSchema>>,
-  percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>,
-  compare_value: option<option<attributionExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<attributionExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  projected: option<attributionExecutiveSummaryResponseSchema>,
+  diff: option<attributionExecutiveSummaryResponseSchema>,
+  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  compare_value: option<attributionExecutiveSummaryResponseSchema>,
+  compare_diff: option<attributionExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
+@schema
 type cFOExecutiveSummaryWithForecastBreakdown = {
   _tag: option<[#CFOExecutiveSummaryWithForecastBreakdown]>,
-  available_capital: option<option<float>>,
-  frozen_capital: option<option<float>>,
-  borrowed_capital: option<option<float>>,
-  gross_profit: option<option<float>>,
-  gross_margin: option<option<float>>,
-  contribution_profit: option<option<float>>,
-  contribution_margin: option<option<float>>,
-  net_profit: option<option<float>>,
-  net_margin: option<option<float>>,
-  opex: option<option<float>>,
-  roi: option<option<float>>,
+  available_capital: option<float>,
+  frozen_capital: option<float>,
+  borrowed_capital: option<float>,
+  gross_profit: option<float>,
+  gross_margin: option<float>,
+  contribution_profit: option<float>,
+  contribution_margin: option<float>,
+  net_profit: option<float>,
+  net_margin: option<float>,
+  opex: option<float>,
+  roi: option<float>,
   cost_of_goods_sold: float,
   amazon_fees: float,
   real: cFOExecutiveSummaryResponseSchema,
@@ -399,9 +416,9 @@ type timelineDataPoint_CFOExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   value: cFOExecutiveSummaryResponseSchema,
-  compare_value: option<option<cFOExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<cFOExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  compare_value: option<cFOExecutiveSummaryResponseSchema>,
+  compare_diff: option<cFOExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
@@ -411,111 +428,113 @@ type whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   baseline: cFOExecutiveSummaryResponseSchema,
-  projected: option<option<cFOExecutiveSummaryResponseSchema>>,
-  diff: option<option<cFOExecutiveSummaryResponseSchema>>,
-  percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>,
-  compare_value: option<option<cFOExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<cFOExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  projected: option<cFOExecutiveSummaryResponseSchema>,
+  diff: option<cFOExecutiveSummaryResponseSchema>,
+  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  compare_value: option<cFOExecutiveSummaryResponseSchema>,
+  compare_diff: option<cFOExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
+@schema
 type tierLevelForecastParams = {
-  impressions_what_if: option<option<float>>,
-  clicks_what_if: option<option<float>>,
-  orders_what_if: option<option<float>>,
-  units_sold_what_if: option<option<float>>,
-  sales_what_if: option<option<float>>,
-  ad_spend_what_if: option<option<float>>,
-  ad_impressions_what_if: option<option<float>>,
-  ad_clicks_what_if: option<option<float>>,
-  ad_orders_what_if: option<option<float>>,
-  ad_sales_what_if: option<option<float>>,
-  ad_units_sold_what_if: option<option<float>>,
-  ad_ctr_what_if: option<option<float>>,
-  ad_cvr_what_if: option<option<float>>,
-  cpc_what_if: option<option<float>>,
-  cpm_what_if: option<option<float>>,
-  organic_impressions_what_if: option<option<float>>,
-  organic_clicks_what_if: option<option<float>>,
-  organic_orders_what_if: option<option<float>>,
-  organic_sales_what_if: option<option<float>>,
-  organic_units_sold_what_if: option<option<float>>,
-  total_sales_what_if: option<option<float>>,
-  total_spend_what_if: option<option<float>>,
-  total_impressions_what_if: option<option<float>>,
-  total_clicks_what_if: option<option<float>>,
-  total_orders_what_if: option<option<float>>,
-  total_units_sold_what_if: option<option<float>>,
-  lost_sales_what_if: option<option<float>>,
-  ctr_what_if: option<option<float>>,
-  cvr_what_if: option<option<float>>,
-  acos_what_if: option<option<float>>,
-  tacos_what_if: option<option<float>>,
-  roas_what_if: option<option<float>>,
-  mer_what_if: option<option<float>>,
-  aov_what_if: option<option<float>>,
-  gross_profit_what_if: option<option<float>>,
-  gross_margin_what_if: option<option<float>>,
-  contribution_profit_what_if: option<option<float>>,
-  contribution_margin_what_if: option<option<float>>,
-  net_profit_what_if: option<option<float>>,
-  net_margin_what_if: option<option<float>>,
-  roi_what_if: option<option<float>>,
-  available_capital_what_if: option<option<float>>,
-  frozen_capital_what_if: option<option<float>>,
-  ebitda_what_if: option<option<float>>,
-  cogs_what_if: option<option<float>>,
-  cost_of_goods_sold_what_if: option<option<float>>,
-  amazon_fees_what_if: option<option<float>>,
-  opex_what_if: option<option<float>>,
-  discount_what_if: option<option<float>>,
-  coupon_what_if: option<option<float>>,
-  subscribe_save_what_if: option<option<float>>,
-  text_score_what_if: option<option<float>>,
-  image_score_what_if: option<option<float>>,
-  video_score_what_if: option<option<float>>,
-  a_plus_score_what_if: option<option<float>>,
-  fba_in_stock_rate_what_if: option<option<float>>,
-  inventory_turnover_what_if: option<option<float>>,
-  safety_stock_what_if: option<option<float>>,
-  storage_costs_what_if: option<option<float>>,
-  shipping_costs_what_if: option<option<float>>,
-  market_total_sales_what_if: option<option<float>>,
-  brand_market_share_what_if: option<option<float>>,
-  market_average_price_what_if: option<option<float>>,
-  attribution_sales_what_if: option<option<float>>,
-  attribution_spend_what_if: option<option<float>>,
-  attribution_impressions_what_if: option<option<float>>,
-  attribution_clicks_what_if: option<option<float>>,
-  attribution_orders_what_if: option<option<float>>,
-  attribution_units_sold_what_if: option<option<float>>,
-  attribution_ctr_what_if: option<option<float>>,
-  attribution_cvr_what_if: option<option<float>>,
-  attribution_acos_what_if: option<option<float>>,
-  attribution_roas_what_if: option<option<float>>,
-  attribution_cpc_what_if: option<option<float>>,
-  attribution_cpm_what_if: option<option<float>>,
-  no_sales: option<option<forecastParams>>,
-  poor: option<option<forecastParams>>,
-  mid: option<option<forecastParams>>,
-  good: option<option<forecastParams>>
+  impressions_what_if: option<float>,
+  clicks_what_if: option<float>,
+  orders_what_if: option<float>,
+  units_sold_what_if: option<float>,
+  sales_what_if: option<float>,
+  ad_spend_what_if: option<float>,
+  ad_impressions_what_if: option<float>,
+  ad_clicks_what_if: option<float>,
+  ad_orders_what_if: option<float>,
+  ad_sales_what_if: option<float>,
+  ad_units_sold_what_if: option<float>,
+  ad_ctr_what_if: option<float>,
+  ad_cvr_what_if: option<float>,
+  cpc_what_if: option<float>,
+  cpm_what_if: option<float>,
+  organic_impressions_what_if: option<float>,
+  organic_clicks_what_if: option<float>,
+  organic_orders_what_if: option<float>,
+  organic_sales_what_if: option<float>,
+  organic_units_sold_what_if: option<float>,
+  total_sales_what_if: option<float>,
+  total_spend_what_if: option<float>,
+  total_impressions_what_if: option<float>,
+  total_clicks_what_if: option<float>,
+  total_orders_what_if: option<float>,
+  total_units_sold_what_if: option<float>,
+  lost_sales_what_if: option<float>,
+  ctr_what_if: option<float>,
+  cvr_what_if: option<float>,
+  acos_what_if: option<float>,
+  tacos_what_if: option<float>,
+  roas_what_if: option<float>,
+  mer_what_if: option<float>,
+  aov_what_if: option<float>,
+  gross_profit_what_if: option<float>,
+  gross_margin_what_if: option<float>,
+  contribution_profit_what_if: option<float>,
+  contribution_margin_what_if: option<float>,
+  net_profit_what_if: option<float>,
+  net_margin_what_if: option<float>,
+  roi_what_if: option<float>,
+  available_capital_what_if: option<float>,
+  frozen_capital_what_if: option<float>,
+  ebitda_what_if: option<float>,
+  cogs_what_if: option<float>,
+  cost_of_goods_sold_what_if: option<float>,
+  amazon_fees_what_if: option<float>,
+  opex_what_if: option<float>,
+  discount_what_if: option<float>,
+  coupon_what_if: option<float>,
+  subscribe_save_what_if: option<float>,
+  text_score_what_if: option<float>,
+  image_score_what_if: option<float>,
+  video_score_what_if: option<float>,
+  a_plus_score_what_if: option<float>,
+  fba_in_stock_rate_what_if: option<float>,
+  inventory_turnover_what_if: option<float>,
+  safety_stock_what_if: option<float>,
+  storage_costs_what_if: option<float>,
+  shipping_costs_what_if: option<float>,
+  market_total_sales_what_if: option<float>,
+  brand_market_share_what_if: option<float>,
+  market_average_price_what_if: option<float>,
+  attribution_sales_what_if: option<float>,
+  attribution_spend_what_if: option<float>,
+  attribution_impressions_what_if: option<float>,
+  attribution_clicks_what_if: option<float>,
+  attribution_orders_what_if: option<float>,
+  attribution_units_sold_what_if: option<float>,
+  attribution_ctr_what_if: option<float>,
+  attribution_cvr_what_if: option<float>,
+  attribution_acos_what_if: option<float>,
+  attribution_roas_what_if: option<float>,
+  attribution_cpc_what_if: option<float>,
+  attribution_cpm_what_if: option<float>,
+  no_sales: option<forecastParams>,
+  poor: option<forecastParams>,
+  mid: option<forecastParams>,
+  good: option<forecastParams>
 }
 
 @genType
+@schema
 type inventoryExecutiveSummaryWithForecastBreakdown = {
   _tag: option<[#InventoryExecutiveSummaryWithForecastBreakdown]>,
-  fba_in_stock_rate: option<option<float>>,
-  fbt_in_stock_rate: option<option<float>>,
-  three_pl_in_stock_rate: option<option<float>>,
-  storage_costs: option<option<float>>,
-  shipping_costs: option<option<float>>,
-  forecasting_accuracy: option<option<float>>,
-  inventory_turnover: option<option<float>>,
-  safety_stock: option<option<float>>,
-  doi_available: option<option<float>>,
-  total_doi: option<option<float>>,
-  estimated_stock_out_date: option<option<string>>,
+  fba_in_stock_rate: option<float>,
+  fbt_in_stock_rate: option<float>,
+  three_pl_in_stock_rate: option<float>,
+  storage_costs: option<float>,
+  shipping_costs: option<float>,
+  forecasting_accuracy: option<float>,
+  inventory_turnover: option<float>,
+  safety_stock: option<float>,
+  doi_available: option<float>,
+  total_doi: option<float>,
+  estimated_stock_out_date: option<string>,
   real: inventoryExecutiveSummaryResponseSchema,
   forecasted: inventoryExecutiveSummaryResponseSchema
 }
@@ -527,9 +546,9 @@ type timelineDataPoint_InventoryExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   value: inventoryExecutiveSummaryResponseSchema,
-  compare_value: option<option<inventoryExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<inventoryExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  compare_value: option<inventoryExecutiveSummaryResponseSchema>,
+  compare_diff: option<inventoryExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
@@ -539,27 +558,28 @@ type whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   baseline: inventoryExecutiveSummaryResponseSchema,
-  projected: option<option<inventoryExecutiveSummaryResponseSchema>>,
-  diff: option<option<inventoryExecutiveSummaryResponseSchema>>,
-  percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>,
-  compare_value: option<option<inventoryExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<inventoryExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  projected: option<inventoryExecutiveSummaryResponseSchema>,
+  diff: option<inventoryExecutiveSummaryResponseSchema>,
+  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  compare_value: option<inventoryExecutiveSummaryResponseSchema>,
+  compare_diff: option<inventoryExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
+@schema
 type marketIntelligenceExecutiveSummaryWithForecastBreakdown = {
   _tag: option<[#MarketIntelligenceExecutiveSummaryWithForecastBreakdown]>,
-  market_total_sales: option<option<float>>,
-  brand_market_share: option<option<float>>,
-  market_average_price: option<option<float>>,
-  market_total_units_sold: option<option<float>>,
-  market_asin_count: option<option<int>>,
-  market_promotion_value: option<option<float>>,
-  market_promotion_count: option<option<int>>,
-  market_review_score: option<option<float>>,
-  market_pos: option<option<float>>,
-  market_ad_spend: option<option<float>>,
+  market_total_sales: option<float>,
+  brand_market_share: option<float>,
+  market_average_price: option<float>,
+  market_total_units_sold: option<float>,
+  market_asin_count: option<int>,
+  market_promotion_value: option<float>,
+  market_promotion_count: option<int>,
+  market_review_score: option<float>,
+  market_pos: option<float>,
+  market_ad_spend: option<float>,
   real: marketIntelligenceExecutiveSummaryResponseSchema,
   forecasted: marketIntelligenceExecutiveSummaryResponseSchema
 }
@@ -571,9 +591,9 @@ type timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   value: marketIntelligenceExecutiveSummaryResponseSchema,
-  compare_value: option<option<marketIntelligenceExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<marketIntelligenceExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  compare_value: option<marketIntelligenceExecutiveSummaryResponseSchema>,
+  compare_diff: option<marketIntelligenceExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
@@ -583,20 +603,21 @@ type whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_ =
   period_end: string,
   is_forecast: option<bool>,
   baseline: marketIntelligenceExecutiveSummaryResponseSchema,
-  projected: option<option<marketIntelligenceExecutiveSummaryResponseSchema>>,
-  diff: option<option<marketIntelligenceExecutiveSummaryResponseSchema>>,
-  percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>,
-  compare_value: option<option<marketIntelligenceExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<marketIntelligenceExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  projected: option<marketIntelligenceExecutiveSummaryResponseSchema>,
+  diff: option<marketIntelligenceExecutiveSummaryResponseSchema>,
+  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  compare_value: option<marketIntelligenceExecutiveSummaryResponseSchema>,
+  compare_diff: option<marketIntelligenceExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
+@schema
 type organicExecutiveSummaryWithForecastBreakdown = {
   _tag: option<[#OrganicExecutiveSummaryWithForecastBreakdown]>,
   organic_sales: float,
-  organic_impressions: option<option<float>>,
-  organic_ctr: option<option<float>>,
+  organic_impressions: option<float>,
+  organic_ctr: option<float>,
   organic_clicks: float,
   organic_cvr: float,
   organic_orders: float,
@@ -612,12 +633,12 @@ type whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   baseline: organicExecutiveSummaryResponseSchema,
-  projected: option<option<organicExecutiveSummaryResponseSchema>>,
-  diff: option<option<organicExecutiveSummaryResponseSchema>>,
-  percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>,
-  compare_value: option<option<organicExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<organicExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  projected: option<organicExecutiveSummaryResponseSchema>,
+  diff: option<organicExecutiveSummaryResponseSchema>,
+  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  compare_value: option<organicExecutiveSummaryResponseSchema>,
+  compare_diff: option<organicExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
@@ -626,7 +647,7 @@ type timelineResponse_dict_ = {
   data: array<timelineDataPoint_dict_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -636,26 +657,27 @@ type timelineDataPoint_TotalExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   value: totalExecutiveSummaryResponseSchema,
-  compare_value: option<option<totalExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<totalExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  compare_value: option<totalExecutiveSummaryResponseSchema>,
+  compare_diff: option<totalExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
+@schema
 type totalExecutiveSummaryWithForecastBreakdown = {
   _tag: option<[#TotalExecutiveSummaryWithForecastBreakdown]>,
-  total_sales: option<option<float>>,
-  total_spend: option<option<float>>,
-  total_impressions: option<option<float>>,
-  ctr: option<option<float>>,
-  total_clicks: option<option<float>>,
-  cvr: option<option<float>>,
-  total_orders: option<option<float>>,
-  total_units_sold: option<option<float>>,
-  total_ntb_orders: option<option<float>>,
-  tacos: option<option<float>>,
-  mer: option<option<float>>,
-  lost_sales: option<option<float>>,
+  total_sales: option<float>,
+  total_spend: option<float>,
+  total_impressions: option<float>,
+  ctr: option<float>,
+  total_clicks: option<float>,
+  cvr: option<float>,
+  total_orders: option<float>,
+  total_units_sold: option<float>,
+  total_ntb_orders: option<float>,
+  tacos: option<float>,
+  mer: option<float>,
+  lost_sales: option<float>,
   real: totalExecutiveSummaryResponseSchema,
   forecasted: totalExecutiveSummaryResponseSchema
 }
@@ -667,15 +689,16 @@ type whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema_ = {
   period_end: string,
   is_forecast: option<bool>,
   baseline: totalExecutiveSummaryResponseSchema,
-  projected: option<option<totalExecutiveSummaryResponseSchema>>,
-  diff: option<option<totalExecutiveSummaryResponseSchema>>,
-  percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>,
-  compare_value: option<option<totalExecutiveSummaryResponseSchema>>,
-  compare_diff: option<option<totalExecutiveSummaryResponseSchema>>,
-  compare_percent_diff: option<option<[#Float(float) | #Dict(Dict.t<string>)]>>
+  projected: option<totalExecutiveSummaryResponseSchema>,
+  diff: option<totalExecutiveSummaryResponseSchema>,
+  percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>,
+  compare_value: option<totalExecutiveSummaryResponseSchema>,
+  compare_diff: option<totalExecutiveSummaryResponseSchema>,
+  compare_percent_diff: option<[#Float(float) | #Dict(Dict.t<string>)]>
 }
 
 @genType
+@schema
 type inventoryMetricsResponse = {
   _tag: option<[#InventoryMetricsResponse]>,
   daily_metrics: array<dailyInventoryMetrics>,
@@ -696,7 +719,7 @@ type whatifResponse_AdsExecutiveSummaryResponseSchema_ = {
   percent_diff: Dict.t<option<float>>,
   whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
   model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<option<array<string>>>
+  warnings: option<array<string>>
 }
 
 @genType
@@ -708,7 +731,7 @@ type whatifResponse_AttributionExecutiveSummaryResponseSchema_ = {
   percent_diff: Dict.t<option<float>>,
   whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
   model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<option<array<string>>>
+  warnings: option<array<string>>
 }
 
 @genType
@@ -720,7 +743,7 @@ type whatifResponse_CFOExecutiveSummaryResponseSchema_ = {
   percent_diff: Dict.t<option<float>>,
   whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
   model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<option<array<string>>>
+  warnings: option<array<string>>
 }
 
 @genType
@@ -732,7 +755,7 @@ type whatifResponse_InventoryExecutiveSummaryResponseSchema_ = {
   percent_diff: Dict.t<option<float>>,
   whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
   model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<option<array<string>>>
+  warnings: option<array<string>>
 }
 
 @genType
@@ -744,7 +767,7 @@ type whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
   percent_diff: Dict.t<option<float>>,
   whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
   model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<option<array<string>>>
+  warnings: option<array<string>>
 }
 
 @genType
@@ -756,7 +779,7 @@ type whatifResponse_OrganicExecutiveSummaryResponseSchema_ = {
   percent_diff: Dict.t<option<float>>,
   whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
   model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<option<array<string>>>
+  warnings: option<array<string>>
 }
 
 @genType
@@ -768,7 +791,7 @@ type whatifResponse_TotalExecutiveSummaryResponseSchema_ = {
   percent_diff: Dict.t<option<float>>,
   whatif_applied: Dict.t<[#WhatifAppliedEntry(whatifAppliedEntry) | #Dict(Dict.t<string>)]>,
   model_info: [#WhatifModelInfo(whatifModelInfo) | #Dict(Dict.t<string>)],
-  warnings: option<option<array<string>>>
+  warnings: option<array<string>>
 }
 
 @genType
@@ -777,7 +800,7 @@ type timelineResponse_AdsExecutiveSummaryResponseSchema_ = {
   data: array<timelineDataPoint_AdsExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -786,7 +809,7 @@ type whatifTimelineResponse_AdsExecutiveSummaryResponseSchema_ = {
   data: array<whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -795,7 +818,7 @@ type timelineResponse_AttributionExecutiveSummaryResponseSchema_ = {
   data: array<timelineDataPoint_AttributionExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -804,7 +827,7 @@ type whatifTimelineResponse_AttributionExecutiveSummaryResponseSchema_ = {
   data: array<whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -813,7 +836,7 @@ type timelineResponse_CFOExecutiveSummaryResponseSchema_ = {
   data: array<timelineDataPoint_CFOExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -822,7 +845,7 @@ type whatifTimelineResponse_CFOExecutiveSummaryResponseSchema_ = {
   data: array<whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -831,7 +854,7 @@ type timelineResponse_InventoryExecutiveSummaryResponseSchema_ = {
   data: array<timelineDataPoint_InventoryExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -840,7 +863,7 @@ type whatifTimelineResponse_InventoryExecutiveSummaryResponseSchema_ = {
   data: array<whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -849,7 +872,7 @@ type timelineResponse_MarketIntelligenceExecutiveSummaryResponseSchema_ = {
   data: array<timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -858,7 +881,7 @@ type whatifTimelineResponse_MarketIntelligenceExecutiveSummaryResponseSchema_ = 
   data: array<whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -867,7 +890,7 @@ type whatifTimelineResponse_OrganicExecutiveSummaryResponseSchema_ = {
   data: array<whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -876,7 +899,7 @@ type timelineResponse_TotalExecutiveSummaryResponseSchema_ = {
   data: array<timelineDataPoint_TotalExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
 
 @genType
@@ -885,5 +908,5 @@ type whatifTimelineResponse_TotalExecutiveSummaryResponseSchema_ = {
   data: array<whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema_>,
   period_start: string,
   period_end: string,
-  period: option<option<string>>
+  period: option<string>
 }
