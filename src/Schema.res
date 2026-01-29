@@ -46,6 +46,14 @@ let isNullType = (json: JSON.t): bool => {
   }
 }
 
+// Helper: check if schema has default value (field is always present in response)
+let hasDefault = (json: JSON.t): bool => {
+  switch json {
+  | Object(dict) => dict->Dict.get("default")->Option.isSome
+  | _ => false
+  }
+}
+
 // Helper: extract type name from $ref path
 // "#/components/schemas/User" -> "User"
 let extractRefName = (refPath: string): string => {
@@ -222,14 +230,16 @@ and parseObjectType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> 
 
     switch dict->Dict.get("properties") {
     | Some(Object(propsDict)) =>
-      let entries = propsDict->Dict.toArray
+      // Filter out _tag field - it will be added automatically via @tag annotation on variants
+      let entries = propsDict->Dict.toArray->Array.filter(((name, _)) => name != "_tag")
       let results = entries->Array.map(((name, propSchema)) => {
         switch parseSchema(propSchema) {
         | Ok(propType) =>
           Ok({
             name,
             type_: propType,
-            required: requiredFields->Array.includes(name),
+            // Field is required if: in required[] OR has default value
+            required: requiredFields->Array.includes(name) || hasDefault(propSchema),
           })
         | Error(e) => Error(e)
         }
