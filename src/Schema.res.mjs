@@ -216,7 +216,7 @@ function parseAnyOf(items) {
         return {
           TAG: "Ok",
           _0: {
-            _tag: "Optional",
+            _tag: "Nullable",
             _0: innerType._0
           }
         };
@@ -294,7 +294,7 @@ function parseAnyOf(items) {
   return {
     TAG: "Ok",
     _0: {
-      _tag: "Optional",
+      _tag: "Nullable",
       _0: {
         _tag: "Union",
         _0: types$1

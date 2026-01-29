@@ -51,8 +51,8 @@ describe('Schema Parser', () => {
         const result = Schema.parse(input);
 
         expect(result.TAG).toBe('Ok');
-        // Now uses _tag for Effect TS compatibility
-        expect(result._0._tag).toBe('Optional');
+        // Nullable for JSON null support (not Optional which maps to undefined)
+        expect(result._0._tag).toBe('Nullable');
         expect(result._0._0).toBe('Number');
     });
 
@@ -143,7 +143,7 @@ describe('Schema Parser', () => {
         const result = Schema.parse(input);
 
         expect(result.TAG).toBe('Ok');
-        expect(result._0._tag).toBe('Optional');
+        expect(result._0._tag).toBe('Nullable');
         expect(result._0._0._tag).toBe('Object');
 
         const fields = result._0._0._0;
@@ -163,7 +163,7 @@ describe('Schema Parser', () => {
         const result = Schema.parse(input);
 
         expect(result.TAG).toBe('Ok');
-        expect(result._0._tag).toBe('Optional');
+        expect(result._0._tag).toBe('Nullable');
         expect(result._0._0._tag).toBe('Ref');
         expect(result._0._0._0).toBe('User');
     });
@@ -215,7 +215,7 @@ describe('Schema Parser', () => {
         const result = Schema.parse(input);
 
         expect(result.TAG).toBe('Ok');
-        expect(result._0._tag).toBe('Optional');
+        expect(result._0._tag).toBe('Nullable');
         expect(result._0._0._tag).toBe('Union');
         expect(result._0._0._0.length).toBe(2);
         expect(result._0._0._0[0]._0).toBe('Cat');
@@ -725,5 +725,12 @@ describe('Code Generator', () => {
 
         expect(shim).toContain('export type t<T>');
         expect(shim).toContain('[key: string]: T');
+    });
+
+    test('generateNullShim returns TypeScript shim', () => {
+        const shim = Codegen.generateNullShim();
+
+        expect(shim).toContain('export type t<T>');
+        expect(shim).toContain('T | null');
     });
 });
