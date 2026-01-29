@@ -225,6 +225,105 @@ function hasUnion(_schema) {
   };
 }
 
+function extractUnionsFromType(name, _schema) {
+  while (true) {
+    let schema = _schema;
+    if (typeof schema !== "object") {
+      return [];
+    }
+    switch (schema._tag) {
+      case "Object" :
+        return schema._0.flatMap(field => extractUnionsFromType(name + "_" + field.name, field.type));
+      case "Optional" :
+      case "Array" :
+      case "Dict" :
+        _schema = schema._0;
+        continue;
+      case "Union" :
+        return [{
+            name: name,
+            schema: schema
+          }];
+      default:
+        return [];
+    }
+  };
+}
+
+function extractUnions(parentName, schema) {
+  if (typeof schema !== "object") {
+    return [];
+  } else if (schema._tag === "Object") {
+    return schema._0.flatMap(field => extractUnionsFromType(lcFirst(parentName) + "_" + field.name, field.type));
+  } else {
+    return [];
+  }
+}
+
+function replaceUnionInType(name, schema) {
+  if (typeof schema !== "object") {
+    return schema;
+  }
+  switch (schema._tag) {
+    case "Optional" :
+      return {
+        _tag: "Optional",
+        _0: replaceUnionInType(name, schema._0)
+      };
+    case "Object" :
+      let newFields = schema._0.map(field => {
+        let newType = replaceUnionInType(name + "_" + field.name, field.type);
+        return {
+          name: field.name,
+          type: newType,
+          required: field.required
+        };
+      });
+      return {
+        _tag: "Object",
+        _0: newFields
+      };
+    case "Array" :
+      return {
+        _tag: "Array",
+        _0: replaceUnionInType(name, schema._0)
+      };
+    case "Dict" :
+      return {
+        _tag: "Dict",
+        _0: replaceUnionInType(name, schema._0)
+      };
+    case "Union" :
+      return {
+        _tag: "Ref",
+        _0: name
+      };
+    default:
+      return schema;
+  }
+}
+
+function replaceUnions(parentName, schema) {
+  if (typeof schema !== "object") {
+    return schema;
+  }
+  if (schema._tag !== "Object") {
+    return schema;
+  }
+  let newFields = schema._0.map(field => {
+    let newType = replaceUnionInType(lcFirst(parentName) + "_" + field.name, field.type);
+    return {
+      name: field.name,
+      type: newType,
+      required: field.required
+    };
+  });
+  return {
+    _tag: "Object",
+    _0: newFields
+  };
+}
+
 function getDependencies(_schema) {
   while (true) {
     let schema = _schema;
@@ -385,6 +484,10 @@ export {
   getTagForType,
   generateUnion,
   hasUnion,
+  extractUnions,
+  extractUnionsFromType,
+  replaceUnions,
+  replaceUnionInType,
   getDependencies,
   topologicalSort,
   buildSkipSchemaSet,
