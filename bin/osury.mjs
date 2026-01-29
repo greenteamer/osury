@@ -79,8 +79,15 @@ function generate(inputPath, outputPath) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
+    // Write main ReScript file
     fs.writeFileSync(outputPath, code);
+
+    // Write Dict.gen.tsx shim for @genType
+    const dictShimPath = path.join(outputDir || ".", "Dict.gen.tsx");
+    fs.writeFileSync(dictShimPath, Codegen.generateDictShim());
+
     console.log(`Generated ${result._0.length} types to ${outputPath}`);
+    console.log(`Generated Dict shim to ${dictShimPath}`);
   } else {
     console.error("Parse errors:");
     result._0.forEach((err) => {
