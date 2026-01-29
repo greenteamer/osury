@@ -92,15 +92,20 @@ let rec parseSchema = (json: JSON.t): result<schemaType, Errors.errors> => {
 and parsePrimitiveType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
   switch dict->Dict.get("type") {
   | Some(String("string")) =>
-    // Check for enum
-    switch dict->Dict.get("enum") {
-    | Some(Array(enumValues)) =>
-      switch parseEnumValues(enumValues) {
-      | Some(values) => Ok(Enum(values))
-      | None => Error([Errors.makeError(~kind=InvalidJson("enum values must be strings"), ())])
+    // Check for const first (single-value literal, e.g. _tag)
+    switch dict->Dict.get("const") {
+    | Some(String(constValue)) => Ok(Enum([constValue]))
+    | _ =>
+      // Check for enum
+      switch dict->Dict.get("enum") {
+      | Some(Array(enumValues)) =>
+        switch parseEnumValues(enumValues) {
+        | Some(values) => Ok(Enum(values))
+        | None => Error([Errors.makeError(~kind=InvalidJson("enum values must be strings"), ())])
+        }
+      | Some(_) => Error([Errors.makeError(~kind=InvalidJson("enum must be an array"), ())])
+      | None => Ok(String)
       }
-    | Some(_) => Error([Errors.makeError(~kind=InvalidJson("enum must be an array"), ())])
-    | None => Ok(String)
     }
   | Some(String("number")) => Ok(Number)
   | Some(String("integer")) => Ok(Integer)
