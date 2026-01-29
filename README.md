@@ -10,8 +10,8 @@ Generate ReScript types with [Sury](https://github.com/DZakh/sury) schemas from 
 - Union types extracted as proper variants with `@tag("_tag")`
 - Automatic deduplication of identical union structures
 - Generates `module S = Sury` alias (required by sury-ppx)
-- Generates `Dict.gen.tsx` and `Null.gen.tsx` shims for TypeScript interop
-- Proper JSON `null` support via `Null.t<T>` (not `option` which maps to `undefined`)
+- Generates `Dict.gen.tsx` shim for TypeScript interop
+- Proper JSON `null` support via `@s.nullable option<T>` PPX attribute
 
 ## Installation
 
@@ -29,7 +29,7 @@ npx osury openapi.json
 
 # Generate to specific directory
 npx osury openapi.json src/API.res
-# Creates: src/API.res, src/Dict.gen.tsx, src/Null.gen.tsx
+# Creates: src/API.res, src/Dict.gen.tsx
 
 # With explicit output flag
 npx osury generate openapi.json -o src/Schema.res
@@ -79,16 +79,9 @@ type user = {
 }
 ```
 
-Also generates shims for TypeScript:
-
-`Dict.gen.tsx`:
+Also generates `Dict.gen.tsx` shim for TypeScript:
 ```typescript
 export type t<T> = { [key: string]: T };
-```
-
-`Null.gen.tsx`:
-```typescript
-export type t<T> = T | null;
 ```
 
 ## Generated Annotations
@@ -119,7 +112,7 @@ For the generated code to compile, your project needs:
 | `array` | `array<T>` |
 | `object` | `{ field: T }` |
 | `$ref` | type reference |
-| `anyOf` (nullable) | `Null.t<T>` |
+| `anyOf` (nullable) | `@s.nullable option<T>` |
 | `anyOf` (union) | variant type |
 | `oneOf` (tagged) | poly variant |
 | `additionalProperties` | `Dict.t<T>` |
