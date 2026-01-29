@@ -534,6 +534,56 @@ describe('Code Generator', () => {
         expect(result).toContain('@schema');
     });
 
+    test('extractUnions finds Union in object field', () => {
+        const schema = {
+            _tag: 'Object',
+            _0: [{
+                name: 'value',
+                type: { _tag: 'Union', _0: [{ _tag: 'Ref', _0: 'A' }, { _tag: 'Ref', _0: 'B' }] },
+                required: true
+            }]
+        };
+        const extracted = Codegen.extractUnions('Parent', schema);
+
+        expect(extracted.length).toBe(1);
+        expect(extracted[0].name).toBe('parent_value');
+        expect(extracted[0].schema._tag).toBe('Union');
+    });
+
+    test('extractUnions finds Union inside Optional', () => {
+        const schema = {
+            _tag: 'Object',
+            _0: [{
+                name: 'value',
+                type: {
+                    _tag: 'Optional',
+                    _0: { _tag: 'Union', _0: [{ _tag: 'Ref', _0: 'A' }, { _tag: 'Ref', _0: 'B' }] }
+                },
+                required: false
+            }]
+        };
+        const extracted = Codegen.extractUnions('Parent', schema);
+
+        expect(extracted.length).toBe(1);
+        expect(extracted[0].name).toBe('parent_value');
+    });
+
+    test('replaceUnions replaces Union with Ref', () => {
+        const schema = {
+            _tag: 'Object',
+            _0: [{
+                name: 'value',
+                type: { _tag: 'Union', _0: [{ _tag: 'Ref', _0: 'A' }, { _tag: 'Ref', _0: 'B' }] },
+                required: true
+            }]
+        };
+        const replaced = Codegen.replaceUnions('Parent', schema);
+
+        const field = replaced._0.find(f => f.name === 'value');
+        expect(field.type._tag).toBe('Ref');
+        expect(field.type._0).toBe('parent_value');
+    });
+
     test('generate full module from OpenAPI doc', () => {
         const doc = {
             openapi: "3.0.0",

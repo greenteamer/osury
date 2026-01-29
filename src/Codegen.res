@@ -143,6 +143,72 @@ let rec hasUnion = (schema: Schema.schemaType): bool => {
   }
 }
 
+// Extracted union info
+type extractedUnion = {
+  name: string,
+  schema: Schema.schemaType,
+}
+
+// Extract Union types from schema fields
+// Returns array of {name, schema} for each Union found
+let rec extractUnions = (parentName: string, schema: Schema.schemaType): array<extractedUnion> => {
+  switch schema {
+  | Object(fields) =>
+    fields->Array.flatMap(field => {
+      let fieldUnions = extractUnionsFromType(lcFirst(parentName) ++ "_" ++ field.name, field.type_)
+      fieldUnions
+    })
+  | _ => []
+  }
+}
+
+// Extract Union from a type, handling wrappers like Optional, Array, Dict
+and extractUnionsFromType = (name: string, schema: Schema.schemaType): array<extractedUnion> => {
+  switch schema {
+  | Union(_) => [{name, schema}]
+  | Optional(inner) => extractUnionsFromType(name, inner)
+  | Array(inner) => extractUnionsFromType(name, inner)
+  | Dict(inner) => extractUnionsFromType(name, inner)
+  | Object(fields) =>
+    // Nested object - extract unions from its fields
+    fields->Array.flatMap(field => {
+      extractUnionsFromType(name ++ "_" ++ field.name, field.type_)
+    })
+  | _ => []
+  }
+}
+
+// Replace Union types with Ref to extracted type
+let rec replaceUnions = (parentName: string, schema: Schema.schemaType): Schema.schemaType => {
+  switch schema {
+  | Object(fields) =>
+    let newFields = fields->Array.map(field => {
+      let newType = replaceUnionInType(lcFirst(parentName) ++ "_" ++ field.name, field.type_)
+      {...field, type_: newType}
+    })
+    Object(newFields)
+  | _ => schema
+  }
+}
+
+// Replace Union in a type, handling wrappers like Optional, Array, Dict
+and replaceUnionInType = (name: string, schema: Schema.schemaType): Schema.schemaType => {
+  switch schema {
+  | Union(_) => Ref(name)
+  | Optional(inner) => Optional(replaceUnionInType(name, inner))
+  | Array(inner) => Array(replaceUnionInType(name, inner))
+  | Dict(inner) => Dict(replaceUnionInType(name, inner))
+  | Object(fields) =>
+    // Nested object - replace unions in its fields
+    let newFields = fields->Array.map(field => {
+      let newType = replaceUnionInType(name ++ "_" ++ field.name, field.type_)
+      {...field, type_: newType}
+    })
+    Object(newFields)
+  | other => other
+  }
+}
+
 // Extract all Ref dependencies from a schema type
 let rec getDependencies = (schema: Schema.schemaType): array<string> => {
   switch schema {
