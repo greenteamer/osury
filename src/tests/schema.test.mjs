@@ -584,6 +584,20 @@ describe('Code Generator', () => {
         expect(field.type._0).toBe('parent_value');
     });
 
+    test('generate variant type with @tag annotation', () => {
+        const schema = {
+            name: 'myUnion',
+            schema: { _tag: 'Union', _0: [{ _tag: 'Ref', _0: 'A' }, { _tag: 'Ref', _0: 'B' }] },
+            isExtractedUnion: true
+        };
+        const result = Codegen.generateTypeDef(schema);
+
+        expect(result).toContain('@genType');
+        expect(result).toContain('@tag("_tag")');
+        expect(result).toContain('@schema');
+        expect(result).toContain('type myUnion = A(a) | B(b)');
+    });
+
     test('generate full module from OpenAPI doc', () => {
         const doc = {
             openapi: "3.0.0",
@@ -615,5 +629,42 @@ describe('Code Generator', () => {
         // Both should have annotations
         expect(code).toContain('@genType');
         expect(code).toContain('@schema');
+    });
+
+    test('generateModule extracts unions and generates all types with @schema', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Parent: {
+                        type: "object",
+                        properties: {
+                            name: { type: "string" },
+                            value: {
+                                anyOf: [
+                                    { "$ref": "#/components/schemas/TypeA" },
+                                    { "$ref": "#/components/schemas/TypeB" }
+                                ]
+                            }
+                        },
+                        required: ["name", "value"]
+                    },
+                    TypeA: { type: "object", properties: { a: { type: "string" } } },
+                    TypeB: { type: "object", properties: { b: { type: "string" } } }
+                }
+            }
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+
+        // All types should have @schema
+        expect(code).toContain('@schema');
+        // Extracted union should have @tag
+        expect(code).toContain('@tag("_tag")');
+        // Should have the extracted union type
+        expect(code).toContain('parent_value');
     });
 });

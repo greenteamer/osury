@@ -449,26 +449,58 @@ function buildSkipSchemaSet(schemas) {
   return skipSet;
 }
 
-function generateTypeDefWithSkipSet(namedSchema, skipSet) {
+function generateVariantBody(types) {
+  return types.map(t => {
+    let tag = getTagForType(t);
+    let payload = generateType(t);
+    return tag + `(` + payload + `)`;
+  }).join(" | ");
+}
+
+function generateTypeDefWithSkipSet(namedSchema, _skipSet) {
   let typeName = lcFirst(namedSchema.name);
+  let types = namedSchema.schema;
+  if (typeof types === "object" && types._tag === "Union") {
+    let variantBody = generateVariantBody(types._0);
+    return `@genType
+@tag("_tag")
+@schema
+type ` + typeName + ` = ` + variantBody;
+  }
   let typeBody = generateType(namedSchema.schema);
-  let shouldSkip = Core__Option.isSome(skipSet[namedSchema.name]);
-  let annotations = shouldSkip ? "@genType" : "@genType\n@schema";
-  return annotations + `
+  return `@genType
+@schema
 type ` + typeName + ` = ` + typeBody;
 }
 
 function generateTypeDef(namedSchema) {
-  let annotations = hasUnion(namedSchema.schema) ? "@genType" : "@genType\n@schema";
   let typeName = lcFirst(namedSchema.name);
+  let types = namedSchema.schema;
+  if (typeof types === "object" && types._tag === "Union") {
+    let variantBody = generateVariantBody(types._0);
+    return `@genType
+@tag("_tag")
+@schema
+type ` + typeName + ` = ` + variantBody;
+  }
+  let annotations = hasUnion(namedSchema.schema) ? "@genType" : "@genType\n@schema";
   let typeBody = generateType(namedSchema.schema);
   return annotations + `
 type ` + typeName + ` = ` + typeBody;
 }
 
 function generateModule(schemas) {
-  let sorted = topologicalSort(schemas);
-  let skipSet = buildSkipSchemaSet(schemas);
+  let extractedUnions = schemas.flatMap(s => extractUnions(s.name, s.schema).map(extracted => ({
+    name: extracted.name,
+    schema: extracted.schema
+  })));
+  let modifiedSchemas = schemas.map(s => ({
+    name: s.name,
+    schema: replaceUnions(s.name, s.schema)
+  }));
+  let allSchemas = extractedUnions.concat(modifiedSchemas);
+  let sorted = topologicalSort(allSchemas);
+  let skipSet = {};
   return sorted.map(s => generateTypeDefWithSkipSet(s, skipSet)).join("\n\n");
 }
 
@@ -491,6 +523,7 @@ export {
   getDependencies,
   topologicalSort,
   buildSkipSchemaSet,
+  generateVariantBody,
   generateTypeDefWithSkipSet,
   generateTypeDef,
   generateModule,
