@@ -4,6 +4,7 @@
 type namedSchema = {
   name: string,
   schema: Schema.schemaType,
+  discriminatorTag: option<string>, // _tag.const value if present
 }
 
 // Convert path to PascalCase name: /v1/math/ads/executive-summary → V1MathAdsExecutiveSummary
@@ -64,7 +65,7 @@ let parsePathResponses = (pathsJson: JSON.t): result<array<namedSchema>, Errors.
                       | Some(schemaJson) =>
                         let name = ucFirst(method) ++ pathToName(path) ++ "Response"
                         switch Schema.parse(schemaJson) {
-                        | Ok(schemaType) => Some(Ok({name, schema: schemaType}))
+                        | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None}))
                         | Error(e) => Some(Error(e))
                         }
                       | None => None
@@ -107,6 +108,26 @@ let parsePathResponses = (pathsJson: JSON.t): result<array<namedSchema>, Errors.
   }
 }
 
+// Extract _tag.const value from a schema JSON (for discriminator)
+let extractDiscriminatorTag = (schemaJson: JSON.t): option<string> => {
+  switch schemaJson {
+  | Object(dict) =>
+    switch dict->Dict.get("properties") {
+    | Some(Object(propsDict)) =>
+      switch propsDict->Dict.get("_tag") {
+      | Some(Object(tagDict)) =>
+        switch tagDict->Dict.get("const") {
+        | Some(String(tagValue)) => Some(tagValue)
+        | _ => None
+        }
+      | _ => None
+      }
+    | _ => None
+    }
+  | _ => None
+  }
+}
+
 // Parse components/schemas
 let parseComponentSchemas = (componentsJson: JSON.t): result<array<namedSchema>, Errors.errors> => {
   switch componentsJson {
@@ -115,8 +136,9 @@ let parseComponentSchemas = (componentsJson: JSON.t): result<array<namedSchema>,
     | Some(Object(schemas)) =>
       let entries = schemas->Dict.toArray
       let results = entries->Array.map(((name, schemaJson)) => {
+        let discriminatorTag = extractDiscriminatorTag(schemaJson)
         switch Schema.parse(schemaJson) {
-        | Ok(schemaType) => Ok({name, schema: schemaType})
+        | Ok(schemaType) => Ok({name, schema: schemaType, discriminatorTag})
         | Error(e) => Error(e)
         }
       })

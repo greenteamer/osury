@@ -281,11 +281,12 @@ function generateInlineRecord(refName, schemasDict) {
   }
 }
 
-function generateInlineVariantBody(types, schemasDict) {
+function generateInlineVariantBody(types, schemasDict, tagsDict) {
   return types.map(t => {
     if (typeof t === "object" && t._tag === "Ref") {
       let name = t._0;
-      let tag = ucFirst(name);
+      let tagValue = tagsDict[name];
+      let tag = tagValue !== undefined ? ucFirst(tagValue) : ucFirst(name);
       let inlineRecord = generateInlineRecord(name, schemasDict);
       return tag + `(` + inlineRecord + `)`;
     }
@@ -571,13 +572,13 @@ function generateVariantBody(types) {
   }).join(" | ");
 }
 
-function generateTypeDefWithSkipSet(namedSchema, _skipSet, schemasDict) {
+function generateTypeDefWithSkipSet(namedSchema, _skipSet, schemasDict, tagsDict) {
   let typeName = lcFirst(namedSchema.name);
   let types = namedSchema.schema;
   if (typeof types === "object" && types._tag === "Union") {
     let types$1 = types._0;
     if (isRefOnlyUnion(types$1)) {
-      let variantBody = generateInlineVariantBody(types$1, schemasDict);
+      let variantBody = generateInlineVariantBody(types$1, schemasDict, tagsDict);
       return `@genType
 @tag("_tag")
 @schema
@@ -623,7 +624,8 @@ type ` + typeName + ` = ` + typeBody;
 function generateModule(schemas) {
   let extractedUnions = schemas.flatMap(s => extractUnions(s.name, s.schema).map(extracted => ({
     name: extracted.name,
-    schema: extracted.schema
+    schema: extracted.schema,
+    discriminatorTag: undefined
   })));
   let seen = {};
   let uniqueUnions = extractedUnions.filter(u => {
@@ -636,16 +638,23 @@ function generateModule(schemas) {
   });
   let modifiedSchemas = schemas.map(s => ({
     name: s.name,
-    schema: replaceUnions(s.name, s.schema)
+    schema: replaceUnions(s.name, s.schema),
+    discriminatorTag: s.discriminatorTag
   }));
   let allSchemas = uniqueUnions.concat(modifiedSchemas);
   let schemasDict = {};
+  let tagsDict = {};
   allSchemas.forEach(s => {
     schemasDict[s.name] = s.schema;
+    let tag = s.discriminatorTag;
+    if (tag !== undefined) {
+      tagsDict[s.name] = tag;
+      return;
+    }
   });
   let sorted = topologicalSort(allSchemas);
   let skipSet = {};
-  let typeDefs = sorted.map(s => generateTypeDefWithSkipSet(s, skipSet, schemasDict)).join("\n\n");
+  let typeDefs = sorted.map(s => generateTypeDefWithSkipSet(s, skipSet, schemasDict, tagsDict)).join("\n\n");
   return "module S = Sury\n\n" + typeDefs;
 }
 

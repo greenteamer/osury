@@ -840,4 +840,51 @@ describe('Code Generator', () => {
         expect(typeAOrBMatch).toBeNull();
     });
 
+    test('uses _tag const value as variant case name', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    // Schema with long name but short _tag const
+                    TimelineResponse_AdsSchema_: {
+                        type: "object",
+                        properties: {
+                            _tag: { type: "string", const: "TimelineResponse" },
+                            data: { type: "array", items: { type: "string" } }
+                        },
+                        required: ["_tag", "data"]
+                    },
+                    SimpleSchema: {
+                        type: "object",
+                        properties: {
+                            _tag: { type: "string", const: "Simple" },
+                            value: { type: "integer" }
+                        },
+                        required: ["_tag", "value"]
+                    },
+                    Container: {
+                        type: "object",
+                        properties: {
+                            response: {
+                                anyOf: [
+                                    { "$ref": "#/components/schemas/TimelineResponse_AdsSchema_" },
+                                    { "$ref": "#/components/schemas/SimpleSchema" }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        const code = Codegen.generateModule(parseResult._0);
+
+        // Should use _tag const values, not schema names
+        expect(code).toContain('TimelineResponse({');
+        expect(code).toContain('Simple({');
+        // Should NOT use full schema names
+        expect(code).not.toContain('TimelineResponse_AdsSchema_({');
+        expect(code).not.toContain('SimpleSchema({');
+    });
+
 });
