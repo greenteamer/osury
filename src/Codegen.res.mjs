@@ -524,6 +524,7 @@ function generateTypeDefWithSkipSet(namedSchema, _skipSet) {
     let variantBody = generateVariantBody(types._0);
     return `@genType
 @tag("_tag")
+@unboxed
 @schema
 type ` + typeName + ` = ` + variantBody;
   }
@@ -540,6 +541,7 @@ function generateTypeDef(namedSchema) {
     let variantBody = generateVariantBody(types._0);
     return `@genType
 @tag("_tag")
+@unboxed
 @schema
 type ` + typeName + ` = ` + variantBody;
   }
