@@ -157,6 +157,48 @@ let rec hasUnion = (schema: Schema.schemaType): bool => {
   }
 }
 
+// Check if Union contains only Ref cases (object unions that need inline records)
+let isRefOnlyUnion = (types: array<Schema.schemaType>): bool => {
+  types->Array.every(t => {
+    switch t {
+    | Ref(_) => true
+    | _ => false
+    }
+  })
+}
+
+// Generate inline record for a Ref type using schemas lookup
+let generateInlineRecord = (
+  refName: string,
+  schemasDict: Dict.t<Schema.schemaType>
+): string => {
+  switch schemasDict->Dict.get(refName) {
+  | Some(Object(fields)) => generateRecord(fields)
+  | Some(other) => generateType(other)  // Fallback for non-object refs
+  | None => lcFirst(refName)  // Fallback: just use type reference
+  }
+}
+
+// Generate variant body with inline records for Ref-only unions
+let generateInlineVariantBody = (
+  types: array<Schema.schemaType>,
+  schemasDict: Dict.t<Schema.schemaType>
+): string => {
+  types->Array.map(t => {
+    switch t {
+    | Ref(name) =>
+      let tag = ucFirst(name)
+      let inlineRecord = generateInlineRecord(name, schemasDict)
+      `${tag}(${inlineRecord})`
+    | _ =>
+      // Shouldn't happen for Ref-only unions, but handle anyway
+      let tag = getTagForType(t)
+      let payload = generateType(t)
+      `${tag}(${payload})`
+    }
+  })->Array.join(" | ")
+}
+
 // Extracted union info
 type extractedUnion = {
   name: string,
@@ -400,20 +442,30 @@ let generateVariantBody = (types: array<Schema.schemaType>): string => {
 // skipSchema: set of type names that should skip @schema
 let generateTypeDefWithSkipSet = (
   namedSchema: OpenAPIParser.namedSchema,
-  _skipSet: Dict.t<bool>
+  _skipSet: Dict.t<bool>,
+  schemasDict: Dict.t<Schema.schemaType>
 ): string => {
   let typeName = lcFirst(namedSchema.name)
 
   switch namedSchema.schema {
   | Union(types) =>
-    // Extracted union → generate variant with @tag("_tag")
-    // Always has @schema since Union is now a proper variant type
-    let variantBody = generateVariantBody(types)
-    `@genType
+    // Check if all cases are Ref (object unions)
+    if isRefOnlyUnion(types) {
+      // Ref-only union → inline records without @unboxed
+      let variantBody = generateInlineVariantBody(types, schemasDict)
+      `@genType
+@tag("_tag")
+@schema
+type ${typeName} = ${variantBody}`
+    } else {
+      // Mixed/primitive union → @unboxed
+      let variantBody = generateVariantBody(types)
+      `@genType
 @tag("_tag")
 @unboxed
 @schema
 type ${typeName} = ${variantBody}`
+    }
   | _ =>
     // Regular type - always has @schema now (no inline unions after extraction)
     let typeBody = generateType(namedSchema.schema)
@@ -481,10 +533,16 @@ let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
   // Step 4: Combine unique unions + modified originals
   let allSchemas = Array.concat(uniqueUnions, modifiedSchemas)
 
-  // Step 5: Sort topologically and generate
+  // Step 5: Build schemas dict for inline record lookups
+  let schemasDict = Dict.make()
+  allSchemas->Array.forEach(s => {
+    schemasDict->Dict.set(s.name, s.schema)
+  })
+
+  // Step 6: Sort topologically and generate
   let sorted = topologicalSort(allSchemas)
   let skipSet = Dict.make() // Not needed anymore, all types have @schema
-  let typeDefs = sorted->Array.map(s => generateTypeDefWithSkipSet(s, skipSet))->Array.join("\n\n")
+  let typeDefs = sorted->Array.map(s => generateTypeDefWithSkipSet(s, skipSet, schemasDict))->Array.join("\n\n")
 
   // Add module alias required by sury-ppx
   "module S = Sury\n\n" ++ typeDefs
