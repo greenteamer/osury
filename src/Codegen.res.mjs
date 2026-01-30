@@ -241,6 +241,43 @@ function hasUnion(_schema) {
   };
 }
 
+function isRefOnlyUnion(types) {
+  return types.every(t => {
+    if (typeof t !== "object") {
+      return false;
+    } else {
+      return t._tag === "Ref";
+    }
+  });
+}
+
+function generateInlineRecord(refName, schemasDict) {
+  let other = schemasDict[refName];
+  if (other !== undefined) {
+    if (typeof other !== "object" || other._tag !== "Object") {
+      return generateType(other);
+    } else {
+      return generateRecord(other._0);
+    }
+  } else {
+    return lcFirst(refName);
+  }
+}
+
+function generateInlineVariantBody(types, schemasDict) {
+  return types.map(t => {
+    if (typeof t === "object" && t._tag === "Ref") {
+      let name = t._0;
+      let tag = ucFirst(name);
+      let inlineRecord = generateInlineRecord(name, schemasDict);
+      return tag + `(` + inlineRecord + `)`;
+    }
+    let tag$1 = getTagForType(t);
+    let payload = generateType(t);
+    return tag$1 + `(` + payload + `)`;
+  }).join(" | ");
+}
+
 function getUnionName(types) {
   let names = types.map(t => {
     if (typeof t !== "object") {
@@ -517,16 +554,24 @@ function generateVariantBody(types) {
   }).join(" | ");
 }
 
-function generateTypeDefWithSkipSet(namedSchema, _skipSet) {
+function generateTypeDefWithSkipSet(namedSchema, _skipSet, schemasDict) {
   let typeName = lcFirst(namedSchema.name);
   let types = namedSchema.schema;
   if (typeof types === "object" && types._tag === "Union") {
-    let variantBody = generateVariantBody(types._0);
+    let types$1 = types._0;
+    if (isRefOnlyUnion(types$1)) {
+      let variantBody = generateInlineVariantBody(types$1, schemasDict);
+      return `@genType
+@tag("_tag")
+@schema
+type ` + typeName + ` = ` + variantBody;
+    }
+    let variantBody$1 = generateVariantBody(types$1);
     return `@genType
 @tag("_tag")
 @unboxed
 @schema
-type ` + typeName + ` = ` + variantBody;
+type ` + typeName + ` = ` + variantBody$1;
   }
   let typeBody = generateType(namedSchema.schema);
   return `@genType
@@ -570,9 +615,13 @@ function generateModule(schemas) {
     schema: replaceUnions(s.name, s.schema)
   }));
   let allSchemas = uniqueUnions.concat(modifiedSchemas);
+  let schemasDict = {};
+  allSchemas.forEach(s => {
+    schemasDict[s.name] = s.schema;
+  });
   let sorted = topologicalSort(allSchemas);
   let skipSet = {};
-  let typeDefs = sorted.map(s => generateTypeDefWithSkipSet(s, skipSet)).join("\n\n");
+  let typeDefs = sorted.map(s => generateTypeDefWithSkipSet(s, skipSet, schemasDict)).join("\n\n");
   return "module S = Sury\n\n" + typeDefs;
 }
 
@@ -595,6 +644,9 @@ export {
   getTagForType,
   generateUnion,
   hasUnion,
+  isRefOnlyUnion,
+  generateInlineRecord,
+  generateInlineVariantBody,
   getUnionName,
   extractUnions,
   extractUnionsFromType,
