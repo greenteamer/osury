@@ -241,16 +241,6 @@ function hasUnion(_schema) {
   };
 }
 
-function isRefOnlyUnion(types) {
-  return types.every(t => {
-    if (typeof t !== "object") {
-      return false;
-    } else {
-      return t._tag === "Ref";
-    }
-  });
-}
-
 function isPrimitiveOnlyUnion(types) {
   return types.every(t => {
     if (typeof t === "object") {
@@ -577,26 +567,19 @@ function generateTypeDefWithSkipSet(namedSchema, _skipSet, schemasDict, tagsDict
   let types = namedSchema.schema;
   if (typeof types === "object" && types._tag === "Union") {
     let types$1 = types._0;
-    if (isRefOnlyUnion(types$1)) {
-      let variantBody = generateInlineVariantBody(types$1, schemasDict, tagsDict);
-      return `@genType
-@tag("_tag")
-@schema
-type ` + typeName + ` = ` + variantBody;
-    }
     if (isPrimitiveOnlyUnion(types$1)) {
-      let variantBody$1 = generateVariantBody(types$1);
+      let variantBody = generateVariantBody(types$1);
       return `@genType
 @tag("_tag")
 @unboxed
 @schema
-type ` + typeName + ` = ` + variantBody$1;
+type ` + typeName + ` = ` + variantBody;
     }
-    let variantBody$2 = generateVariantBody(types$1);
+    let variantBody$1 = generateInlineVariantBody(types$1, schemasDict, tagsDict);
     return `@genType
 @tag("_tag")
 @schema
-type ` + typeName + ` = ` + variantBody$2;
+type ` + typeName + ` = ` + variantBody$1;
   }
   let typeBody = generateType(namedSchema.schema);
   return `@genType
@@ -677,7 +660,6 @@ export {
   getTagForType,
   generateUnion,
   hasUnion,
-  isRefOnlyUnion,
   isPrimitiveOnlyUnion,
   generateInlineRecord,
   generateInlineVariantBody,

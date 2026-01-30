@@ -742,23 +742,6 @@ describe('Code Generator', () => {
         expect(Codegen.isPrimitiveOnlyUnion(mixedUnion)).toBe(false);
     });
 
-    test('isRefOnlyUnion returns true for ref-only unions', () => {
-        // Ref is { _tag: 'Ref', _0: name }
-        const refUnion = [
-            { _tag: 'Ref', _0: 'TypeA' },
-            { _tag: 'Ref', _0: 'TypeB' }
-        ];
-        expect(Codegen.isRefOnlyUnion(refUnion)).toBe(true);
-    });
-
-    test('isRefOnlyUnion returns false for mixed unions', () => {
-        const mixedUnion = [
-            { _tag: 'Ref', _0: 'TypeA' },
-            { _tag: 'Dict', _0: "String" }
-        ];
-        expect(Codegen.isRefOnlyUnion(mixedUnion)).toBe(false);
-    });
-
     test('primitive-only union gets @unboxed', () => {
         const doc = {
             openapi: "3.0.0",
@@ -838,6 +821,46 @@ describe('Code Generator', () => {
         // Should NOT have @unboxed for this union
         const typeAOrBMatch = code.match(/@unboxed\s*\n@schema\s*\ntype typeAOrTypeB/);
         expect(typeAOrBMatch).toBeNull();
+    });
+
+    test('mixed union (Ref + Dict) inlines Ref but keeps Dict', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    ModelInfo: {
+                        type: "object",
+                        properties: {
+                            count: { type: "integer" },
+                            name: { type: "string" }
+                        },
+                        required: ["count", "name"]
+                    },
+                    Container: {
+                        type: "object",
+                        properties: {
+                            data: {
+                                anyOf: [
+                                    { "$ref": "#/components/schemas/ModelInfo" },
+                                    { type: "object", additionalProperties: { type: "string" } }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        const code = Codegen.generateModule(parseResult._0);
+
+        // ModelInfo should be inlined
+        expect(code).toContain('ModelInfo({');
+        expect(code).toContain('count: int');
+        expect(code).toContain('name: string');
+        // Dict should stay as Dict(Dict.t<string>)
+        expect(code).toContain('Dict(Dict.t<string>)');
+        // Should NOT have @unboxed (mixed union with objects)
+        expect(code).not.toMatch(/@unboxed\s*\n@schema\s*\ntype modelInfoOrDict/);
     });
 
     test('uses _tag const value as variant case name', () => {
