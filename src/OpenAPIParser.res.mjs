@@ -91,7 +91,8 @@ function parsePathResponses(pathsJson) {
             TAG: "Ok",
             _0: {
               name: name,
-              schema: schemaType._0
+              schema: schemaType._0,
+              discriminatorTag: undefined
             }
           };
         } else {
@@ -129,6 +130,30 @@ function parsePathResponses(pathsJson) {
   };
 }
 
+function extractDiscriminatorTag(schemaJson) {
+  if (typeof schemaJson !== "object" || schemaJson === null || Array.isArray(schemaJson)) {
+    return;
+  }
+  let match = schemaJson["properties"];
+  if (match === undefined) {
+    return;
+  }
+  if (typeof match !== "object" || match === null || Array.isArray(match)) {
+    return;
+  }
+  let match$1 = match["_tag"];
+  if (match$1 === undefined) {
+    return;
+  }
+  if (typeof match$1 !== "object" || match$1 === null || Array.isArray(match$1)) {
+    return;
+  }
+  let match$2 = match$1["const"];
+  if (typeof match$2 === "string") {
+    return match$2;
+  }
+}
+
 function parseComponentSchemas(componentsJson) {
   if (typeof componentsJson === "object" && componentsJson !== null && !Array.isArray(componentsJson)) {
     let match = componentsJson["schemas"];
@@ -142,13 +167,16 @@ function parseComponentSchemas(componentsJson) {
     if (typeof match === "object" && match !== null && !Array.isArray(match)) {
       let entries = Object.entries(match);
       let results = entries.map(param => {
-        let schemaType = Schema.parse(param[1]);
+        let schemaJson = param[1];
+        let discriminatorTag = extractDiscriminatorTag(schemaJson);
+        let schemaType = Schema.parse(schemaJson);
         if (schemaType.TAG === "Ok") {
           return {
             TAG: "Ok",
             _0: {
               name: param[0],
-              schema: schemaType._0
+              schema: schemaType._0,
+              discriminatorTag: discriminatorTag
             }
           };
         } else {
@@ -252,6 +280,7 @@ export {
   pathToName,
   ucFirst,
   parsePathResponses,
+  extractDiscriminatorTag,
   parseComponentSchemas,
   parseDocument,
 }

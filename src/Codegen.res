@@ -194,12 +194,17 @@ let generateInlineRecord = (
 // Generate variant body with inline records for Ref-only unions
 let generateInlineVariantBody = (
   types: array<Schema.schemaType>,
-  schemasDict: Dict.t<Schema.schemaType>
+  schemasDict: Dict.t<Schema.schemaType>,
+  tagsDict: Dict.t<string>
 ): string => {
   types->Array.map(t => {
     switch t {
     | Ref(name) =>
-      let tag = ucFirst(name)
+      // Use _tag.const value if available, otherwise use schema name
+      let tag = switch tagsDict->Dict.get(name) {
+      | Some(tagValue) => ucFirst(tagValue)
+      | None => ucFirst(name)
+      }
       let inlineRecord = generateInlineRecord(name, schemasDict)
       `${tag}(${inlineRecord})`
     | _ =>
@@ -455,7 +460,8 @@ let generateVariantBody = (types: array<Schema.schemaType>): string => {
 let generateTypeDefWithSkipSet = (
   namedSchema: OpenAPIParser.namedSchema,
   _skipSet: Dict.t<bool>,
-  schemasDict: Dict.t<Schema.schemaType>
+  schemasDict: Dict.t<Schema.schemaType>,
+  tagsDict: Dict.t<string>
 ): string => {
   let typeName = lcFirst(namedSchema.name)
 
@@ -463,7 +469,7 @@ let generateTypeDefWithSkipSet = (
   | Union(types) =>
     if isRefOnlyUnion(types) {
       // Ref-only union → inline records without @unboxed
-      let variantBody = generateInlineVariantBody(types, schemasDict)
+      let variantBody = generateInlineVariantBody(types, schemasDict, tagsDict)
       `@genType
 @tag("_tag")
 @schema
@@ -528,7 +534,7 @@ let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
   // Step 1: Extract all unions from each schema
   let extractedUnions = schemas->Array.flatMap(s => {
     extractUnions(s.name, s.schema)->Array.map(extracted => {
-      {OpenAPIParser.name: extracted.name, schema: extracted.schema}
+      {OpenAPIParser.name: extracted.name, schema: extracted.schema, discriminatorTag: None}
     })
   })
 
@@ -545,22 +551,27 @@ let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
 
   // Step 3: Replace unions with refs in original schemas
   let modifiedSchemas = schemas->Array.map(s => {
-    {OpenAPIParser.name: s.name, schema: replaceUnions(s.name, s.schema)}
+    {OpenAPIParser.name: s.name, schema: replaceUnions(s.name, s.schema), discriminatorTag: s.discriminatorTag}
   })
 
   // Step 4: Combine unique unions + modified originals
   let allSchemas = Array.concat(uniqueUnions, modifiedSchemas)
 
-  // Step 5: Build schemas dict for inline record lookups
+  // Step 5: Build schemas dict and discriminatorTags dict for inline record lookups
   let schemasDict = Dict.make()
+  let tagsDict = Dict.make()
   allSchemas->Array.forEach(s => {
     schemasDict->Dict.set(s.name, s.schema)
+    switch s.discriminatorTag {
+    | Some(tag) => tagsDict->Dict.set(s.name, tag)
+    | None => ()
+    }
   })
 
   // Step 6: Sort topologically and generate
   let sorted = topologicalSort(allSchemas)
   let skipSet = Dict.make() // Not needed anymore, all types have @schema
-  let typeDefs = sorted->Array.map(s => generateTypeDefWithSkipSet(s, skipSet, schemasDict))->Array.join("\n\n")
+  let typeDefs = sorted->Array.map(s => generateTypeDefWithSkipSet(s, skipSet, schemasDict, tagsDict))->Array.join("\n\n")
 
   // Add module alias required by sury-ppx
   "module S = Sury\n\n" ++ typeDefs
