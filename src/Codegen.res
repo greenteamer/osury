@@ -212,6 +212,61 @@ type extractedUnion = {
   schema: Schema.schemaType,
 }
 
+// Detect pattern: Union([Ref(X), Dict(String)]) - anyOf with concrete type + catch-all dict
+// This pattern lacks discriminator, so we simplify to just the concrete Ref type
+let isRefPlusDictUnion = (types: array<Schema.schemaType>): option<string> => {
+  if Array.length(types) != 2 {
+    None
+  } else {
+    let hasDict = types->Array.some(t => {
+      switch t {
+      | Dict(String) => true
+      | _ => false
+      }
+    })
+    let refName = types->Array.findMap(t => {
+      switch t {
+      | Ref(name) => Some(name)
+      | _ => None
+      }
+    })
+    if hasDict {
+      refName
+    } else {
+      None
+    }
+  }
+}
+
+// Detect pattern: Union([Primitive, Dict(String)]) - anyOf with primitive + catch-all dict
+// Returns the primitive type name if detected
+let isPrimitivePlusDictUnion = (types: array<Schema.schemaType>): option<string> => {
+  if Array.length(types) != 2 {
+    None
+  } else {
+    let hasDict = types->Array.some(t => {
+      switch t {
+      | Dict(String) => true
+      | _ => false
+      }
+    })
+    let primitiveName = types->Array.findMap(t => {
+      switch t {
+      | String => Some("string")
+      | Number => Some("float")
+      | Integer => Some("int")
+      | Boolean => Some("bool")
+      | _ => None
+      }
+    })
+    if hasDict {
+      primitiveName
+    } else {
+      None
+    }
+  }
+}
+
 // Generate a structural name for a Union type based on its members
 // Union([String, Number]) → "stringOrFloat"
 // Union([Ref("Cat"), Ref("Dog")]) → "catOrDog"
@@ -256,8 +311,13 @@ let rec extractUnions = (_parentName: string, schema: Schema.schemaType): array<
 and extractUnionsFromType = (schema: Schema.schemaType): array<extractedUnion> => {
   switch schema {
   | Union(types) =>
-    let name = getUnionName(types)
-    [{name, schema}]
+    // Skip Ref+Dict unions - they will be simplified to just Ref
+    switch isRefPlusDictUnion(types) {
+    | Some(_) => []
+    | None =>
+      let name = getUnionName(types)
+      [{name, schema}]
+    }
   | Optional(inner) | Nullable(inner) => extractUnionsFromType(inner)
   | Array(inner) => extractUnionsFromType(inner)
   | Dict(inner) => extractUnionsFromType(inner)
@@ -284,7 +344,12 @@ let rec replaceUnions = (_parentName: string, schema: Schema.schemaType): Schema
 // Replace Union in a type, handling wrappers like Optional, Array, Dict
 and replaceUnionInType = (schema: Schema.schemaType): Schema.schemaType => {
   switch schema {
-  | Union(types) => Ref(getUnionName(types))
+  | Union(types) =>
+    // Simplify Ref+Dict unions to just Ref (no discriminator needed)
+    switch isRefPlusDictUnion(types) {
+    | Some(refName) => Ref(refName)
+    | None => Ref(getUnionName(types))
+    }
   | Optional(inner) => Optional(replaceUnionInType(inner))
   | Nullable(inner) => Nullable(replaceUnionInType(inner))
   | Array(inner) => Array(replaceUnionInType(inner))
@@ -508,12 +573,57 @@ type ${typeName} = ${typeBody}`
   }
 }
 
+// Collect warnings for problematic union patterns (deduplicated)
+let collectUnionWarnings = (schemas: array<OpenAPIParser.namedSchema>): array<string> => {
+  let seen = Dict.make()
+  let warnings = []
+
+  // Recursively find all Union types in a schema
+  let rec findUnions = (schema: Schema.schemaType): array<array<Schema.schemaType>> => {
+    switch schema {
+    | Union(types) => [types]
+    | Optional(inner) | Nullable(inner) | Array(inner) | Dict(inner) => findUnions(inner)
+    | Object(fields) => fields->Array.flatMap(f => findUnions(f.type_))
+    | _ => []
+    }
+  }
+
+  schemas->Array.forEach(s => {
+    let unions = findUnions(s.schema)
+    unions->Array.forEach(types => {
+      let unionName = getUnionName(types)
+      // Skip if already warned about this union
+      if seen->Dict.get(unionName)->Option.isNone {
+        seen->Dict.set(unionName, true)
+        // Check for [Ref, Dict] pattern (will be simplified)
+        switch isRefPlusDictUnion(types) {
+        | Some(refName) =>
+          warnings->Array.push(`⚠ ${unionName}: anyOf without discriminator, simplified to ${lcFirst(refName)}`)->ignore
+        | None =>
+          // Check for [Primitive, Dict] pattern (kept but problematic)
+          switch isPrimitivePlusDictUnion(types) {
+          | Some(primName) =>
+            warnings->Array.push(`⚠ ${unionName}: anyOf [${primName}, Dict] without discriminator, @tag("_tag") may not work at runtime`)->ignore
+          | None => ()
+          }
+        }
+      }
+    })
+  })
+
+  warnings
+}
+
 // Generate full module from array of schemas
 // 1. Extract inline Union types into separate named types
 // 2. Deduplicate identical unions by structural name
 // 3. Replace inline Union with Ref to extracted type
 // 4. Sort topologically and generate
 let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
+  // Collect and print warnings for problematic unions
+  let warnings = collectUnionWarnings(schemas)
+  warnings->Array.forEach(w => Console.log(w))
+
   // Step 1: Extract all unions from each schema
   let extractedUnions = schemas->Array.flatMap(s => {
     extractUnions(s.name, s.schema)->Array.map(extracted => {

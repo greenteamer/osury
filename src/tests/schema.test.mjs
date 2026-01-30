@@ -823,7 +823,7 @@ describe('Code Generator', () => {
         expect(typeAOrBMatch).toBeNull();
     });
 
-    test('mixed union (Ref + Dict) inlines Ref but keeps Dict', () => {
+    test('anyOf with Ref + Dict simplifies to just Ref (no discriminator)', () => {
         const doc = {
             openapi: "3.0.0",
             components: {
@@ -853,14 +853,50 @@ describe('Code Generator', () => {
         const parseResult = OpenAPIParser.parseDocument(doc);
         const code = Codegen.generateModule(parseResult._0);
 
-        // ModelInfo should be inlined
-        expect(code).toContain('ModelInfo({');
-        expect(code).toContain('count: int');
-        expect(code).toContain('name: string');
-        // Dict should stay as Dict(Dict.t<string>)
-        expect(code).toContain('Dict(Dict.t<string>)');
-        // Should NOT have @unboxed (mixed union with objects)
-        expect(code).not.toMatch(/@unboxed\s*\n@schema\s*\ntype modelInfoOrDict/);
+        // Should simplify to just modelInfo reference (no union type)
+        expect(code).toContain('data: option<modelInfo>');
+        // Should NOT create a union type modelInfoOrDict
+        expect(code).not.toContain('modelInfoOrDict');
+        expect(code).not.toContain('Dict(Dict.t<string>)');
+    });
+
+    test('anyOf with Ref + additionalProperties:true simplifies to just Ref', () => {
+        // This is the common pattern: anyOf: [Ref, { additionalProperties: true }]
+        // Backend doesn't send _tag, so we just use the concrete type
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    WhatifAppliedEntry: {
+                        type: "object",
+                        properties: {
+                            id: { type: "string" },
+                            value: { type: "number" }
+                        },
+                        required: ["id"]
+                    },
+                    Container: {
+                        type: "object",
+                        properties: {
+                            entry: {
+                                anyOf: [
+                                    { "$ref": "#/components/schemas/WhatifAppliedEntry" },
+                                    { additionalProperties: true, type: "object" }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        const code = Codegen.generateModule(parseResult._0);
+
+        // Should simplify to just whatifAppliedEntry reference
+        expect(code).toContain('entry: option<whatifAppliedEntry>');
+        // Should NOT create a union type
+        expect(code).not.toContain('whatifAppliedEntryOrDict');
+        expect(code).not.toContain('@tag("_tag")');
     });
 
     test('uses _tag const value as variant case name', () => {
