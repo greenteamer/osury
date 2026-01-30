@@ -727,4 +727,117 @@ describe('Code Generator', () => {
         expect(shim).toContain('[key: string]: T');
     });
 
+    test('isPrimitiveOnlyUnion returns true for primitive-only unions', () => {
+        // In compiled JS, primitive types are strings: "String", "Integer", etc.
+        const primitiveUnion = ["String", "Integer"];
+        expect(Codegen.isPrimitiveOnlyUnion(primitiveUnion)).toBe(true);
+    });
+
+    test('isPrimitiveOnlyUnion returns false for mixed unions', () => {
+        // Dict is { _tag: 'Dict', _0: innerType }
+        const mixedUnion = [
+            "Number",
+            { _tag: 'Dict', _0: "String" }
+        ];
+        expect(Codegen.isPrimitiveOnlyUnion(mixedUnion)).toBe(false);
+    });
+
+    test('isRefOnlyUnion returns true for ref-only unions', () => {
+        // Ref is { _tag: 'Ref', _0: name }
+        const refUnion = [
+            { _tag: 'Ref', _0: 'TypeA' },
+            { _tag: 'Ref', _0: 'TypeB' }
+        ];
+        expect(Codegen.isRefOnlyUnion(refUnion)).toBe(true);
+    });
+
+    test('isRefOnlyUnion returns false for mixed unions', () => {
+        const mixedUnion = [
+            { _tag: 'Ref', _0: 'TypeA' },
+            { _tag: 'Dict', _0: "String" }
+        ];
+        expect(Codegen.isRefOnlyUnion(mixedUnion)).toBe(false);
+    });
+
+    test('primitive-only union gets @unboxed', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Container: {
+                        type: "object",
+                        properties: {
+                            value: { anyOf: [{ type: "string" }, { type: "integer" }] }
+                        }
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        const code = Codegen.generateModule(parseResult._0);
+
+        // Should have @unboxed for primitive union
+        expect(code).toContain('@unboxed');
+        expect(code).toContain('type stringOrInt = String(string) | Int(int)');
+    });
+
+    test('mixed union (primitive + Dict) does not get @unboxed', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Container: {
+                        type: "object",
+                        properties: {
+                            value: { anyOf: [{ type: "number" }, { type: "object", additionalProperties: { type: "string" } }] }
+                        }
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        const code = Codegen.generateModule(parseResult._0);
+
+        // floatOrDict should NOT have @unboxed
+        const floatOrDictMatch = code.match(/@unboxed\s*\n@schema\s*\ntype floatOrDict/);
+        expect(floatOrDictMatch).toBeNull();
+    });
+
+    test('ref-only union uses inline records', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    TypeA: {
+                        type: "object",
+                        properties: { name: { type: "string" } },
+                        required: ["name"]
+                    },
+                    TypeB: {
+                        type: "object",
+                        properties: { count: { type: "integer" } },
+                        required: ["count"]
+                    },
+                    Container: {
+                        type: "object",
+                        properties: {
+                            value: { anyOf: [{ "$ref": "#/components/schemas/TypeA" }, { "$ref": "#/components/schemas/TypeB" }] }
+                        }
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        const code = Codegen.generateModule(parseResult._0);
+
+        // Should have inline records, not @unboxed
+        expect(code).toContain('TypeA({');
+        expect(code).toContain('name: string');
+        expect(code).toContain('TypeB({');
+        expect(code).toContain('count: int');
+        // Should NOT have @unboxed for this union
+        const typeAOrBMatch = code.match(/@unboxed\s*\n@schema\s*\ntype typeAOrTypeB/);
+        expect(typeAOrBMatch).toBeNull();
+    });
+
 });
