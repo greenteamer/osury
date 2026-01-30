@@ -167,6 +167,18 @@ let isRefOnlyUnion = (types: array<Schema.schemaType>): bool => {
   })
 }
 
+// Check if Union contains only primitive cases (can safely use @unboxed)
+// Primitives: Number, String, Integer, Boolean
+// Non-primitives: Ref (object), Dict (object), Object, Array
+let isPrimitiveOnlyUnion = (types: array<Schema.schemaType>): bool => {
+  types->Array.every(t => {
+    switch t {
+    | Number | String | Integer | Boolean => true
+    | _ => false
+    }
+  })
+}
+
 // Generate inline record for a Ref type using schemas lookup
 let generateInlineRecord = (
   refName: string,
@@ -449,7 +461,6 @@ let generateTypeDefWithSkipSet = (
 
   switch namedSchema.schema {
   | Union(types) =>
-    // Check if all cases are Ref (object unions)
     if isRefOnlyUnion(types) {
       // Ref-only union → inline records without @unboxed
       let variantBody = generateInlineVariantBody(types, schemasDict)
@@ -457,12 +468,19 @@ let generateTypeDefWithSkipSet = (
 @tag("_tag")
 @schema
 type ${typeName} = ${variantBody}`
-    } else {
-      // Mixed/primitive union → @unboxed
+    } else if isPrimitiveOnlyUnion(types) {
+      // Primitive-only union → @unboxed works
       let variantBody = generateVariantBody(types)
       `@genType
 @tag("_tag")
 @unboxed
+@schema
+type ${typeName} = ${variantBody}`
+    } else {
+      // Mixed union (has objects like Dict but not all Refs) → no @unboxed
+      let variantBody = generateVariantBody(types)
+      `@genType
+@tag("_tag")
 @schema
 type ${typeName} = ${variantBody}`
     }
