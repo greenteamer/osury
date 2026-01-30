@@ -251,6 +251,23 @@ function isRefOnlyUnion(types) {
   });
 }
 
+function isPrimitiveOnlyUnion(types) {
+  return types.every(t => {
+    if (typeof t === "object") {
+      return false;
+    }
+    switch (t) {
+      case "String" :
+      case "Number" :
+      case "Integer" :
+      case "Boolean" :
+        return true;
+      default:
+        return false;
+    }
+  });
+}
+
 function generateInlineRecord(refName, schemasDict) {
   let other = schemasDict[refName];
   if (other !== undefined) {
@@ -566,12 +583,19 @@ function generateTypeDefWithSkipSet(namedSchema, _skipSet, schemasDict) {
 @schema
 type ` + typeName + ` = ` + variantBody;
     }
-    let variantBody$1 = generateVariantBody(types$1);
-    return `@genType
+    if (isPrimitiveOnlyUnion(types$1)) {
+      let variantBody$1 = generateVariantBody(types$1);
+      return `@genType
 @tag("_tag")
 @unboxed
 @schema
 type ` + typeName + ` = ` + variantBody$1;
+    }
+    let variantBody$2 = generateVariantBody(types$1);
+    return `@genType
+@tag("_tag")
+@schema
+type ` + typeName + ` = ` + variantBody$2;
   }
   let typeBody = generateType(namedSchema.schema);
   return `@genType
@@ -645,6 +669,7 @@ export {
   generateUnion,
   hasUnion,
   isRefOnlyUnion,
+  isPrimitiveOnlyUnion,
   generateInlineRecord,
   generateInlineVariantBody,
   getUnionName,
