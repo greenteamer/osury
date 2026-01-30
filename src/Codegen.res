@@ -411,6 +411,7 @@ let generateTypeDefWithSkipSet = (
     let variantBody = generateVariantBody(types)
     `@genType
 @tag("_tag")
+@unboxed
 @schema
 type ${typeName} = ${variantBody}`
   | _ =>
@@ -432,6 +433,7 @@ let generateTypeDef = (namedSchema: OpenAPIParser.namedSchema): string => {
     let variantBody = generateVariantBody(types)
     `@genType
 @tag("_tag")
+@unboxed
 @schema
 type ${typeName} = ${variantBody}`
   | _ =>
