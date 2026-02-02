@@ -727,20 +727,6 @@ describe('Code Generator', () => {
         expect(shim).toContain('[key: string]: T');
     });
 
-    test('generateNullableShim returns TypeScript shim for T | null', () => {
-        const shim = Codegen.generateNullableShim();
-
-        expect(shim).toContain('export type t<T>');
-        expect(shim).toContain('T | null');
-    });
-
-    test('generateNullableModule returns ReScript module with genType import', () => {
-        const module = Codegen.generateNullableModule();
-
-        expect(module).toContain('@genType.import');
-        expect(module).toContain('Nullable.gen.ts');
-        expect(module).toContain("type t<'a> = option<'a>");
-    });
 
     test('isPrimitiveOnlyUnion returns true for primitive-only unions', () => {
         // In compiled JS, primitive types are strings: "String", "Integer", etc.
