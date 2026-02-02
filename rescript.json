@@ -22,6 +22,7 @@
   "ppx-flags": ["sury-ppx/bin"],
   "gentypeconfig": {
     "language": "typescript",
+    "generatedFileExtension": ".gen.ts",
     "shims": {},
     "debug": {
       "all": false

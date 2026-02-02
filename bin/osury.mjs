@@ -82,12 +82,20 @@ function generate(inputPath, outputPath) {
     // Write main ReScript file
     fs.writeFileSync(outputPath, code);
 
-    // Write Dict.gen.tsx shim for @genType
-    const dictShimPath = path.join(outputDir || ".", "Dict.gen.tsx");
+    // Write Dict.gen.ts shim for @genType
+    const dictShimPath = path.join(outputDir || ".", "Dict.gen.ts");
     fs.writeFileSync(dictShimPath, Codegen.generateDictShim());
 
+    // Write Nullable.res module (option<T> alias for sury compatibility)
+    const nullableResPath = path.join(outputDir || ".", "Nullable.res");
+    fs.writeFileSync(nullableResPath, Codegen.generateNullableModule());
+
+    // Write Nullable.shim.ts for @genType.import (maps to T | null)
+    const nullableShimPath = path.join(outputDir || ".", "Nullable.shim.ts");
+    fs.writeFileSync(nullableShimPath, Codegen.generateNullableShim());
+
     console.log(`Generated ${result._0.length} types to ${outputPath}`);
-    console.log(`Generated shim: ${dictShimPath}`);
+    console.log(`Generated shims: ${dictShimPath}, ${nullableShimPath}`);
   } else {
     console.error("Parse errors:");
     result._0.forEach((err) => {
