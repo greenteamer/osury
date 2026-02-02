@@ -22,47 +22,47 @@ let adsExecutiveSummaryResponseSchemaSchema = Sury.schema(s => ({
   ad_sales: s.m(Sury.float),
   ad_spend: s.m(Sury.float),
   ad_impressions: s.m(Sury.float),
-  ad_ctr: s.m(Sury.$$null(Sury.float)),
+  ad_ctr: s.m(Sury.nullable(Sury.float)),
   ad_clicks: s.m(Sury.float),
-  ad_cvr: s.m(Sury.$$null(Sury.float)),
+  ad_cvr: s.m(Sury.nullable(Sury.float)),
   ad_orders: s.m(Sury.float),
   ad_units_sold: s.m(Sury.float),
-  acos: s.m(Sury.$$null(Sury.float)),
-  roas: s.m(Sury.$$null(Sury.float)),
-  cpc: s.m(Sury.$$null(Sury.float)),
-  cpm: s.m(Sury.$$null(Sury.float)),
-  time_in_budget: s.m(Sury.$$null(Sury.float)),
-  ad_tos_is: s.m(Sury.$$null(Sury.float)),
-  ads_non_optimal_spend: s.m(Sury.$$null(Sury.float))
+  acos: s.m(Sury.nullable(Sury.float)),
+  roas: s.m(Sury.nullable(Sury.float)),
+  cpc: s.m(Sury.nullable(Sury.float)),
+  cpm: s.m(Sury.nullable(Sury.float)),
+  time_in_budget: s.m(Sury.nullable(Sury.float)),
+  ad_tos_is: s.m(Sury.nullable(Sury.float)),
+  ads_non_optimal_spend: s.m(Sury.nullable(Sury.float))
 }));
 
 let attributionExecutiveSummaryResponseSchemaSchema = Sury.schema(s => ({
-  attribution_sales: s.m(Sury.$$null(Sury.float)),
-  attribution_spend: s.m(Sury.$$null(Sury.float)),
-  attribution_impressions: s.m(Sury.$$null(Sury.float)),
-  attribution_ctr: s.m(Sury.$$null(Sury.float)),
-  attribution_clicks: s.m(Sury.$$null(Sury.float)),
-  attribution_cvr: s.m(Sury.$$null(Sury.float)),
-  attribution_orders: s.m(Sury.$$null(Sury.float)),
-  attribution_units_sold: s.m(Sury.$$null(Sury.float)),
-  attribution_acos: s.m(Sury.$$null(Sury.float)),
-  attribution_roas: s.m(Sury.$$null(Sury.float)),
-  attribution_cpc: s.m(Sury.$$null(Sury.float)),
-  attribution_cpm: s.m(Sury.$$null(Sury.float))
+  attribution_sales: s.m(Sury.nullable(Sury.float)),
+  attribution_spend: s.m(Sury.nullable(Sury.float)),
+  attribution_impressions: s.m(Sury.nullable(Sury.float)),
+  attribution_ctr: s.m(Sury.nullable(Sury.float)),
+  attribution_clicks: s.m(Sury.nullable(Sury.float)),
+  attribution_cvr: s.m(Sury.nullable(Sury.float)),
+  attribution_orders: s.m(Sury.nullable(Sury.float)),
+  attribution_units_sold: s.m(Sury.nullable(Sury.float)),
+  attribution_acos: s.m(Sury.nullable(Sury.float)),
+  attribution_roas: s.m(Sury.nullable(Sury.float)),
+  attribution_cpc: s.m(Sury.nullable(Sury.float)),
+  attribution_cpm: s.m(Sury.nullable(Sury.float))
 }));
 
 let cFOExecutiveSummaryResponseSchemaSchema = Sury.schema(s => ({
-  available_capital: s.m(Sury.$$null(Sury.float)),
-  frozen_capital: s.m(Sury.$$null(Sury.float)),
-  borrowed_capital: s.m(Sury.$$null(Sury.float)),
-  gross_profit: s.m(Sury.$$null(Sury.float)),
-  gross_margin: s.m(Sury.$$null(Sury.float)),
-  contribution_profit: s.m(Sury.$$null(Sury.float)),
-  contribution_margin: s.m(Sury.$$null(Sury.float)),
-  net_profit: s.m(Sury.$$null(Sury.float)),
-  net_margin: s.m(Sury.$$null(Sury.float)),
-  opex: s.m(Sury.$$null(Sury.float)),
-  roi: s.m(Sury.$$null(Sury.float)),
+  available_capital: s.m(Sury.nullable(Sury.float)),
+  frozen_capital: s.m(Sury.nullable(Sury.float)),
+  borrowed_capital: s.m(Sury.nullable(Sury.float)),
+  gross_profit: s.m(Sury.nullable(Sury.float)),
+  gross_margin: s.m(Sury.nullable(Sury.float)),
+  contribution_profit: s.m(Sury.nullable(Sury.float)),
+  contribution_margin: s.m(Sury.nullable(Sury.float)),
+  net_profit: s.m(Sury.nullable(Sury.float)),
+  net_margin: s.m(Sury.nullable(Sury.float)),
+  opex: s.m(Sury.nullable(Sury.float)),
+  roi: s.m(Sury.nullable(Sury.float)),
   cost_of_goods_sold: s.m(Sury.float),
   amazon_fees: s.m(Sury.float)
 }));
@@ -80,122 +80,122 @@ let dailyInventoryMetricsSchema = Sury.schema(s => ({
 }));
 
 let forecastParamsSchema = Sury.schema(s => ({
-  impressions_what_if: s.m(Sury.$$null(Sury.float)),
-  clicks_what_if: s.m(Sury.$$null(Sury.float)),
-  orders_what_if: s.m(Sury.$$null(Sury.float)),
-  units_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  sales_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_spend_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_impressions_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_clicks_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_orders_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_units_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_ctr_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_cvr_what_if: s.m(Sury.$$null(Sury.float)),
-  cpc_what_if: s.m(Sury.$$null(Sury.float)),
-  cpm_what_if: s.m(Sury.$$null(Sury.float)),
-  organic_impressions_what_if: s.m(Sury.$$null(Sury.float)),
-  organic_clicks_what_if: s.m(Sury.$$null(Sury.float)),
-  organic_orders_what_if: s.m(Sury.$$null(Sury.float)),
-  organic_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  organic_units_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  total_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  total_spend_what_if: s.m(Sury.$$null(Sury.float)),
-  total_impressions_what_if: s.m(Sury.$$null(Sury.float)),
-  total_clicks_what_if: s.m(Sury.$$null(Sury.float)),
-  total_orders_what_if: s.m(Sury.$$null(Sury.float)),
-  total_units_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  lost_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  ctr_what_if: s.m(Sury.$$null(Sury.float)),
-  cvr_what_if: s.m(Sury.$$null(Sury.float)),
-  acos_what_if: s.m(Sury.$$null(Sury.float)),
-  tacos_what_if: s.m(Sury.$$null(Sury.float)),
-  roas_what_if: s.m(Sury.$$null(Sury.float)),
-  mer_what_if: s.m(Sury.$$null(Sury.float)),
-  aov_what_if: s.m(Sury.$$null(Sury.float)),
-  gross_profit_what_if: s.m(Sury.$$null(Sury.float)),
-  gross_margin_what_if: s.m(Sury.$$null(Sury.float)),
-  contribution_profit_what_if: s.m(Sury.$$null(Sury.float)),
-  contribution_margin_what_if: s.m(Sury.$$null(Sury.float)),
-  net_profit_what_if: s.m(Sury.$$null(Sury.float)),
-  net_margin_what_if: s.m(Sury.$$null(Sury.float)),
-  roi_what_if: s.m(Sury.$$null(Sury.float)),
-  available_capital_what_if: s.m(Sury.$$null(Sury.float)),
-  frozen_capital_what_if: s.m(Sury.$$null(Sury.float)),
-  ebitda_what_if: s.m(Sury.$$null(Sury.float)),
-  cogs_what_if: s.m(Sury.$$null(Sury.float)),
-  cost_of_goods_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  amazon_fees_what_if: s.m(Sury.$$null(Sury.float)),
-  opex_what_if: s.m(Sury.$$null(Sury.float)),
-  discount_what_if: s.m(Sury.$$null(Sury.float)),
-  coupon_what_if: s.m(Sury.$$null(Sury.float)),
-  subscribe_save_what_if: s.m(Sury.$$null(Sury.float)),
-  text_score_what_if: s.m(Sury.$$null(Sury.float)),
-  image_score_what_if: s.m(Sury.$$null(Sury.float)),
-  video_score_what_if: s.m(Sury.$$null(Sury.float)),
-  a_plus_score_what_if: s.m(Sury.$$null(Sury.float)),
-  fba_in_stock_rate_what_if: s.m(Sury.$$null(Sury.float)),
-  inventory_turnover_what_if: s.m(Sury.$$null(Sury.float)),
-  safety_stock_what_if: s.m(Sury.$$null(Sury.float)),
-  storage_costs_what_if: s.m(Sury.$$null(Sury.float)),
-  shipping_costs_what_if: s.m(Sury.$$null(Sury.float)),
-  market_total_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  brand_market_share_what_if: s.m(Sury.$$null(Sury.float)),
-  market_average_price_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_spend_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_impressions_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_clicks_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_orders_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_units_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_ctr_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_cvr_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_acos_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_roas_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_cpc_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_cpm_what_if: s.m(Sury.$$null(Sury.float))
+  impressions_what_if: s.m(Sury.nullable(Sury.float)),
+  clicks_what_if: s.m(Sury.nullable(Sury.float)),
+  orders_what_if: s.m(Sury.nullable(Sury.float)),
+  units_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  sales_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_spend_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_impressions_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_clicks_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_orders_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_units_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_ctr_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_cvr_what_if: s.m(Sury.nullable(Sury.float)),
+  cpc_what_if: s.m(Sury.nullable(Sury.float)),
+  cpm_what_if: s.m(Sury.nullable(Sury.float)),
+  organic_impressions_what_if: s.m(Sury.nullable(Sury.float)),
+  organic_clicks_what_if: s.m(Sury.nullable(Sury.float)),
+  organic_orders_what_if: s.m(Sury.nullable(Sury.float)),
+  organic_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  organic_units_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  total_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  total_spend_what_if: s.m(Sury.nullable(Sury.float)),
+  total_impressions_what_if: s.m(Sury.nullable(Sury.float)),
+  total_clicks_what_if: s.m(Sury.nullable(Sury.float)),
+  total_orders_what_if: s.m(Sury.nullable(Sury.float)),
+  total_units_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  lost_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  ctr_what_if: s.m(Sury.nullable(Sury.float)),
+  cvr_what_if: s.m(Sury.nullable(Sury.float)),
+  acos_what_if: s.m(Sury.nullable(Sury.float)),
+  tacos_what_if: s.m(Sury.nullable(Sury.float)),
+  roas_what_if: s.m(Sury.nullable(Sury.float)),
+  mer_what_if: s.m(Sury.nullable(Sury.float)),
+  aov_what_if: s.m(Sury.nullable(Sury.float)),
+  gross_profit_what_if: s.m(Sury.nullable(Sury.float)),
+  gross_margin_what_if: s.m(Sury.nullable(Sury.float)),
+  contribution_profit_what_if: s.m(Sury.nullable(Sury.float)),
+  contribution_margin_what_if: s.m(Sury.nullable(Sury.float)),
+  net_profit_what_if: s.m(Sury.nullable(Sury.float)),
+  net_margin_what_if: s.m(Sury.nullable(Sury.float)),
+  roi_what_if: s.m(Sury.nullable(Sury.float)),
+  available_capital_what_if: s.m(Sury.nullable(Sury.float)),
+  frozen_capital_what_if: s.m(Sury.nullable(Sury.float)),
+  ebitda_what_if: s.m(Sury.nullable(Sury.float)),
+  cogs_what_if: s.m(Sury.nullable(Sury.float)),
+  cost_of_goods_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  amazon_fees_what_if: s.m(Sury.nullable(Sury.float)),
+  opex_what_if: s.m(Sury.nullable(Sury.float)),
+  discount_what_if: s.m(Sury.nullable(Sury.float)),
+  coupon_what_if: s.m(Sury.nullable(Sury.float)),
+  subscribe_save_what_if: s.m(Sury.nullable(Sury.float)),
+  text_score_what_if: s.m(Sury.nullable(Sury.float)),
+  image_score_what_if: s.m(Sury.nullable(Sury.float)),
+  video_score_what_if: s.m(Sury.nullable(Sury.float)),
+  a_plus_score_what_if: s.m(Sury.nullable(Sury.float)),
+  fba_in_stock_rate_what_if: s.m(Sury.nullable(Sury.float)),
+  inventory_turnover_what_if: s.m(Sury.nullable(Sury.float)),
+  safety_stock_what_if: s.m(Sury.nullable(Sury.float)),
+  storage_costs_what_if: s.m(Sury.nullable(Sury.float)),
+  shipping_costs_what_if: s.m(Sury.nullable(Sury.float)),
+  market_total_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  brand_market_share_what_if: s.m(Sury.nullable(Sury.float)),
+  market_average_price_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_spend_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_impressions_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_clicks_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_orders_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_units_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_ctr_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_cvr_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_acos_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_roas_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_cpc_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_cpm_what_if: s.m(Sury.nullable(Sury.float))
 }));
 
 let insightResponseSchema = Sury.schema(s => ({
   summary: s.m(Sury.string),
   date_start: s.m(Sury.string),
   date_end: s.m(Sury.string),
-  asin: s.m(Sury.$$null(Sury.string)),
+  asin: s.m(Sury.nullable(Sury.string)),
   agent: s.m(Sury.string)
 }));
 
 let inventoryExecutiveSummaryResponseSchemaSchema = Sury.schema(s => ({
-  fba_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-  fbt_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-  three_pl_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-  storage_costs: s.m(Sury.$$null(Sury.float)),
-  shipping_costs: s.m(Sury.$$null(Sury.float)),
-  forecasting_accuracy: s.m(Sury.$$null(Sury.float)),
-  inventory_turnover: s.m(Sury.$$null(Sury.float)),
-  safety_stock: s.m(Sury.$$null(Sury.float)),
-  doi_available: s.m(Sury.$$null(Sury.float)),
-  total_doi: s.m(Sury.$$null(Sury.float)),
-  estimated_stock_out_date: s.m(Sury.$$null(Sury.string))
+  fba_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+  fbt_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+  three_pl_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+  storage_costs: s.m(Sury.nullable(Sury.float)),
+  shipping_costs: s.m(Sury.nullable(Sury.float)),
+  forecasting_accuracy: s.m(Sury.nullable(Sury.float)),
+  inventory_turnover: s.m(Sury.nullable(Sury.float)),
+  safety_stock: s.m(Sury.nullable(Sury.float)),
+  doi_available: s.m(Sury.nullable(Sury.float)),
+  total_doi: s.m(Sury.nullable(Sury.float)),
+  estimated_stock_out_date: s.m(Sury.nullable(Sury.string))
 }));
 
 let marketIntelligenceExecutiveSummaryResponseSchemaSchema = Sury.schema(s => ({
-  market_total_sales: s.m(Sury.$$null(Sury.float)),
-  brand_market_share: s.m(Sury.$$null(Sury.float)),
-  market_average_price: s.m(Sury.$$null(Sury.float)),
-  market_total_units_sold: s.m(Sury.$$null(Sury.float)),
-  market_asin_count: s.m(Sury.$$null(Sury.int)),
-  market_promotion_value: s.m(Sury.$$null(Sury.float)),
-  market_promotion_count: s.m(Sury.$$null(Sury.int)),
-  market_review_score: s.m(Sury.$$null(Sury.float)),
-  market_pos: s.m(Sury.$$null(Sury.float)),
-  market_ad_spend: s.m(Sury.$$null(Sury.float))
+  market_total_sales: s.m(Sury.nullable(Sury.float)),
+  brand_market_share: s.m(Sury.nullable(Sury.float)),
+  market_average_price: s.m(Sury.nullable(Sury.float)),
+  market_total_units_sold: s.m(Sury.nullable(Sury.float)),
+  market_asin_count: s.m(Sury.nullable(Sury.int)),
+  market_promotion_value: s.m(Sury.nullable(Sury.float)),
+  market_promotion_count: s.m(Sury.nullable(Sury.int)),
+  market_review_score: s.m(Sury.nullable(Sury.float)),
+  market_pos: s.m(Sury.nullable(Sury.float)),
+  market_ad_spend: s.m(Sury.nullable(Sury.float))
 }));
 
 let organicExecutiveSummaryResponseSchemaSchema = Sury.schema(s => ({
   organic_sales: s.m(Sury.float),
-  organic_impressions: s.m(Sury.$$null(Sury.float)),
-  organic_ctr: s.m(Sury.$$null(Sury.float)),
+  organic_impressions: s.m(Sury.nullable(Sury.float)),
+  organic_ctr: s.m(Sury.nullable(Sury.float)),
   organic_clicks: s.m(Sury.float),
   organic_cvr: s.m(Sury.float),
   organic_orders: s.m(Sury.float),
@@ -209,27 +209,27 @@ let strategicPlanResponseSchema = Sury.schema(s => ({
   projected_net_profit: s.m(Sury.float),
   projected_gross_profit: s.m(Sury.float),
   projected_roi: s.m(Sury.float),
-  total_sales_diff_pct: s.m(Sury.$$null(Sury.float)),
-  net_profit_diff_pct: s.m(Sury.$$null(Sury.float)),
-  gross_profit_diff_pct: s.m(Sury.$$null(Sury.float)),
-  roi_diff_pct: s.m(Sury.$$null(Sury.float)),
+  total_sales_diff_pct: s.m(Sury.nullable(Sury.float)),
+  net_profit_diff_pct: s.m(Sury.nullable(Sury.float)),
+  gross_profit_diff_pct: s.m(Sury.nullable(Sury.float)),
+  roi_diff_pct: s.m(Sury.nullable(Sury.float)),
   goals: s.m(Sury.option(Sury.array(Sury.dict(Sury.string)))),
-  asin: s.m(Sury.$$null(Sury.string))
+  asin: s.m(Sury.nullable(Sury.string))
 }));
 
 let totalExecutiveSummaryResponseSchemaSchema = Sury.schema(s => ({
-  total_sales: s.m(Sury.$$null(Sury.float)),
-  total_spend: s.m(Sury.$$null(Sury.float)),
-  total_impressions: s.m(Sury.$$null(Sury.float)),
-  ctr: s.m(Sury.$$null(Sury.float)),
-  total_clicks: s.m(Sury.$$null(Sury.float)),
-  cvr: s.m(Sury.$$null(Sury.float)),
-  total_orders: s.m(Sury.$$null(Sury.float)),
-  total_units_sold: s.m(Sury.$$null(Sury.float)),
-  total_ntb_orders: s.m(Sury.$$null(Sury.float)),
-  tacos: s.m(Sury.$$null(Sury.float)),
-  mer: s.m(Sury.$$null(Sury.float)),
-  lost_sales: s.m(Sury.$$null(Sury.float))
+  total_sales: s.m(Sury.nullable(Sury.float)),
+  total_spend: s.m(Sury.nullable(Sury.float)),
+  total_impressions: s.m(Sury.nullable(Sury.float)),
+  ctr: s.m(Sury.nullable(Sury.float)),
+  total_clicks: s.m(Sury.nullable(Sury.float)),
+  cvr: s.m(Sury.nullable(Sury.float)),
+  total_orders: s.m(Sury.nullable(Sury.float)),
+  total_units_sold: s.m(Sury.nullable(Sury.float)),
+  total_ntb_orders: s.m(Sury.nullable(Sury.float)),
+  tacos: s.m(Sury.nullable(Sury.float)),
+  mer: s.m(Sury.nullable(Sury.float)),
+  lost_sales: s.m(Sury.nullable(Sury.float))
 }));
 
 let totalInventoryMetricsSchema = Sury.schema(s => ({
@@ -244,9 +244,9 @@ let totalInventoryMetricsSchema = Sury.schema(s => ({
 }));
 
 let whatifAppliedEntrySchema = Sury.schema(s => ({
-  current_value: s.m(Sury.$$null(Sury.float)),
+  current_value: s.m(Sury.nullable(Sury.float)),
   percentage_change: s.m(Sury.float),
-  target_value: s.m(Sury.$$null(Sury.float))
+  target_value: s.m(Sury.nullable(Sury.float))
 }));
 
 let whatifModelInfoSchema = Sury.schema(s => ({
@@ -260,9 +260,9 @@ let timelineDataPoint_dict_Schema = Sury.schema(s => ({
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   value: s.m(Sury.dict(Sury.string)),
-  compare_value: s.m(Sury.$$null(Sury.dict(Sury.string))),
-  compare_diff: s.m(Sury.$$null(Sury.dict(Sury.string))),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  compare_value: s.m(Sury.nullable(Sury.dict(Sury.string))),
+  compare_diff: s.m(Sury.nullable(Sury.dict(Sury.string))),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let validationErrorSchema = Sury.schema(s => ({
@@ -275,18 +275,18 @@ let adsExecutiveSummaryWithForecastBreakdownSchema = Sury.schema(s => ({
   ad_sales: s.m(Sury.float),
   ad_spend: s.m(Sury.float),
   ad_impressions: s.m(Sury.float),
-  ad_ctr: s.m(Sury.$$null(Sury.float)),
+  ad_ctr: s.m(Sury.nullable(Sury.float)),
   ad_clicks: s.m(Sury.float),
-  ad_cvr: s.m(Sury.$$null(Sury.float)),
+  ad_cvr: s.m(Sury.nullable(Sury.float)),
   ad_orders: s.m(Sury.float),
   ad_units_sold: s.m(Sury.float),
-  acos: s.m(Sury.$$null(Sury.float)),
-  roas: s.m(Sury.$$null(Sury.float)),
-  cpc: s.m(Sury.$$null(Sury.float)),
-  cpm: s.m(Sury.$$null(Sury.float)),
-  time_in_budget: s.m(Sury.$$null(Sury.float)),
-  ad_tos_is: s.m(Sury.$$null(Sury.float)),
-  ads_non_optimal_spend: s.m(Sury.$$null(Sury.float)),
+  acos: s.m(Sury.nullable(Sury.float)),
+  roas: s.m(Sury.nullable(Sury.float)),
+  cpc: s.m(Sury.nullable(Sury.float)),
+  cpm: s.m(Sury.nullable(Sury.float)),
+  time_in_budget: s.m(Sury.nullable(Sury.float)),
+  ad_tos_is: s.m(Sury.nullable(Sury.float)),
+  ads_non_optimal_spend: s.m(Sury.nullable(Sury.float)),
   real: s.m(adsExecutiveSummaryResponseSchemaSchema),
   forecasted: s.m(adsExecutiveSummaryResponseSchemaSchema)
 }));
@@ -296,9 +296,9 @@ let timelineDataPoint_AdsExecutiveSummaryResponseSchema_Schema = Sury.schema(s =
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   value: s.m(adsExecutiveSummaryResponseSchemaSchema),
-  compare_value: s.m(Sury.$$null(adsExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(adsExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  compare_value: s.m(Sury.nullable(adsExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(adsExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
@@ -306,27 +306,27 @@ let whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_Schema = Sury.sche
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   baseline: s.m(adsExecutiveSummaryResponseSchemaSchema),
-  projected: s.m(Sury.$$null(adsExecutiveSummaryResponseSchemaSchema)),
-  diff: s.m(Sury.$$null(adsExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(Sury.$$null(floatOrDictSchema)),
-  compare_value: s.m(Sury.$$null(adsExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(adsExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  projected: s.m(Sury.nullable(adsExecutiveSummaryResponseSchemaSchema)),
+  diff: s.m(Sury.nullable(adsExecutiveSummaryResponseSchemaSchema)),
+  percent_diff: s.m(Sury.nullable(floatOrDictSchema)),
+  compare_value: s.m(Sury.nullable(adsExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(adsExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let attributionExecutiveSummaryWithForecastBreakdownSchema = Sury.schema(s => ({
-  attribution_sales: s.m(Sury.$$null(Sury.float)),
-  attribution_spend: s.m(Sury.$$null(Sury.float)),
-  attribution_impressions: s.m(Sury.$$null(Sury.float)),
-  attribution_ctr: s.m(Sury.$$null(Sury.float)),
-  attribution_clicks: s.m(Sury.$$null(Sury.float)),
-  attribution_cvr: s.m(Sury.$$null(Sury.float)),
-  attribution_orders: s.m(Sury.$$null(Sury.float)),
-  attribution_units_sold: s.m(Sury.$$null(Sury.float)),
-  attribution_acos: s.m(Sury.$$null(Sury.float)),
-  attribution_roas: s.m(Sury.$$null(Sury.float)),
-  attribution_cpc: s.m(Sury.$$null(Sury.float)),
-  attribution_cpm: s.m(Sury.$$null(Sury.float)),
+  attribution_sales: s.m(Sury.nullable(Sury.float)),
+  attribution_spend: s.m(Sury.nullable(Sury.float)),
+  attribution_impressions: s.m(Sury.nullable(Sury.float)),
+  attribution_ctr: s.m(Sury.nullable(Sury.float)),
+  attribution_clicks: s.m(Sury.nullable(Sury.float)),
+  attribution_cvr: s.m(Sury.nullable(Sury.float)),
+  attribution_orders: s.m(Sury.nullable(Sury.float)),
+  attribution_units_sold: s.m(Sury.nullable(Sury.float)),
+  attribution_acos: s.m(Sury.nullable(Sury.float)),
+  attribution_roas: s.m(Sury.nullable(Sury.float)),
+  attribution_cpc: s.m(Sury.nullable(Sury.float)),
+  attribution_cpm: s.m(Sury.nullable(Sury.float)),
   real: s.m(attributionExecutiveSummaryResponseSchemaSchema),
   forecasted: s.m(attributionExecutiveSummaryResponseSchemaSchema)
 }));
@@ -336,9 +336,9 @@ let timelineDataPoint_AttributionExecutiveSummaryResponseSchema_Schema = Sury.sc
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   value: s.m(attributionExecutiveSummaryResponseSchemaSchema),
-  compare_value: s.m(Sury.$$null(attributionExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(attributionExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  compare_value: s.m(Sury.nullable(attributionExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(attributionExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
@@ -346,26 +346,26 @@ let whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_Schema = S
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   baseline: s.m(attributionExecutiveSummaryResponseSchemaSchema),
-  projected: s.m(Sury.$$null(attributionExecutiveSummaryResponseSchemaSchema)),
-  diff: s.m(Sury.$$null(attributionExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(Sury.$$null(floatOrDictSchema)),
-  compare_value: s.m(Sury.$$null(attributionExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(attributionExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  projected: s.m(Sury.nullable(attributionExecutiveSummaryResponseSchemaSchema)),
+  diff: s.m(Sury.nullable(attributionExecutiveSummaryResponseSchemaSchema)),
+  percent_diff: s.m(Sury.nullable(floatOrDictSchema)),
+  compare_value: s.m(Sury.nullable(attributionExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(attributionExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let cFOExecutiveSummaryWithForecastBreakdownSchema = Sury.schema(s => ({
-  available_capital: s.m(Sury.$$null(Sury.float)),
-  frozen_capital: s.m(Sury.$$null(Sury.float)),
-  borrowed_capital: s.m(Sury.$$null(Sury.float)),
-  gross_profit: s.m(Sury.$$null(Sury.float)),
-  gross_margin: s.m(Sury.$$null(Sury.float)),
-  contribution_profit: s.m(Sury.$$null(Sury.float)),
-  contribution_margin: s.m(Sury.$$null(Sury.float)),
-  net_profit: s.m(Sury.$$null(Sury.float)),
-  net_margin: s.m(Sury.$$null(Sury.float)),
-  opex: s.m(Sury.$$null(Sury.float)),
-  roi: s.m(Sury.$$null(Sury.float)),
+  available_capital: s.m(Sury.nullable(Sury.float)),
+  frozen_capital: s.m(Sury.nullable(Sury.float)),
+  borrowed_capital: s.m(Sury.nullable(Sury.float)),
+  gross_profit: s.m(Sury.nullable(Sury.float)),
+  gross_margin: s.m(Sury.nullable(Sury.float)),
+  contribution_profit: s.m(Sury.nullable(Sury.float)),
+  contribution_margin: s.m(Sury.nullable(Sury.float)),
+  net_profit: s.m(Sury.nullable(Sury.float)),
+  net_margin: s.m(Sury.nullable(Sury.float)),
+  opex: s.m(Sury.nullable(Sury.float)),
+  roi: s.m(Sury.nullable(Sury.float)),
   cost_of_goods_sold: s.m(Sury.float),
   amazon_fees: s.m(Sury.float),
   real: s.m(cFOExecutiveSummaryResponseSchemaSchema),
@@ -377,9 +377,9 @@ let timelineDataPoint_CFOExecutiveSummaryResponseSchema_Schema = Sury.schema(s =
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   value: s.m(cFOExecutiveSummaryResponseSchemaSchema),
-  compare_value: s.m(Sury.$$null(cFOExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(cFOExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  compare_value: s.m(Sury.nullable(cFOExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(cFOExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
@@ -387,108 +387,108 @@ let whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_Schema = Sury.sche
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   baseline: s.m(cFOExecutiveSummaryResponseSchemaSchema),
-  projected: s.m(Sury.$$null(cFOExecutiveSummaryResponseSchemaSchema)),
-  diff: s.m(Sury.$$null(cFOExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(Sury.$$null(floatOrDictSchema)),
-  compare_value: s.m(Sury.$$null(cFOExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(cFOExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  projected: s.m(Sury.nullable(cFOExecutiveSummaryResponseSchemaSchema)),
+  diff: s.m(Sury.nullable(cFOExecutiveSummaryResponseSchemaSchema)),
+  percent_diff: s.m(Sury.nullable(floatOrDictSchema)),
+  compare_value: s.m(Sury.nullable(cFOExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(cFOExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let tierLevelForecastParamsSchema = Sury.schema(s => ({
-  impressions_what_if: s.m(Sury.$$null(Sury.float)),
-  clicks_what_if: s.m(Sury.$$null(Sury.float)),
-  orders_what_if: s.m(Sury.$$null(Sury.float)),
-  units_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  sales_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_spend_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_impressions_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_clicks_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_orders_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_units_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_ctr_what_if: s.m(Sury.$$null(Sury.float)),
-  ad_cvr_what_if: s.m(Sury.$$null(Sury.float)),
-  cpc_what_if: s.m(Sury.$$null(Sury.float)),
-  cpm_what_if: s.m(Sury.$$null(Sury.float)),
-  organic_impressions_what_if: s.m(Sury.$$null(Sury.float)),
-  organic_clicks_what_if: s.m(Sury.$$null(Sury.float)),
-  organic_orders_what_if: s.m(Sury.$$null(Sury.float)),
-  organic_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  organic_units_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  total_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  total_spend_what_if: s.m(Sury.$$null(Sury.float)),
-  total_impressions_what_if: s.m(Sury.$$null(Sury.float)),
-  total_clicks_what_if: s.m(Sury.$$null(Sury.float)),
-  total_orders_what_if: s.m(Sury.$$null(Sury.float)),
-  total_units_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  lost_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  ctr_what_if: s.m(Sury.$$null(Sury.float)),
-  cvr_what_if: s.m(Sury.$$null(Sury.float)),
-  acos_what_if: s.m(Sury.$$null(Sury.float)),
-  tacos_what_if: s.m(Sury.$$null(Sury.float)),
-  roas_what_if: s.m(Sury.$$null(Sury.float)),
-  mer_what_if: s.m(Sury.$$null(Sury.float)),
-  aov_what_if: s.m(Sury.$$null(Sury.float)),
-  gross_profit_what_if: s.m(Sury.$$null(Sury.float)),
-  gross_margin_what_if: s.m(Sury.$$null(Sury.float)),
-  contribution_profit_what_if: s.m(Sury.$$null(Sury.float)),
-  contribution_margin_what_if: s.m(Sury.$$null(Sury.float)),
-  net_profit_what_if: s.m(Sury.$$null(Sury.float)),
-  net_margin_what_if: s.m(Sury.$$null(Sury.float)),
-  roi_what_if: s.m(Sury.$$null(Sury.float)),
-  available_capital_what_if: s.m(Sury.$$null(Sury.float)),
-  frozen_capital_what_if: s.m(Sury.$$null(Sury.float)),
-  ebitda_what_if: s.m(Sury.$$null(Sury.float)),
-  cogs_what_if: s.m(Sury.$$null(Sury.float)),
-  cost_of_goods_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  amazon_fees_what_if: s.m(Sury.$$null(Sury.float)),
-  opex_what_if: s.m(Sury.$$null(Sury.float)),
-  discount_what_if: s.m(Sury.$$null(Sury.float)),
-  coupon_what_if: s.m(Sury.$$null(Sury.float)),
-  subscribe_save_what_if: s.m(Sury.$$null(Sury.float)),
-  text_score_what_if: s.m(Sury.$$null(Sury.float)),
-  image_score_what_if: s.m(Sury.$$null(Sury.float)),
-  video_score_what_if: s.m(Sury.$$null(Sury.float)),
-  a_plus_score_what_if: s.m(Sury.$$null(Sury.float)),
-  fba_in_stock_rate_what_if: s.m(Sury.$$null(Sury.float)),
-  inventory_turnover_what_if: s.m(Sury.$$null(Sury.float)),
-  safety_stock_what_if: s.m(Sury.$$null(Sury.float)),
-  storage_costs_what_if: s.m(Sury.$$null(Sury.float)),
-  shipping_costs_what_if: s.m(Sury.$$null(Sury.float)),
-  market_total_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  brand_market_share_what_if: s.m(Sury.$$null(Sury.float)),
-  market_average_price_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_sales_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_spend_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_impressions_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_clicks_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_orders_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_units_sold_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_ctr_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_cvr_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_acos_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_roas_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_cpc_what_if: s.m(Sury.$$null(Sury.float)),
-  attribution_cpm_what_if: s.m(Sury.$$null(Sury.float)),
-  no_sales: s.m(Sury.$$null(forecastParamsSchema)),
-  poor: s.m(Sury.$$null(forecastParamsSchema)),
-  mid: s.m(Sury.$$null(forecastParamsSchema)),
-  good: s.m(Sury.$$null(forecastParamsSchema))
+  impressions_what_if: s.m(Sury.nullable(Sury.float)),
+  clicks_what_if: s.m(Sury.nullable(Sury.float)),
+  orders_what_if: s.m(Sury.nullable(Sury.float)),
+  units_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  sales_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_spend_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_impressions_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_clicks_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_orders_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_units_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_ctr_what_if: s.m(Sury.nullable(Sury.float)),
+  ad_cvr_what_if: s.m(Sury.nullable(Sury.float)),
+  cpc_what_if: s.m(Sury.nullable(Sury.float)),
+  cpm_what_if: s.m(Sury.nullable(Sury.float)),
+  organic_impressions_what_if: s.m(Sury.nullable(Sury.float)),
+  organic_clicks_what_if: s.m(Sury.nullable(Sury.float)),
+  organic_orders_what_if: s.m(Sury.nullable(Sury.float)),
+  organic_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  organic_units_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  total_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  total_spend_what_if: s.m(Sury.nullable(Sury.float)),
+  total_impressions_what_if: s.m(Sury.nullable(Sury.float)),
+  total_clicks_what_if: s.m(Sury.nullable(Sury.float)),
+  total_orders_what_if: s.m(Sury.nullable(Sury.float)),
+  total_units_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  lost_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  ctr_what_if: s.m(Sury.nullable(Sury.float)),
+  cvr_what_if: s.m(Sury.nullable(Sury.float)),
+  acos_what_if: s.m(Sury.nullable(Sury.float)),
+  tacos_what_if: s.m(Sury.nullable(Sury.float)),
+  roas_what_if: s.m(Sury.nullable(Sury.float)),
+  mer_what_if: s.m(Sury.nullable(Sury.float)),
+  aov_what_if: s.m(Sury.nullable(Sury.float)),
+  gross_profit_what_if: s.m(Sury.nullable(Sury.float)),
+  gross_margin_what_if: s.m(Sury.nullable(Sury.float)),
+  contribution_profit_what_if: s.m(Sury.nullable(Sury.float)),
+  contribution_margin_what_if: s.m(Sury.nullable(Sury.float)),
+  net_profit_what_if: s.m(Sury.nullable(Sury.float)),
+  net_margin_what_if: s.m(Sury.nullable(Sury.float)),
+  roi_what_if: s.m(Sury.nullable(Sury.float)),
+  available_capital_what_if: s.m(Sury.nullable(Sury.float)),
+  frozen_capital_what_if: s.m(Sury.nullable(Sury.float)),
+  ebitda_what_if: s.m(Sury.nullable(Sury.float)),
+  cogs_what_if: s.m(Sury.nullable(Sury.float)),
+  cost_of_goods_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  amazon_fees_what_if: s.m(Sury.nullable(Sury.float)),
+  opex_what_if: s.m(Sury.nullable(Sury.float)),
+  discount_what_if: s.m(Sury.nullable(Sury.float)),
+  coupon_what_if: s.m(Sury.nullable(Sury.float)),
+  subscribe_save_what_if: s.m(Sury.nullable(Sury.float)),
+  text_score_what_if: s.m(Sury.nullable(Sury.float)),
+  image_score_what_if: s.m(Sury.nullable(Sury.float)),
+  video_score_what_if: s.m(Sury.nullable(Sury.float)),
+  a_plus_score_what_if: s.m(Sury.nullable(Sury.float)),
+  fba_in_stock_rate_what_if: s.m(Sury.nullable(Sury.float)),
+  inventory_turnover_what_if: s.m(Sury.nullable(Sury.float)),
+  safety_stock_what_if: s.m(Sury.nullable(Sury.float)),
+  storage_costs_what_if: s.m(Sury.nullable(Sury.float)),
+  shipping_costs_what_if: s.m(Sury.nullable(Sury.float)),
+  market_total_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  brand_market_share_what_if: s.m(Sury.nullable(Sury.float)),
+  market_average_price_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_sales_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_spend_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_impressions_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_clicks_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_orders_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_units_sold_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_ctr_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_cvr_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_acos_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_roas_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_cpc_what_if: s.m(Sury.nullable(Sury.float)),
+  attribution_cpm_what_if: s.m(Sury.nullable(Sury.float)),
+  no_sales: s.m(Sury.nullable(forecastParamsSchema)),
+  poor: s.m(Sury.nullable(forecastParamsSchema)),
+  mid: s.m(Sury.nullable(forecastParamsSchema)),
+  good: s.m(Sury.nullable(forecastParamsSchema))
 }));
 
 let inventoryExecutiveSummaryWithForecastBreakdownSchema = Sury.schema(s => ({
-  fba_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-  fbt_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-  three_pl_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-  storage_costs: s.m(Sury.$$null(Sury.float)),
-  shipping_costs: s.m(Sury.$$null(Sury.float)),
-  forecasting_accuracy: s.m(Sury.$$null(Sury.float)),
-  inventory_turnover: s.m(Sury.$$null(Sury.float)),
-  safety_stock: s.m(Sury.$$null(Sury.float)),
-  doi_available: s.m(Sury.$$null(Sury.float)),
-  total_doi: s.m(Sury.$$null(Sury.float)),
-  estimated_stock_out_date: s.m(Sury.$$null(Sury.string)),
+  fba_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+  fbt_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+  three_pl_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+  storage_costs: s.m(Sury.nullable(Sury.float)),
+  shipping_costs: s.m(Sury.nullable(Sury.float)),
+  forecasting_accuracy: s.m(Sury.nullable(Sury.float)),
+  inventory_turnover: s.m(Sury.nullable(Sury.float)),
+  safety_stock: s.m(Sury.nullable(Sury.float)),
+  doi_available: s.m(Sury.nullable(Sury.float)),
+  total_doi: s.m(Sury.nullable(Sury.float)),
+  estimated_stock_out_date: s.m(Sury.nullable(Sury.string)),
   real: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
   forecasted: s.m(inventoryExecutiveSummaryResponseSchemaSchema)
 }));
@@ -498,9 +498,9 @@ let timelineDataPoint_InventoryExecutiveSummaryResponseSchema_Schema = Sury.sche
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   value: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
-  compare_value: s.m(Sury.$$null(inventoryExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(inventoryExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  compare_value: s.m(Sury.nullable(inventoryExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(inventoryExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
@@ -508,25 +508,25 @@ let whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_Schema = Sur
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   baseline: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
-  projected: s.m(Sury.$$null(inventoryExecutiveSummaryResponseSchemaSchema)),
-  diff: s.m(Sury.$$null(inventoryExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(Sury.$$null(floatOrDictSchema)),
-  compare_value: s.m(Sury.$$null(inventoryExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(inventoryExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  projected: s.m(Sury.nullable(inventoryExecutiveSummaryResponseSchemaSchema)),
+  diff: s.m(Sury.nullable(inventoryExecutiveSummaryResponseSchemaSchema)),
+  percent_diff: s.m(Sury.nullable(floatOrDictSchema)),
+  compare_value: s.m(Sury.nullable(inventoryExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(inventoryExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let marketIntelligenceExecutiveSummaryWithForecastBreakdownSchema = Sury.schema(s => ({
-  market_total_sales: s.m(Sury.$$null(Sury.float)),
-  brand_market_share: s.m(Sury.$$null(Sury.float)),
-  market_average_price: s.m(Sury.$$null(Sury.float)),
-  market_total_units_sold: s.m(Sury.$$null(Sury.float)),
-  market_asin_count: s.m(Sury.$$null(Sury.int)),
-  market_promotion_value: s.m(Sury.$$null(Sury.float)),
-  market_promotion_count: s.m(Sury.$$null(Sury.int)),
-  market_review_score: s.m(Sury.$$null(Sury.float)),
-  market_pos: s.m(Sury.$$null(Sury.float)),
-  market_ad_spend: s.m(Sury.$$null(Sury.float)),
+  market_total_sales: s.m(Sury.nullable(Sury.float)),
+  brand_market_share: s.m(Sury.nullable(Sury.float)),
+  market_average_price: s.m(Sury.nullable(Sury.float)),
+  market_total_units_sold: s.m(Sury.nullable(Sury.float)),
+  market_asin_count: s.m(Sury.nullable(Sury.int)),
+  market_promotion_value: s.m(Sury.nullable(Sury.float)),
+  market_promotion_count: s.m(Sury.nullable(Sury.int)),
+  market_review_score: s.m(Sury.nullable(Sury.float)),
+  market_pos: s.m(Sury.nullable(Sury.float)),
+  market_ad_spend: s.m(Sury.nullable(Sury.float)),
   real: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
   forecasted: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema)
 }));
@@ -536,9 +536,9 @@ let timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_Schema = 
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   value: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
-  compare_value: s.m(Sury.$$null(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  compare_value: s.m(Sury.nullable(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
@@ -546,18 +546,18 @@ let whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_Sch
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   baseline: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
-  projected: s.m(Sury.$$null(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
-  diff: s.m(Sury.$$null(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(Sury.$$null(floatOrDictSchema)),
-  compare_value: s.m(Sury.$$null(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  projected: s.m(Sury.nullable(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
+  diff: s.m(Sury.nullable(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
+  percent_diff: s.m(Sury.nullable(floatOrDictSchema)),
+  compare_value: s.m(Sury.nullable(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let organicExecutiveSummaryWithForecastBreakdownSchema = Sury.schema(s => ({
   organic_sales: s.m(Sury.float),
-  organic_impressions: s.m(Sury.$$null(Sury.float)),
-  organic_ctr: s.m(Sury.$$null(Sury.float)),
+  organic_impressions: s.m(Sury.nullable(Sury.float)),
+  organic_ctr: s.m(Sury.nullable(Sury.float)),
   organic_clicks: s.m(Sury.float),
   organic_cvr: s.m(Sury.float),
   organic_orders: s.m(Sury.float),
@@ -571,12 +571,12 @@ let whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema_Schema = Sury.
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   baseline: s.m(organicExecutiveSummaryResponseSchemaSchema),
-  projected: s.m(Sury.$$null(organicExecutiveSummaryResponseSchemaSchema)),
-  diff: s.m(Sury.$$null(organicExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(Sury.$$null(floatOrDictSchema)),
-  compare_value: s.m(Sury.$$null(organicExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(organicExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  projected: s.m(Sury.nullable(organicExecutiveSummaryResponseSchemaSchema)),
+  diff: s.m(Sury.nullable(organicExecutiveSummaryResponseSchemaSchema)),
+  percent_diff: s.m(Sury.nullable(floatOrDictSchema)),
+  compare_value: s.m(Sury.nullable(organicExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(organicExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let timelineDataPoint_TotalExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
@@ -584,24 +584,24 @@ let timelineDataPoint_TotalExecutiveSummaryResponseSchema_Schema = Sury.schema(s
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   value: s.m(totalExecutiveSummaryResponseSchemaSchema),
-  compare_value: s.m(Sury.$$null(totalExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(totalExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  compare_value: s.m(Sury.nullable(totalExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(totalExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let totalExecutiveSummaryWithForecastBreakdownSchema = Sury.schema(s => ({
-  total_sales: s.m(Sury.$$null(Sury.float)),
-  total_spend: s.m(Sury.$$null(Sury.float)),
-  total_impressions: s.m(Sury.$$null(Sury.float)),
-  ctr: s.m(Sury.$$null(Sury.float)),
-  total_clicks: s.m(Sury.$$null(Sury.float)),
-  cvr: s.m(Sury.$$null(Sury.float)),
-  total_orders: s.m(Sury.$$null(Sury.float)),
-  total_units_sold: s.m(Sury.$$null(Sury.float)),
-  total_ntb_orders: s.m(Sury.$$null(Sury.float)),
-  tacos: s.m(Sury.$$null(Sury.float)),
-  mer: s.m(Sury.$$null(Sury.float)),
-  lost_sales: s.m(Sury.$$null(Sury.float)),
+  total_sales: s.m(Sury.nullable(Sury.float)),
+  total_spend: s.m(Sury.nullable(Sury.float)),
+  total_impressions: s.m(Sury.nullable(Sury.float)),
+  ctr: s.m(Sury.nullable(Sury.float)),
+  total_clicks: s.m(Sury.nullable(Sury.float)),
+  cvr: s.m(Sury.nullable(Sury.float)),
+  total_orders: s.m(Sury.nullable(Sury.float)),
+  total_units_sold: s.m(Sury.nullable(Sury.float)),
+  total_ntb_orders: s.m(Sury.nullable(Sury.float)),
+  tacos: s.m(Sury.nullable(Sury.float)),
+  mer: s.m(Sury.nullable(Sury.float)),
+  lost_sales: s.m(Sury.nullable(Sury.float)),
   real: s.m(totalExecutiveSummaryResponseSchemaSchema),
   forecasted: s.m(totalExecutiveSummaryResponseSchemaSchema)
 }));
@@ -611,12 +611,12 @@ let whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema_Schema = Sury.sc
   period_end: s.m(Sury.string),
   is_forecast: s.m(Sury.bool),
   baseline: s.m(totalExecutiveSummaryResponseSchemaSchema),
-  projected: s.m(Sury.$$null(totalExecutiveSummaryResponseSchemaSchema)),
-  diff: s.m(Sury.$$null(totalExecutiveSummaryResponseSchemaSchema)),
-  percent_diff: s.m(Sury.$$null(floatOrDictSchema)),
-  compare_value: s.m(Sury.$$null(totalExecutiveSummaryResponseSchemaSchema)),
-  compare_diff: s.m(Sury.$$null(totalExecutiveSummaryResponseSchemaSchema)),
-  compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+  projected: s.m(Sury.nullable(totalExecutiveSummaryResponseSchemaSchema)),
+  diff: s.m(Sury.nullable(totalExecutiveSummaryResponseSchemaSchema)),
+  percent_diff: s.m(Sury.nullable(floatOrDictSchema)),
+  compare_value: s.m(Sury.nullable(totalExecutiveSummaryResponseSchemaSchema)),
+  compare_diff: s.m(Sury.nullable(totalExecutiveSummaryResponseSchemaSchema)),
+  compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
 }));
 
 let inventoryMetricsResponseSchema = Sury.schema(s => ({
@@ -627,78 +627,78 @@ let inventoryMetricsResponseSchema = Sury.schema(s => ({
 let whatifResponse_AdsExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   baseline: s.m(adsExecutiveSummaryResponseSchemaSchema),
   projected: s.m(adsExecutiveSummaryResponseSchemaSchema),
-  diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-  percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+  diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+  percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
   whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
   model_info: s.m(whatifModelInfoSchema),
-  warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+  warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
 }));
 
 let whatifResponse_AttributionExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   baseline: s.m(attributionExecutiveSummaryResponseSchemaSchema),
   projected: s.m(attributionExecutiveSummaryResponseSchemaSchema),
-  diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-  percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+  diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+  percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
   whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
   model_info: s.m(whatifModelInfoSchema),
-  warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+  warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
 }));
 
 let whatifResponse_CFOExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   baseline: s.m(cFOExecutiveSummaryResponseSchemaSchema),
   projected: s.m(cFOExecutiveSummaryResponseSchemaSchema),
-  diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-  percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+  diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+  percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
   whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
   model_info: s.m(whatifModelInfoSchema),
-  warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+  warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
 }));
 
 let whatifResponse_InventoryExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   baseline: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
   projected: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
-  diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-  percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+  diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+  percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
   whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
   model_info: s.m(whatifModelInfoSchema),
-  warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+  warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
 }));
 
 let whatifResponse_MarketIntelligenceExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   baseline: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
   projected: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
-  diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-  percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+  diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+  percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
   whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
   model_info: s.m(whatifModelInfoSchema),
-  warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+  warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
 }));
 
 let whatifResponse_OrganicExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   baseline: s.m(organicExecutiveSummaryResponseSchemaSchema),
   projected: s.m(organicExecutiveSummaryResponseSchemaSchema),
-  diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-  percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+  diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+  percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
   whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
   model_info: s.m(whatifModelInfoSchema),
-  warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+  warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
 }));
 
 let whatifResponse_TotalExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   baseline: s.m(totalExecutiveSummaryResponseSchemaSchema),
   projected: s.m(totalExecutiveSummaryResponseSchemaSchema),
-  diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-  percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+  diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+  percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
   whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
   model_info: s.m(whatifModelInfoSchema),
-  warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+  warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
 }));
 
 let timelineResponse_dict_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(timelineDataPoint_dict_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let hTTPValidationErrorSchema = Sury.schema(s => ({
@@ -709,91 +709,91 @@ let timelineResponse_AdsExecutiveSummaryResponseSchema_Schema = Sury.schema(s =>
   data: s.m(Sury.array(timelineDataPoint_AdsExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let whatifTimelineResponse_AdsExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let timelineResponse_AttributionExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(timelineDataPoint_AttributionExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let whatifTimelineResponse_AttributionExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let timelineResponse_CFOExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(timelineDataPoint_CFOExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let whatifTimelineResponse_CFOExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let timelineResponse_InventoryExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(timelineDataPoint_InventoryExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let whatifTimelineResponse_InventoryExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let timelineResponse_MarketIntelligenceExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let whatifTimelineResponse_MarketIntelligenceExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let whatifTimelineResponse_OrganicExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let timelineResponse_TotalExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(timelineDataPoint_TotalExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let whatifTimelineResponse_TotalExecutiveSummaryResponseSchema_Schema = Sury.schema(s => ({
   data: s.m(Sury.array(whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema_Schema)),
   period_start: s.m(Sury.string),
   period_end: s.m(Sury.string),
-  period: s.m(Sury.$$null(Sury.string))
+  period: s.m(Sury.nullable(Sury.string))
 }));
 
 let getV1MathInventoryMetricsResponseSchema = Sury.union([
@@ -807,7 +807,7 @@ let getV1MathInventoryMetricsResponseSchema = Sury.union([
     data: s.m(Sury.array(timelineDataPoint_dict_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   })),
   Sury.schema(s => ({
     _tag: "TimelineDataPoint",
@@ -815,9 +815,9 @@ let getV1MathInventoryMetricsResponseSchema = Sury.union([
     period_end: s.m(Sury.string),
     is_forecast: s.m(Sury.bool),
     value: s.m(Sury.dict(Sury.string)),
-    compare_value: s.m(Sury.$$null(Sury.dict(Sury.string))),
-    compare_diff: s.m(Sury.$$null(Sury.dict(Sury.string))),
-    compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+    compare_value: s.m(Sury.nullable(Sury.dict(Sury.string))),
+    compare_diff: s.m(Sury.nullable(Sury.dict(Sury.string))),
+    compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
   }))
 ]);
 
@@ -825,8 +825,8 @@ let getV1MathOrganicExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "OrganicExecutiveSummaryResponseSchema",
     organic_sales: s.m(Sury.float),
-    organic_impressions: s.m(Sury.$$null(Sury.float)),
-    organic_ctr: s.m(Sury.$$null(Sury.float)),
+    organic_impressions: s.m(Sury.nullable(Sury.float)),
+    organic_ctr: s.m(Sury.nullable(Sury.float)),
     organic_clicks: s.m(Sury.float),
     organic_cvr: s.m(Sury.float),
     organic_orders: s.m(Sury.float),
@@ -835,8 +835,8 @@ let getV1MathOrganicExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "OrganicExecutiveSummaryWithForecastBreakdown",
     organic_sales: s.m(Sury.float),
-    organic_impressions: s.m(Sury.$$null(Sury.float)),
-    organic_ctr: s.m(Sury.$$null(Sury.float)),
+    organic_impressions: s.m(Sury.nullable(Sury.float)),
+    organic_ctr: s.m(Sury.nullable(Sury.float)),
     organic_clicks: s.m(Sury.float),
     organic_cvr: s.m(Sury.float),
     organic_orders: s.m(Sury.float),
@@ -849,7 +849,7 @@ let getV1MathOrganicExecutiveSummaryResponseSchema = Sury.union([
     data: s.m(Sury.array(timelineDataPoint_dict_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   })),
   Sury.schema(s => ({
     _tag: "TimelineDataPoint",
@@ -857,9 +857,9 @@ let getV1MathOrganicExecutiveSummaryResponseSchema = Sury.union([
     period_end: s.m(Sury.string),
     is_forecast: s.m(Sury.bool),
     value: s.m(Sury.dict(Sury.string)),
-    compare_value: s.m(Sury.$$null(Sury.dict(Sury.string))),
-    compare_diff: s.m(Sury.$$null(Sury.dict(Sury.string))),
-    compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+    compare_value: s.m(Sury.nullable(Sury.dict(Sury.string))),
+    compare_diff: s.m(Sury.nullable(Sury.dict(Sury.string))),
+    compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
   }))
 ]);
 
@@ -869,36 +869,36 @@ let getV1MathAdsExecutiveSummaryResponseSchema = Sury.union([
     ad_sales: s.m(Sury.float),
     ad_spend: s.m(Sury.float),
     ad_impressions: s.m(Sury.float),
-    ad_ctr: s.m(Sury.$$null(Sury.float)),
+    ad_ctr: s.m(Sury.nullable(Sury.float)),
     ad_clicks: s.m(Sury.float),
-    ad_cvr: s.m(Sury.$$null(Sury.float)),
+    ad_cvr: s.m(Sury.nullable(Sury.float)),
     ad_orders: s.m(Sury.float),
     ad_units_sold: s.m(Sury.float),
-    acos: s.m(Sury.$$null(Sury.float)),
-    roas: s.m(Sury.$$null(Sury.float)),
-    cpc: s.m(Sury.$$null(Sury.float)),
-    cpm: s.m(Sury.$$null(Sury.float)),
-    time_in_budget: s.m(Sury.$$null(Sury.float)),
-    ad_tos_is: s.m(Sury.$$null(Sury.float)),
-    ads_non_optimal_spend: s.m(Sury.$$null(Sury.float))
+    acos: s.m(Sury.nullable(Sury.float)),
+    roas: s.m(Sury.nullable(Sury.float)),
+    cpc: s.m(Sury.nullable(Sury.float)),
+    cpm: s.m(Sury.nullable(Sury.float)),
+    time_in_budget: s.m(Sury.nullable(Sury.float)),
+    ad_tos_is: s.m(Sury.nullable(Sury.float)),
+    ads_non_optimal_spend: s.m(Sury.nullable(Sury.float))
   })),
   Sury.schema(s => ({
     _tag: "AdsExecutiveSummaryWithForecastBreakdown",
     ad_sales: s.m(Sury.float),
     ad_spend: s.m(Sury.float),
     ad_impressions: s.m(Sury.float),
-    ad_ctr: s.m(Sury.$$null(Sury.float)),
+    ad_ctr: s.m(Sury.nullable(Sury.float)),
     ad_clicks: s.m(Sury.float),
-    ad_cvr: s.m(Sury.$$null(Sury.float)),
+    ad_cvr: s.m(Sury.nullable(Sury.float)),
     ad_orders: s.m(Sury.float),
     ad_units_sold: s.m(Sury.float),
-    acos: s.m(Sury.$$null(Sury.float)),
-    roas: s.m(Sury.$$null(Sury.float)),
-    cpc: s.m(Sury.$$null(Sury.float)),
-    cpm: s.m(Sury.$$null(Sury.float)),
-    time_in_budget: s.m(Sury.$$null(Sury.float)),
-    ad_tos_is: s.m(Sury.$$null(Sury.float)),
-    ads_non_optimal_spend: s.m(Sury.$$null(Sury.float)),
+    acos: s.m(Sury.nullable(Sury.float)),
+    roas: s.m(Sury.nullable(Sury.float)),
+    cpc: s.m(Sury.nullable(Sury.float)),
+    cpm: s.m(Sury.nullable(Sury.float)),
+    time_in_budget: s.m(Sury.nullable(Sury.float)),
+    ad_tos_is: s.m(Sury.nullable(Sury.float)),
+    ads_non_optimal_spend: s.m(Sury.nullable(Sury.float)),
     real: s.m(adsExecutiveSummaryResponseSchemaSchema),
     forecasted: s.m(adsExecutiveSummaryResponseSchemaSchema)
   })),
@@ -907,7 +907,7 @@ let getV1MathAdsExecutiveSummaryResponseSchema = Sury.union([
     data: s.m(Sury.array(timelineDataPoint_AdsExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   })),
   Sury.schema(s => ({
     _tag: "TimelineDataPoint",
@@ -915,9 +915,9 @@ let getV1MathAdsExecutiveSummaryResponseSchema = Sury.union([
     period_end: s.m(Sury.string),
     is_forecast: s.m(Sury.bool),
     value: s.m(adsExecutiveSummaryResponseSchemaSchema),
-    compare_value: s.m(Sury.$$null(adsExecutiveSummaryResponseSchemaSchema)),
-    compare_diff: s.m(Sury.$$null(adsExecutiveSummaryResponseSchemaSchema)),
-    compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+    compare_value: s.m(Sury.nullable(adsExecutiveSummaryResponseSchemaSchema)),
+    compare_diff: s.m(Sury.nullable(adsExecutiveSummaryResponseSchemaSchema)),
+    compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
   }))
 ]);
 
@@ -927,36 +927,36 @@ let postV1MathAdsExecutiveSummaryResponseSchema = Sury.union([
     ad_sales: s.m(Sury.float),
     ad_spend: s.m(Sury.float),
     ad_impressions: s.m(Sury.float),
-    ad_ctr: s.m(Sury.$$null(Sury.float)),
+    ad_ctr: s.m(Sury.nullable(Sury.float)),
     ad_clicks: s.m(Sury.float),
-    ad_cvr: s.m(Sury.$$null(Sury.float)),
+    ad_cvr: s.m(Sury.nullable(Sury.float)),
     ad_orders: s.m(Sury.float),
     ad_units_sold: s.m(Sury.float),
-    acos: s.m(Sury.$$null(Sury.float)),
-    roas: s.m(Sury.$$null(Sury.float)),
-    cpc: s.m(Sury.$$null(Sury.float)),
-    cpm: s.m(Sury.$$null(Sury.float)),
-    time_in_budget: s.m(Sury.$$null(Sury.float)),
-    ad_tos_is: s.m(Sury.$$null(Sury.float)),
-    ads_non_optimal_spend: s.m(Sury.$$null(Sury.float))
+    acos: s.m(Sury.nullable(Sury.float)),
+    roas: s.m(Sury.nullable(Sury.float)),
+    cpc: s.m(Sury.nullable(Sury.float)),
+    cpm: s.m(Sury.nullable(Sury.float)),
+    time_in_budget: s.m(Sury.nullable(Sury.float)),
+    ad_tos_is: s.m(Sury.nullable(Sury.float)),
+    ads_non_optimal_spend: s.m(Sury.nullable(Sury.float))
   })),
   Sury.schema(s => ({
     _tag: "AdsExecutiveSummaryWithForecastBreakdown",
     ad_sales: s.m(Sury.float),
     ad_spend: s.m(Sury.float),
     ad_impressions: s.m(Sury.float),
-    ad_ctr: s.m(Sury.$$null(Sury.float)),
+    ad_ctr: s.m(Sury.nullable(Sury.float)),
     ad_clicks: s.m(Sury.float),
-    ad_cvr: s.m(Sury.$$null(Sury.float)),
+    ad_cvr: s.m(Sury.nullable(Sury.float)),
     ad_orders: s.m(Sury.float),
     ad_units_sold: s.m(Sury.float),
-    acos: s.m(Sury.$$null(Sury.float)),
-    roas: s.m(Sury.$$null(Sury.float)),
-    cpc: s.m(Sury.$$null(Sury.float)),
-    cpm: s.m(Sury.$$null(Sury.float)),
-    time_in_budget: s.m(Sury.$$null(Sury.float)),
-    ad_tos_is: s.m(Sury.$$null(Sury.float)),
-    ads_non_optimal_spend: s.m(Sury.$$null(Sury.float)),
+    acos: s.m(Sury.nullable(Sury.float)),
+    roas: s.m(Sury.nullable(Sury.float)),
+    cpc: s.m(Sury.nullable(Sury.float)),
+    cpm: s.m(Sury.nullable(Sury.float)),
+    time_in_budget: s.m(Sury.nullable(Sury.float)),
+    ad_tos_is: s.m(Sury.nullable(Sury.float)),
+    ads_non_optimal_spend: s.m(Sury.nullable(Sury.float)),
     real: s.m(adsExecutiveSummaryResponseSchemaSchema),
     forecasted: s.m(adsExecutiveSummaryResponseSchemaSchema)
   })),
@@ -964,51 +964,51 @@ let postV1MathAdsExecutiveSummaryResponseSchema = Sury.union([
     _tag: "WhatifResponse",
     baseline: s.m(adsExecutiveSummaryResponseSchemaSchema),
     projected: s.m(adsExecutiveSummaryResponseSchemaSchema),
-    diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-    percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+    diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+    percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
     whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
     model_info: s.m(whatifModelInfoSchema),
-    warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+    warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
   })),
   Sury.schema(s => ({
     _tag: "WhatifTimelineResponse",
     data: s.m(Sury.array(whatifTimelineDataPoint_AdsExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   }))
 ]);
 
 let getV1MathAttributionExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "AttributionExecutiveSummaryResponseSchema",
-    attribution_sales: s.m(Sury.$$null(Sury.float)),
-    attribution_spend: s.m(Sury.$$null(Sury.float)),
-    attribution_impressions: s.m(Sury.$$null(Sury.float)),
-    attribution_ctr: s.m(Sury.$$null(Sury.float)),
-    attribution_clicks: s.m(Sury.$$null(Sury.float)),
-    attribution_cvr: s.m(Sury.$$null(Sury.float)),
-    attribution_orders: s.m(Sury.$$null(Sury.float)),
-    attribution_units_sold: s.m(Sury.$$null(Sury.float)),
-    attribution_acos: s.m(Sury.$$null(Sury.float)),
-    attribution_roas: s.m(Sury.$$null(Sury.float)),
-    attribution_cpc: s.m(Sury.$$null(Sury.float)),
-    attribution_cpm: s.m(Sury.$$null(Sury.float))
+    attribution_sales: s.m(Sury.nullable(Sury.float)),
+    attribution_spend: s.m(Sury.nullable(Sury.float)),
+    attribution_impressions: s.m(Sury.nullable(Sury.float)),
+    attribution_ctr: s.m(Sury.nullable(Sury.float)),
+    attribution_clicks: s.m(Sury.nullable(Sury.float)),
+    attribution_cvr: s.m(Sury.nullable(Sury.float)),
+    attribution_orders: s.m(Sury.nullable(Sury.float)),
+    attribution_units_sold: s.m(Sury.nullable(Sury.float)),
+    attribution_acos: s.m(Sury.nullable(Sury.float)),
+    attribution_roas: s.m(Sury.nullable(Sury.float)),
+    attribution_cpc: s.m(Sury.nullable(Sury.float)),
+    attribution_cpm: s.m(Sury.nullable(Sury.float))
   })),
   Sury.schema(s => ({
     _tag: "AttributionExecutiveSummaryWithForecastBreakdown",
-    attribution_sales: s.m(Sury.$$null(Sury.float)),
-    attribution_spend: s.m(Sury.$$null(Sury.float)),
-    attribution_impressions: s.m(Sury.$$null(Sury.float)),
-    attribution_ctr: s.m(Sury.$$null(Sury.float)),
-    attribution_clicks: s.m(Sury.$$null(Sury.float)),
-    attribution_cvr: s.m(Sury.$$null(Sury.float)),
-    attribution_orders: s.m(Sury.$$null(Sury.float)),
-    attribution_units_sold: s.m(Sury.$$null(Sury.float)),
-    attribution_acos: s.m(Sury.$$null(Sury.float)),
-    attribution_roas: s.m(Sury.$$null(Sury.float)),
-    attribution_cpc: s.m(Sury.$$null(Sury.float)),
-    attribution_cpm: s.m(Sury.$$null(Sury.float)),
+    attribution_sales: s.m(Sury.nullable(Sury.float)),
+    attribution_spend: s.m(Sury.nullable(Sury.float)),
+    attribution_impressions: s.m(Sury.nullable(Sury.float)),
+    attribution_ctr: s.m(Sury.nullable(Sury.float)),
+    attribution_clicks: s.m(Sury.nullable(Sury.float)),
+    attribution_cvr: s.m(Sury.nullable(Sury.float)),
+    attribution_orders: s.m(Sury.nullable(Sury.float)),
+    attribution_units_sold: s.m(Sury.nullable(Sury.float)),
+    attribution_acos: s.m(Sury.nullable(Sury.float)),
+    attribution_roas: s.m(Sury.nullable(Sury.float)),
+    attribution_cpc: s.m(Sury.nullable(Sury.float)),
+    attribution_cpm: s.m(Sury.nullable(Sury.float)),
     real: s.m(attributionExecutiveSummaryResponseSchemaSchema),
     forecasted: s.m(attributionExecutiveSummaryResponseSchemaSchema)
   })),
@@ -1017,7 +1017,7 @@ let getV1MathAttributionExecutiveSummaryResponseSchema = Sury.union([
     data: s.m(Sury.array(timelineDataPoint_AttributionExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   })),
   Sury.schema(s => ({
     _tag: "TimelineDataPoint",
@@ -1025,42 +1025,42 @@ let getV1MathAttributionExecutiveSummaryResponseSchema = Sury.union([
     period_end: s.m(Sury.string),
     is_forecast: s.m(Sury.bool),
     value: s.m(attributionExecutiveSummaryResponseSchemaSchema),
-    compare_value: s.m(Sury.$$null(attributionExecutiveSummaryResponseSchemaSchema)),
-    compare_diff: s.m(Sury.$$null(attributionExecutiveSummaryResponseSchemaSchema)),
-    compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+    compare_value: s.m(Sury.nullable(attributionExecutiveSummaryResponseSchemaSchema)),
+    compare_diff: s.m(Sury.nullable(attributionExecutiveSummaryResponseSchemaSchema)),
+    compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
   }))
 ]);
 
 let postV1MathAttributionExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "AttributionExecutiveSummaryResponseSchema",
-    attribution_sales: s.m(Sury.$$null(Sury.float)),
-    attribution_spend: s.m(Sury.$$null(Sury.float)),
-    attribution_impressions: s.m(Sury.$$null(Sury.float)),
-    attribution_ctr: s.m(Sury.$$null(Sury.float)),
-    attribution_clicks: s.m(Sury.$$null(Sury.float)),
-    attribution_cvr: s.m(Sury.$$null(Sury.float)),
-    attribution_orders: s.m(Sury.$$null(Sury.float)),
-    attribution_units_sold: s.m(Sury.$$null(Sury.float)),
-    attribution_acos: s.m(Sury.$$null(Sury.float)),
-    attribution_roas: s.m(Sury.$$null(Sury.float)),
-    attribution_cpc: s.m(Sury.$$null(Sury.float)),
-    attribution_cpm: s.m(Sury.$$null(Sury.float))
+    attribution_sales: s.m(Sury.nullable(Sury.float)),
+    attribution_spend: s.m(Sury.nullable(Sury.float)),
+    attribution_impressions: s.m(Sury.nullable(Sury.float)),
+    attribution_ctr: s.m(Sury.nullable(Sury.float)),
+    attribution_clicks: s.m(Sury.nullable(Sury.float)),
+    attribution_cvr: s.m(Sury.nullable(Sury.float)),
+    attribution_orders: s.m(Sury.nullable(Sury.float)),
+    attribution_units_sold: s.m(Sury.nullable(Sury.float)),
+    attribution_acos: s.m(Sury.nullable(Sury.float)),
+    attribution_roas: s.m(Sury.nullable(Sury.float)),
+    attribution_cpc: s.m(Sury.nullable(Sury.float)),
+    attribution_cpm: s.m(Sury.nullable(Sury.float))
   })),
   Sury.schema(s => ({
     _tag: "AttributionExecutiveSummaryWithForecastBreakdown",
-    attribution_sales: s.m(Sury.$$null(Sury.float)),
-    attribution_spend: s.m(Sury.$$null(Sury.float)),
-    attribution_impressions: s.m(Sury.$$null(Sury.float)),
-    attribution_ctr: s.m(Sury.$$null(Sury.float)),
-    attribution_clicks: s.m(Sury.$$null(Sury.float)),
-    attribution_cvr: s.m(Sury.$$null(Sury.float)),
-    attribution_orders: s.m(Sury.$$null(Sury.float)),
-    attribution_units_sold: s.m(Sury.$$null(Sury.float)),
-    attribution_acos: s.m(Sury.$$null(Sury.float)),
-    attribution_roas: s.m(Sury.$$null(Sury.float)),
-    attribution_cpc: s.m(Sury.$$null(Sury.float)),
-    attribution_cpm: s.m(Sury.$$null(Sury.float)),
+    attribution_sales: s.m(Sury.nullable(Sury.float)),
+    attribution_spend: s.m(Sury.nullable(Sury.float)),
+    attribution_impressions: s.m(Sury.nullable(Sury.float)),
+    attribution_ctr: s.m(Sury.nullable(Sury.float)),
+    attribution_clicks: s.m(Sury.nullable(Sury.float)),
+    attribution_cvr: s.m(Sury.nullable(Sury.float)),
+    attribution_orders: s.m(Sury.nullable(Sury.float)),
+    attribution_units_sold: s.m(Sury.nullable(Sury.float)),
+    attribution_acos: s.m(Sury.nullable(Sury.float)),
+    attribution_roas: s.m(Sury.nullable(Sury.float)),
+    attribution_cpc: s.m(Sury.nullable(Sury.float)),
+    attribution_cpm: s.m(Sury.nullable(Sury.float)),
     real: s.m(attributionExecutiveSummaryResponseSchemaSchema),
     forecasted: s.m(attributionExecutiveSummaryResponseSchemaSchema)
   })),
@@ -1068,51 +1068,51 @@ let postV1MathAttributionExecutiveSummaryResponseSchema = Sury.union([
     _tag: "WhatifResponse",
     baseline: s.m(attributionExecutiveSummaryResponseSchemaSchema),
     projected: s.m(attributionExecutiveSummaryResponseSchemaSchema),
-    diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-    percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+    diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+    percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
     whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
     model_info: s.m(whatifModelInfoSchema),
-    warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+    warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
   })),
   Sury.schema(s => ({
     _tag: "WhatifTimelineResponse",
     data: s.m(Sury.array(whatifTimelineDataPoint_AttributionExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   }))
 ]);
 
 let getV1MathCfoExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "CFOExecutiveSummaryResponseSchema",
-    available_capital: s.m(Sury.$$null(Sury.float)),
-    frozen_capital: s.m(Sury.$$null(Sury.float)),
-    borrowed_capital: s.m(Sury.$$null(Sury.float)),
-    gross_profit: s.m(Sury.$$null(Sury.float)),
-    gross_margin: s.m(Sury.$$null(Sury.float)),
-    contribution_profit: s.m(Sury.$$null(Sury.float)),
-    contribution_margin: s.m(Sury.$$null(Sury.float)),
-    net_profit: s.m(Sury.$$null(Sury.float)),
-    net_margin: s.m(Sury.$$null(Sury.float)),
-    opex: s.m(Sury.$$null(Sury.float)),
-    roi: s.m(Sury.$$null(Sury.float)),
+    available_capital: s.m(Sury.nullable(Sury.float)),
+    frozen_capital: s.m(Sury.nullable(Sury.float)),
+    borrowed_capital: s.m(Sury.nullable(Sury.float)),
+    gross_profit: s.m(Sury.nullable(Sury.float)),
+    gross_margin: s.m(Sury.nullable(Sury.float)),
+    contribution_profit: s.m(Sury.nullable(Sury.float)),
+    contribution_margin: s.m(Sury.nullable(Sury.float)),
+    net_profit: s.m(Sury.nullable(Sury.float)),
+    net_margin: s.m(Sury.nullable(Sury.float)),
+    opex: s.m(Sury.nullable(Sury.float)),
+    roi: s.m(Sury.nullable(Sury.float)),
     cost_of_goods_sold: s.m(Sury.float),
     amazon_fees: s.m(Sury.float)
   })),
   Sury.schema(s => ({
     _tag: "CFOExecutiveSummaryWithForecastBreakdown",
-    available_capital: s.m(Sury.$$null(Sury.float)),
-    frozen_capital: s.m(Sury.$$null(Sury.float)),
-    borrowed_capital: s.m(Sury.$$null(Sury.float)),
-    gross_profit: s.m(Sury.$$null(Sury.float)),
-    gross_margin: s.m(Sury.$$null(Sury.float)),
-    contribution_profit: s.m(Sury.$$null(Sury.float)),
-    contribution_margin: s.m(Sury.$$null(Sury.float)),
-    net_profit: s.m(Sury.$$null(Sury.float)),
-    net_margin: s.m(Sury.$$null(Sury.float)),
-    opex: s.m(Sury.$$null(Sury.float)),
-    roi: s.m(Sury.$$null(Sury.float)),
+    available_capital: s.m(Sury.nullable(Sury.float)),
+    frozen_capital: s.m(Sury.nullable(Sury.float)),
+    borrowed_capital: s.m(Sury.nullable(Sury.float)),
+    gross_profit: s.m(Sury.nullable(Sury.float)),
+    gross_margin: s.m(Sury.nullable(Sury.float)),
+    contribution_profit: s.m(Sury.nullable(Sury.float)),
+    contribution_margin: s.m(Sury.nullable(Sury.float)),
+    net_profit: s.m(Sury.nullable(Sury.float)),
+    net_margin: s.m(Sury.nullable(Sury.float)),
+    opex: s.m(Sury.nullable(Sury.float)),
+    roi: s.m(Sury.nullable(Sury.float)),
     cost_of_goods_sold: s.m(Sury.float),
     amazon_fees: s.m(Sury.float),
     real: s.m(cFOExecutiveSummaryResponseSchemaSchema),
@@ -1123,7 +1123,7 @@ let getV1MathCfoExecutiveSummaryResponseSchema = Sury.union([
     data: s.m(Sury.array(timelineDataPoint_CFOExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   })),
   Sury.schema(s => ({
     _tag: "TimelineDataPoint",
@@ -1131,42 +1131,42 @@ let getV1MathCfoExecutiveSummaryResponseSchema = Sury.union([
     period_end: s.m(Sury.string),
     is_forecast: s.m(Sury.bool),
     value: s.m(cFOExecutiveSummaryResponseSchemaSchema),
-    compare_value: s.m(Sury.$$null(cFOExecutiveSummaryResponseSchemaSchema)),
-    compare_diff: s.m(Sury.$$null(cFOExecutiveSummaryResponseSchemaSchema)),
-    compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+    compare_value: s.m(Sury.nullable(cFOExecutiveSummaryResponseSchemaSchema)),
+    compare_diff: s.m(Sury.nullable(cFOExecutiveSummaryResponseSchemaSchema)),
+    compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
   }))
 ]);
 
 let postV1MathCfoExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "CFOExecutiveSummaryResponseSchema",
-    available_capital: s.m(Sury.$$null(Sury.float)),
-    frozen_capital: s.m(Sury.$$null(Sury.float)),
-    borrowed_capital: s.m(Sury.$$null(Sury.float)),
-    gross_profit: s.m(Sury.$$null(Sury.float)),
-    gross_margin: s.m(Sury.$$null(Sury.float)),
-    contribution_profit: s.m(Sury.$$null(Sury.float)),
-    contribution_margin: s.m(Sury.$$null(Sury.float)),
-    net_profit: s.m(Sury.$$null(Sury.float)),
-    net_margin: s.m(Sury.$$null(Sury.float)),
-    opex: s.m(Sury.$$null(Sury.float)),
-    roi: s.m(Sury.$$null(Sury.float)),
+    available_capital: s.m(Sury.nullable(Sury.float)),
+    frozen_capital: s.m(Sury.nullable(Sury.float)),
+    borrowed_capital: s.m(Sury.nullable(Sury.float)),
+    gross_profit: s.m(Sury.nullable(Sury.float)),
+    gross_margin: s.m(Sury.nullable(Sury.float)),
+    contribution_profit: s.m(Sury.nullable(Sury.float)),
+    contribution_margin: s.m(Sury.nullable(Sury.float)),
+    net_profit: s.m(Sury.nullable(Sury.float)),
+    net_margin: s.m(Sury.nullable(Sury.float)),
+    opex: s.m(Sury.nullable(Sury.float)),
+    roi: s.m(Sury.nullable(Sury.float)),
     cost_of_goods_sold: s.m(Sury.float),
     amazon_fees: s.m(Sury.float)
   })),
   Sury.schema(s => ({
     _tag: "CFOExecutiveSummaryWithForecastBreakdown",
-    available_capital: s.m(Sury.$$null(Sury.float)),
-    frozen_capital: s.m(Sury.$$null(Sury.float)),
-    borrowed_capital: s.m(Sury.$$null(Sury.float)),
-    gross_profit: s.m(Sury.$$null(Sury.float)),
-    gross_margin: s.m(Sury.$$null(Sury.float)),
-    contribution_profit: s.m(Sury.$$null(Sury.float)),
-    contribution_margin: s.m(Sury.$$null(Sury.float)),
-    net_profit: s.m(Sury.$$null(Sury.float)),
-    net_margin: s.m(Sury.$$null(Sury.float)),
-    opex: s.m(Sury.$$null(Sury.float)),
-    roi: s.m(Sury.$$null(Sury.float)),
+    available_capital: s.m(Sury.nullable(Sury.float)),
+    frozen_capital: s.m(Sury.nullable(Sury.float)),
+    borrowed_capital: s.m(Sury.nullable(Sury.float)),
+    gross_profit: s.m(Sury.nullable(Sury.float)),
+    gross_margin: s.m(Sury.nullable(Sury.float)),
+    contribution_profit: s.m(Sury.nullable(Sury.float)),
+    contribution_margin: s.m(Sury.nullable(Sury.float)),
+    net_profit: s.m(Sury.nullable(Sury.float)),
+    net_margin: s.m(Sury.nullable(Sury.float)),
+    opex: s.m(Sury.nullable(Sury.float)),
+    roi: s.m(Sury.nullable(Sury.float)),
     cost_of_goods_sold: s.m(Sury.float),
     amazon_fees: s.m(Sury.float),
     real: s.m(cFOExecutiveSummaryResponseSchemaSchema),
@@ -1176,49 +1176,49 @@ let postV1MathCfoExecutiveSummaryResponseSchema = Sury.union([
     _tag: "WhatifResponse",
     baseline: s.m(cFOExecutiveSummaryResponseSchemaSchema),
     projected: s.m(cFOExecutiveSummaryResponseSchemaSchema),
-    diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-    percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+    diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+    percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
     whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
     model_info: s.m(whatifModelInfoSchema),
-    warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+    warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
   })),
   Sury.schema(s => ({
     _tag: "WhatifTimelineResponse",
     data: s.m(Sury.array(whatifTimelineDataPoint_CFOExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   }))
 ]);
 
 let getV1MathInventoryMetricsExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "InventoryExecutiveSummaryResponseSchema",
-    fba_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    fbt_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    three_pl_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    storage_costs: s.m(Sury.$$null(Sury.float)),
-    shipping_costs: s.m(Sury.$$null(Sury.float)),
-    forecasting_accuracy: s.m(Sury.$$null(Sury.float)),
-    inventory_turnover: s.m(Sury.$$null(Sury.float)),
-    safety_stock: s.m(Sury.$$null(Sury.float)),
-    doi_available: s.m(Sury.$$null(Sury.float)),
-    total_doi: s.m(Sury.$$null(Sury.float)),
-    estimated_stock_out_date: s.m(Sury.$$null(Sury.string))
+    fba_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    fbt_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    three_pl_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    storage_costs: s.m(Sury.nullable(Sury.float)),
+    shipping_costs: s.m(Sury.nullable(Sury.float)),
+    forecasting_accuracy: s.m(Sury.nullable(Sury.float)),
+    inventory_turnover: s.m(Sury.nullable(Sury.float)),
+    safety_stock: s.m(Sury.nullable(Sury.float)),
+    doi_available: s.m(Sury.nullable(Sury.float)),
+    total_doi: s.m(Sury.nullable(Sury.float)),
+    estimated_stock_out_date: s.m(Sury.nullable(Sury.string))
   })),
   Sury.schema(s => ({
     _tag: "InventoryExecutiveSummaryWithForecastBreakdown",
-    fba_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    fbt_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    three_pl_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    storage_costs: s.m(Sury.$$null(Sury.float)),
-    shipping_costs: s.m(Sury.$$null(Sury.float)),
-    forecasting_accuracy: s.m(Sury.$$null(Sury.float)),
-    inventory_turnover: s.m(Sury.$$null(Sury.float)),
-    safety_stock: s.m(Sury.$$null(Sury.float)),
-    doi_available: s.m(Sury.$$null(Sury.float)),
-    total_doi: s.m(Sury.$$null(Sury.float)),
-    estimated_stock_out_date: s.m(Sury.$$null(Sury.string)),
+    fba_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    fbt_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    three_pl_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    storage_costs: s.m(Sury.nullable(Sury.float)),
+    shipping_costs: s.m(Sury.nullable(Sury.float)),
+    forecasting_accuracy: s.m(Sury.nullable(Sury.float)),
+    inventory_turnover: s.m(Sury.nullable(Sury.float)),
+    safety_stock: s.m(Sury.nullable(Sury.float)),
+    doi_available: s.m(Sury.nullable(Sury.float)),
+    total_doi: s.m(Sury.nullable(Sury.float)),
+    estimated_stock_out_date: s.m(Sury.nullable(Sury.string)),
     real: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
     forecasted: s.m(inventoryExecutiveSummaryResponseSchemaSchema)
   })),
@@ -1227,7 +1227,7 @@ let getV1MathInventoryMetricsExecutiveSummaryResponseSchema = Sury.union([
     data: s.m(Sury.array(timelineDataPoint_InventoryExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   })),
   Sury.schema(s => ({
     _tag: "TimelineDataPoint",
@@ -1235,40 +1235,40 @@ let getV1MathInventoryMetricsExecutiveSummaryResponseSchema = Sury.union([
     period_end: s.m(Sury.string),
     is_forecast: s.m(Sury.bool),
     value: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
-    compare_value: s.m(Sury.$$null(inventoryExecutiveSummaryResponseSchemaSchema)),
-    compare_diff: s.m(Sury.$$null(inventoryExecutiveSummaryResponseSchemaSchema)),
-    compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+    compare_value: s.m(Sury.nullable(inventoryExecutiveSummaryResponseSchemaSchema)),
+    compare_diff: s.m(Sury.nullable(inventoryExecutiveSummaryResponseSchemaSchema)),
+    compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
   }))
 ]);
 
 let postV1MathInventoryMetricsExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "InventoryExecutiveSummaryResponseSchema",
-    fba_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    fbt_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    three_pl_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    storage_costs: s.m(Sury.$$null(Sury.float)),
-    shipping_costs: s.m(Sury.$$null(Sury.float)),
-    forecasting_accuracy: s.m(Sury.$$null(Sury.float)),
-    inventory_turnover: s.m(Sury.$$null(Sury.float)),
-    safety_stock: s.m(Sury.$$null(Sury.float)),
-    doi_available: s.m(Sury.$$null(Sury.float)),
-    total_doi: s.m(Sury.$$null(Sury.float)),
-    estimated_stock_out_date: s.m(Sury.$$null(Sury.string))
+    fba_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    fbt_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    three_pl_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    storage_costs: s.m(Sury.nullable(Sury.float)),
+    shipping_costs: s.m(Sury.nullable(Sury.float)),
+    forecasting_accuracy: s.m(Sury.nullable(Sury.float)),
+    inventory_turnover: s.m(Sury.nullable(Sury.float)),
+    safety_stock: s.m(Sury.nullable(Sury.float)),
+    doi_available: s.m(Sury.nullable(Sury.float)),
+    total_doi: s.m(Sury.nullable(Sury.float)),
+    estimated_stock_out_date: s.m(Sury.nullable(Sury.string))
   })),
   Sury.schema(s => ({
     _tag: "InventoryExecutiveSummaryWithForecastBreakdown",
-    fba_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    fbt_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    three_pl_in_stock_rate: s.m(Sury.$$null(Sury.float)),
-    storage_costs: s.m(Sury.$$null(Sury.float)),
-    shipping_costs: s.m(Sury.$$null(Sury.float)),
-    forecasting_accuracy: s.m(Sury.$$null(Sury.float)),
-    inventory_turnover: s.m(Sury.$$null(Sury.float)),
-    safety_stock: s.m(Sury.$$null(Sury.float)),
-    doi_available: s.m(Sury.$$null(Sury.float)),
-    total_doi: s.m(Sury.$$null(Sury.float)),
-    estimated_stock_out_date: s.m(Sury.$$null(Sury.string)),
+    fba_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    fbt_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    three_pl_in_stock_rate: s.m(Sury.nullable(Sury.float)),
+    storage_costs: s.m(Sury.nullable(Sury.float)),
+    shipping_costs: s.m(Sury.nullable(Sury.float)),
+    forecasting_accuracy: s.m(Sury.nullable(Sury.float)),
+    inventory_turnover: s.m(Sury.nullable(Sury.float)),
+    safety_stock: s.m(Sury.nullable(Sury.float)),
+    doi_available: s.m(Sury.nullable(Sury.float)),
+    total_doi: s.m(Sury.nullable(Sury.float)),
+    estimated_stock_out_date: s.m(Sury.nullable(Sury.string)),
     real: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
     forecasted: s.m(inventoryExecutiveSummaryResponseSchemaSchema)
   })),
@@ -1276,41 +1276,41 @@ let postV1MathInventoryMetricsExecutiveSummaryResponseSchema = Sury.union([
     _tag: "WhatifResponse",
     baseline: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
     projected: s.m(inventoryExecutiveSummaryResponseSchemaSchema),
-    diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-    percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+    diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+    percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
     whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
     model_info: s.m(whatifModelInfoSchema),
-    warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+    warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
   })),
   Sury.schema(s => ({
     _tag: "WhatifTimelineResponse",
     data: s.m(Sury.array(whatifTimelineDataPoint_InventoryExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   }))
 ]);
 
 let getV1MathMarketIntelligenceExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "MarketIntelligenceExecutiveSummaryResponseSchema",
-    market_total_sales: s.m(Sury.$$null(Sury.float)),
-    brand_market_share: s.m(Sury.$$null(Sury.float)),
-    market_average_price: s.m(Sury.$$null(Sury.float)),
-    market_total_units_sold: s.m(Sury.$$null(Sury.float)),
-    market_asin_count: s.m(Sury.$$null(Sury.int)),
-    market_promotion_value: s.m(Sury.$$null(Sury.float)),
-    market_promotion_count: s.m(Sury.$$null(Sury.int)),
-    market_review_score: s.m(Sury.$$null(Sury.float)),
-    market_pos: s.m(Sury.$$null(Sury.float)),
-    market_ad_spend: s.m(Sury.$$null(Sury.float))
+    market_total_sales: s.m(Sury.nullable(Sury.float)),
+    brand_market_share: s.m(Sury.nullable(Sury.float)),
+    market_average_price: s.m(Sury.nullable(Sury.float)),
+    market_total_units_sold: s.m(Sury.nullable(Sury.float)),
+    market_asin_count: s.m(Sury.nullable(Sury.int)),
+    market_promotion_value: s.m(Sury.nullable(Sury.float)),
+    market_promotion_count: s.m(Sury.nullable(Sury.int)),
+    market_review_score: s.m(Sury.nullable(Sury.float)),
+    market_pos: s.m(Sury.nullable(Sury.float)),
+    market_ad_spend: s.m(Sury.nullable(Sury.float))
   })),
   Sury.schema(s => ({
     _tag: "TimelineResponse",
     data: s.m(Sury.array(timelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   })),
   Sury.schema(s => ({
     _tag: "TimelineDataPoint",
@@ -1318,38 +1318,38 @@ let getV1MathMarketIntelligenceExecutiveSummaryResponseSchema = Sury.union([
     period_end: s.m(Sury.string),
     is_forecast: s.m(Sury.bool),
     value: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
-    compare_value: s.m(Sury.$$null(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
-    compare_diff: s.m(Sury.$$null(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
-    compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+    compare_value: s.m(Sury.nullable(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
+    compare_diff: s.m(Sury.nullable(marketIntelligenceExecutiveSummaryResponseSchemaSchema)),
+    compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
   }))
 ]);
 
 let postV1MathMarketIntelligenceExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "MarketIntelligenceExecutiveSummaryResponseSchema",
-    market_total_sales: s.m(Sury.$$null(Sury.float)),
-    brand_market_share: s.m(Sury.$$null(Sury.float)),
-    market_average_price: s.m(Sury.$$null(Sury.float)),
-    market_total_units_sold: s.m(Sury.$$null(Sury.float)),
-    market_asin_count: s.m(Sury.$$null(Sury.int)),
-    market_promotion_value: s.m(Sury.$$null(Sury.float)),
-    market_promotion_count: s.m(Sury.$$null(Sury.int)),
-    market_review_score: s.m(Sury.$$null(Sury.float)),
-    market_pos: s.m(Sury.$$null(Sury.float)),
-    market_ad_spend: s.m(Sury.$$null(Sury.float))
+    market_total_sales: s.m(Sury.nullable(Sury.float)),
+    brand_market_share: s.m(Sury.nullable(Sury.float)),
+    market_average_price: s.m(Sury.nullable(Sury.float)),
+    market_total_units_sold: s.m(Sury.nullable(Sury.float)),
+    market_asin_count: s.m(Sury.nullable(Sury.int)),
+    market_promotion_value: s.m(Sury.nullable(Sury.float)),
+    market_promotion_count: s.m(Sury.nullable(Sury.int)),
+    market_review_score: s.m(Sury.nullable(Sury.float)),
+    market_pos: s.m(Sury.nullable(Sury.float)),
+    market_ad_spend: s.m(Sury.nullable(Sury.float))
   })),
   Sury.schema(s => ({
     _tag: "MarketIntelligenceExecutiveSummaryWithForecastBreakdown",
-    market_total_sales: s.m(Sury.$$null(Sury.float)),
-    brand_market_share: s.m(Sury.$$null(Sury.float)),
-    market_average_price: s.m(Sury.$$null(Sury.float)),
-    market_total_units_sold: s.m(Sury.$$null(Sury.float)),
-    market_asin_count: s.m(Sury.$$null(Sury.int)),
-    market_promotion_value: s.m(Sury.$$null(Sury.float)),
-    market_promotion_count: s.m(Sury.$$null(Sury.int)),
-    market_review_score: s.m(Sury.$$null(Sury.float)),
-    market_pos: s.m(Sury.$$null(Sury.float)),
-    market_ad_spend: s.m(Sury.$$null(Sury.float)),
+    market_total_sales: s.m(Sury.nullable(Sury.float)),
+    brand_market_share: s.m(Sury.nullable(Sury.float)),
+    market_average_price: s.m(Sury.nullable(Sury.float)),
+    market_total_units_sold: s.m(Sury.nullable(Sury.float)),
+    market_asin_count: s.m(Sury.nullable(Sury.int)),
+    market_promotion_value: s.m(Sury.nullable(Sury.float)),
+    market_promotion_count: s.m(Sury.nullable(Sury.int)),
+    market_review_score: s.m(Sury.nullable(Sury.float)),
+    market_pos: s.m(Sury.nullable(Sury.float)),
+    market_ad_spend: s.m(Sury.nullable(Sury.float)),
     real: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
     forecasted: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema)
   })),
@@ -1357,18 +1357,18 @@ let postV1MathMarketIntelligenceExecutiveSummaryResponseSchema = Sury.union([
     _tag: "WhatifResponse",
     baseline: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
     projected: s.m(marketIntelligenceExecutiveSummaryResponseSchemaSchema),
-    diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-    percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+    diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+    percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
     whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
     model_info: s.m(whatifModelInfoSchema),
-    warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+    warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
   })),
   Sury.schema(s => ({
     _tag: "WhatifTimelineResponse",
     data: s.m(Sury.array(whatifTimelineDataPoint_MarketIntelligenceExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   }))
 ]);
 
@@ -1376,8 +1376,8 @@ let postV1MathOrganicExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "OrganicExecutiveSummaryResponseSchema",
     organic_sales: s.m(Sury.float),
-    organic_impressions: s.m(Sury.$$null(Sury.float)),
-    organic_ctr: s.m(Sury.$$null(Sury.float)),
+    organic_impressions: s.m(Sury.nullable(Sury.float)),
+    organic_ctr: s.m(Sury.nullable(Sury.float)),
     organic_clicks: s.m(Sury.float),
     organic_cvr: s.m(Sury.float),
     organic_orders: s.m(Sury.float),
@@ -1386,8 +1386,8 @@ let postV1MathOrganicExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "OrganicExecutiveSummaryWithForecastBreakdown",
     organic_sales: s.m(Sury.float),
-    organic_impressions: s.m(Sury.$$null(Sury.float)),
-    organic_ctr: s.m(Sury.$$null(Sury.float)),
+    organic_impressions: s.m(Sury.nullable(Sury.float)),
+    organic_ctr: s.m(Sury.nullable(Sury.float)),
     organic_clicks: s.m(Sury.float),
     organic_cvr: s.m(Sury.float),
     organic_orders: s.m(Sury.float),
@@ -1399,51 +1399,51 @@ let postV1MathOrganicExecutiveSummaryResponseSchema = Sury.union([
     _tag: "WhatifResponse",
     baseline: s.m(organicExecutiveSummaryResponseSchemaSchema),
     projected: s.m(organicExecutiveSummaryResponseSchemaSchema),
-    diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-    percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+    diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+    percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
     whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
     model_info: s.m(whatifModelInfoSchema),
-    warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+    warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
   })),
   Sury.schema(s => ({
     _tag: "WhatifTimelineResponse",
     data: s.m(Sury.array(whatifTimelineDataPoint_OrganicExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   }))
 ]);
 
 let getV1MathTotalExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "TotalExecutiveSummaryResponseSchema",
-    total_sales: s.m(Sury.$$null(Sury.float)),
-    total_spend: s.m(Sury.$$null(Sury.float)),
-    total_impressions: s.m(Sury.$$null(Sury.float)),
-    ctr: s.m(Sury.$$null(Sury.float)),
-    total_clicks: s.m(Sury.$$null(Sury.float)),
-    cvr: s.m(Sury.$$null(Sury.float)),
-    total_orders: s.m(Sury.$$null(Sury.float)),
-    total_units_sold: s.m(Sury.$$null(Sury.float)),
-    total_ntb_orders: s.m(Sury.$$null(Sury.float)),
-    tacos: s.m(Sury.$$null(Sury.float)),
-    mer: s.m(Sury.$$null(Sury.float)),
-    lost_sales: s.m(Sury.$$null(Sury.float))
+    total_sales: s.m(Sury.nullable(Sury.float)),
+    total_spend: s.m(Sury.nullable(Sury.float)),
+    total_impressions: s.m(Sury.nullable(Sury.float)),
+    ctr: s.m(Sury.nullable(Sury.float)),
+    total_clicks: s.m(Sury.nullable(Sury.float)),
+    cvr: s.m(Sury.nullable(Sury.float)),
+    total_orders: s.m(Sury.nullable(Sury.float)),
+    total_units_sold: s.m(Sury.nullable(Sury.float)),
+    total_ntb_orders: s.m(Sury.nullable(Sury.float)),
+    tacos: s.m(Sury.nullable(Sury.float)),
+    mer: s.m(Sury.nullable(Sury.float)),
+    lost_sales: s.m(Sury.nullable(Sury.float))
   })),
   Sury.schema(s => ({
     _tag: "TotalExecutiveSummaryWithForecastBreakdown",
-    total_sales: s.m(Sury.$$null(Sury.float)),
-    total_spend: s.m(Sury.$$null(Sury.float)),
-    total_impressions: s.m(Sury.$$null(Sury.float)),
-    ctr: s.m(Sury.$$null(Sury.float)),
-    total_clicks: s.m(Sury.$$null(Sury.float)),
-    cvr: s.m(Sury.$$null(Sury.float)),
-    total_orders: s.m(Sury.$$null(Sury.float)),
-    total_units_sold: s.m(Sury.$$null(Sury.float)),
-    total_ntb_orders: s.m(Sury.$$null(Sury.float)),
-    tacos: s.m(Sury.$$null(Sury.float)),
-    mer: s.m(Sury.$$null(Sury.float)),
-    lost_sales: s.m(Sury.$$null(Sury.float)),
+    total_sales: s.m(Sury.nullable(Sury.float)),
+    total_spend: s.m(Sury.nullable(Sury.float)),
+    total_impressions: s.m(Sury.nullable(Sury.float)),
+    ctr: s.m(Sury.nullable(Sury.float)),
+    total_clicks: s.m(Sury.nullable(Sury.float)),
+    cvr: s.m(Sury.nullable(Sury.float)),
+    total_orders: s.m(Sury.nullable(Sury.float)),
+    total_units_sold: s.m(Sury.nullable(Sury.float)),
+    total_ntb_orders: s.m(Sury.nullable(Sury.float)),
+    tacos: s.m(Sury.nullable(Sury.float)),
+    mer: s.m(Sury.nullable(Sury.float)),
+    lost_sales: s.m(Sury.nullable(Sury.float)),
     real: s.m(totalExecutiveSummaryResponseSchemaSchema),
     forecasted: s.m(totalExecutiveSummaryResponseSchemaSchema)
   })),
@@ -1452,7 +1452,7 @@ let getV1MathTotalExecutiveSummaryResponseSchema = Sury.union([
     data: s.m(Sury.array(timelineDataPoint_TotalExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   })),
   Sury.schema(s => ({
     _tag: "TimelineDataPoint",
@@ -1460,42 +1460,42 @@ let getV1MathTotalExecutiveSummaryResponseSchema = Sury.union([
     period_end: s.m(Sury.string),
     is_forecast: s.m(Sury.bool),
     value: s.m(totalExecutiveSummaryResponseSchemaSchema),
-    compare_value: s.m(Sury.$$null(totalExecutiveSummaryResponseSchemaSchema)),
-    compare_diff: s.m(Sury.$$null(totalExecutiveSummaryResponseSchemaSchema)),
-    compare_percent_diff: s.m(Sury.$$null(floatOrDictSchema))
+    compare_value: s.m(Sury.nullable(totalExecutiveSummaryResponseSchemaSchema)),
+    compare_diff: s.m(Sury.nullable(totalExecutiveSummaryResponseSchemaSchema)),
+    compare_percent_diff: s.m(Sury.nullable(floatOrDictSchema))
   }))
 ]);
 
 let postV1MathTotalExecutiveSummaryResponseSchema = Sury.union([
   Sury.schema(s => ({
     _tag: "TotalExecutiveSummaryResponseSchema",
-    total_sales: s.m(Sury.$$null(Sury.float)),
-    total_spend: s.m(Sury.$$null(Sury.float)),
-    total_impressions: s.m(Sury.$$null(Sury.float)),
-    ctr: s.m(Sury.$$null(Sury.float)),
-    total_clicks: s.m(Sury.$$null(Sury.float)),
-    cvr: s.m(Sury.$$null(Sury.float)),
-    total_orders: s.m(Sury.$$null(Sury.float)),
-    total_units_sold: s.m(Sury.$$null(Sury.float)),
-    total_ntb_orders: s.m(Sury.$$null(Sury.float)),
-    tacos: s.m(Sury.$$null(Sury.float)),
-    mer: s.m(Sury.$$null(Sury.float)),
-    lost_sales: s.m(Sury.$$null(Sury.float))
+    total_sales: s.m(Sury.nullable(Sury.float)),
+    total_spend: s.m(Sury.nullable(Sury.float)),
+    total_impressions: s.m(Sury.nullable(Sury.float)),
+    ctr: s.m(Sury.nullable(Sury.float)),
+    total_clicks: s.m(Sury.nullable(Sury.float)),
+    cvr: s.m(Sury.nullable(Sury.float)),
+    total_orders: s.m(Sury.nullable(Sury.float)),
+    total_units_sold: s.m(Sury.nullable(Sury.float)),
+    total_ntb_orders: s.m(Sury.nullable(Sury.float)),
+    tacos: s.m(Sury.nullable(Sury.float)),
+    mer: s.m(Sury.nullable(Sury.float)),
+    lost_sales: s.m(Sury.nullable(Sury.float))
   })),
   Sury.schema(s => ({
     _tag: "TotalExecutiveSummaryWithForecastBreakdown",
-    total_sales: s.m(Sury.$$null(Sury.float)),
-    total_spend: s.m(Sury.$$null(Sury.float)),
-    total_impressions: s.m(Sury.$$null(Sury.float)),
-    ctr: s.m(Sury.$$null(Sury.float)),
-    total_clicks: s.m(Sury.$$null(Sury.float)),
-    cvr: s.m(Sury.$$null(Sury.float)),
-    total_orders: s.m(Sury.$$null(Sury.float)),
-    total_units_sold: s.m(Sury.$$null(Sury.float)),
-    total_ntb_orders: s.m(Sury.$$null(Sury.float)),
-    tacos: s.m(Sury.$$null(Sury.float)),
-    mer: s.m(Sury.$$null(Sury.float)),
-    lost_sales: s.m(Sury.$$null(Sury.float)),
+    total_sales: s.m(Sury.nullable(Sury.float)),
+    total_spend: s.m(Sury.nullable(Sury.float)),
+    total_impressions: s.m(Sury.nullable(Sury.float)),
+    ctr: s.m(Sury.nullable(Sury.float)),
+    total_clicks: s.m(Sury.nullable(Sury.float)),
+    cvr: s.m(Sury.nullable(Sury.float)),
+    total_orders: s.m(Sury.nullable(Sury.float)),
+    total_units_sold: s.m(Sury.nullable(Sury.float)),
+    total_ntb_orders: s.m(Sury.nullable(Sury.float)),
+    tacos: s.m(Sury.nullable(Sury.float)),
+    mer: s.m(Sury.nullable(Sury.float)),
+    lost_sales: s.m(Sury.nullable(Sury.float)),
     real: s.m(totalExecutiveSummaryResponseSchemaSchema),
     forecasted: s.m(totalExecutiveSummaryResponseSchemaSchema)
   })),
@@ -1503,18 +1503,18 @@ let postV1MathTotalExecutiveSummaryResponseSchema = Sury.union([
     _tag: "WhatifResponse",
     baseline: s.m(totalExecutiveSummaryResponseSchemaSchema),
     projected: s.m(totalExecutiveSummaryResponseSchemaSchema),
-    diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
-    percent_diff: s.m(Sury.dict(Sury.$$null(Sury.float))),
+    diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
+    percent_diff: s.m(Sury.dict(Sury.nullable(Sury.float))),
     whatif_applied: s.m(Sury.dict(whatifAppliedEntrySchema)),
     model_info: s.m(whatifModelInfoSchema),
-    warnings: s.m(Sury.$$null(Sury.array(Sury.string)))
+    warnings: s.m(Sury.nullable(Sury.array(Sury.string)))
   })),
   Sury.schema(s => ({
     _tag: "WhatifTimelineResponse",
     data: s.m(Sury.array(whatifTimelineDataPoint_TotalExecutiveSummaryResponseSchema_Schema)),
     period_start: s.m(Sury.string),
     period_end: s.m(Sury.string),
-    period: s.m(Sury.$$null(Sury.string))
+    period: s.m(Sury.nullable(Sury.string))
   }))
 ]);
 
