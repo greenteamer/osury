@@ -86,8 +86,15 @@ function generate(inputPath, outputPath) {
     const dictShimPath = path.join(outputDir || ".", "Dict.gen.tsx");
     fs.writeFileSync(dictShimPath, Codegen.generateDictShim());
 
+    // Write Nullable module and shim for @genType (T | null mapping)
+    const nullableModulePath = path.join(outputDir || ".", "Nullable.res");
+    fs.writeFileSync(nullableModulePath, Codegen.generateNullableModule());
+
+    const nullableShimPath = path.join(outputDir || ".", "Nullable.gen.ts");
+    fs.writeFileSync(nullableShimPath, Codegen.generateNullableShim());
+
     console.log(`Generated ${result._0.length} types to ${outputPath}`);
-    console.log(`Generated shim: ${dictShimPath}`);
+    console.log(`Generated: ${dictShimPath}, ${nullableModulePath}, ${nullableShimPath}`);
   } else {
     console.error("Parse errors:");
     result._0.forEach((err) => {
