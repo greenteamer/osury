@@ -717,7 +717,9 @@ describe('Code Generator', () => {
         const parseResult = OpenAPIParser.parseDocument(doc);
         const code = Codegen.generateModule(parseResult._0);
 
-        expect(code.startsWith('module S = Sury')).toBe(true);
+        expect(code).toContain('@genType.import(("./Null.gen.ts", "t"))');
+        expect(code).toContain('type null<\'a> = option<\'a>');
+        expect(code).toContain('module S = Sury');
     });
 
     test('generateDictShim returns TypeScript shim', () => {
@@ -725,6 +727,13 @@ describe('Code Generator', () => {
 
         expect(shim).toContain('export type t<T>');
         expect(shim).toContain('[key: string]: T');
+    });
+
+    test('generateNullShim returns TypeScript shim', () => {
+        const shim = Codegen.generateNullShim();
+
+        expect(shim).toContain('export type t<T>');
+        expect(shim).toContain('T | null');
     });
 
     test('isPrimitiveOnlyUnion returns true for primitive-only unions', () => {
