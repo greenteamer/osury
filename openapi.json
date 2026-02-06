@@ -1,0 +1,115 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Example API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/users": {
+      "get": {
+        "operationId": "getUsers",
+        "responses": {
+          "200": {
+            "description": "List of users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/User" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "email": { "type": "string" },
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }]
+          },
+          "status": { "$ref": "#/components/schemas/Status" },
+          "role": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/Admin" },
+              { "$ref": "#/components/schemas/Guest" }
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        },
+        "required": ["id", "email"]
+      },
+      "Status": {
+        "type": "string",
+        "enum": ["pending", "active", "blocked"]
+      },
+      "Admin": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "const": "Admin" },
+          "permissions": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "level": { "type": "integer", "default": 1 }
+        },
+        "required": ["_tag"]
+      },
+      "Guest": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "const": "Guest" },
+          "expiresAt": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }]
+          },
+          "invitedBy": { "$ref": "#/components/schemas/User" }
+        },
+        "required": ["_tag"]
+      },
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/User" },
+              { "type": "null" }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/ErrorDetails" },
+              { "type": "null" }
+            ]
+          }
+        },
+        "required": ["success"]
+      },
+      "ErrorDetails": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "details": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        },
+        "required": ["code", "message"]
+      }
+    }
+  }
+}
