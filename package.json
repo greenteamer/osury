@@ -5,7 +5,7 @@
   "version": "0.16.0",
   "license": "MIT",
   "bin": {
-    "osury": "./bin/osury.mjs"
+    "osury": "bin/osury.mjs"
   },
   "files": [
     "bin/",
@@ -55,6 +55,6 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/greenteamer/osury"
+    "url": "git+https://github.com/greenteamer/osury.git"
   }
 }
