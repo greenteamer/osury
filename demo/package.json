@@ -3,10 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node ../scripts/demo-server.mjs"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node serve.mjs"
   },
   "dependencies": {
     "@rescript/core": "^1.6.1",
     "@rescript/runtime": "^12.1.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
   }
 }
