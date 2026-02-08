@@ -24,10 +24,11 @@ build/
 *.js
 *.js.map
 *.d.ts
-# Но не игнорировать JS-файлы в tests/, bin/ и scripts/
+# Но не игнорировать JS-файлы в tests/, bin/, scripts/ и demo/
 !tests/**/*.js
 !bin/**/*.js
 !scripts/**/*.js
+!demo/**/*.js
 
 # VSCode
 .vscode/
