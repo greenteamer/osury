@@ -42,12 +42,17 @@ function generateModuleWithDiagnostics(schemas) {
   let skipSet = {};
   let typeDefs = sorted.map(s => CodegenTypes.generateTypeDefWithSkipSet(s, skipSet, schemasDict, tagsDict)).join("\n\n");
   let code = "module S = Sury\n\n" + typeDefs;
-  return { code, warnings };
+  return {
+    code: code,
+    warnings: warnings
+  };
 }
 
 function generateModule(schemas) {
   let result = generateModuleWithDiagnostics(schemas);
-  result.warnings.forEach(w => { console.log(w); });
+  result.warnings.forEach(w => {
+    console.log(w);
+  });
   return result.code;
 }
 

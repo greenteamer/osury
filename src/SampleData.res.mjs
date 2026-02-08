@@ -9,83 +9,77 @@ function buildSchemasDict(schemas) {
   return dict;
 }
 
-function generate(schema, schemasDict) {
-  if (typeof schema !== "object") {
-    switch (schema) {
-      case "String" :
-        return "sample";
-      case "Number" :
-        return 3.14;
-      case "Integer" :
-        return 42;
-      case "Boolean" :
-        return true;
-      case "Null" :
-        return null;
-    }
-  } else {
-    switch (schema._tag) {
-      case "Optional" :
-      case "Nullable" :
-        return generate(schema._0, schemasDict);
-      case "Array" :
-        return [generate(schema._0, schemasDict)];
-      case "Dict" : {
-        let dict = {};
-        dict["key"] = generate(schema._0, schemasDict);
-        return dict;
+function generate(_schema, schemasDict) {
+  while (true) {
+    let schema = _schema;
+    if (typeof schema !== "object") {
+      switch (schema) {
+        case "String" :
+          return "sample";
+        case "Number" :
+          return 3.14;
+        case "Integer" :
+          return 42;
+        case "Boolean" :
+          return true;
+        case "Null" :
+          return null;
       }
-      case "Object" : {
-        let dict = {};
-        schema._0.forEach(field => {
-          dict[field.name] = generate(field.type, schemasDict);
-        });
-        return dict;
-      }
-      case "Enum" : {
-        let first = schema._0[0];
-        if (first !== undefined) {
-          return first;
-        } else {
-          return "";
-        }
-      }
-      case "Ref" : {
-        let resolved = schemasDict[schema._0];
-        if (resolved !== undefined) {
-          return generate(resolved, schemasDict);
-        } else {
+    } else {
+      switch (schema._tag) {
+        case "Optional" :
+        case "Nullable" :
+          _schema = schema._0;
+          continue;
+        case "Object" :
           let dict = {};
-          dict["_ref"] = schema._0;
+          schema._0.forEach(field => {
+            dict[field.name] = generate(field.type, schemasDict);
+          });
           return dict;
-        }
-      }
-      case "PolyVariant" : {
-        let firstCase = schema._0[0];
-        if (firstCase !== undefined) {
-          let base = generate(firstCase.payload, schemasDict);
-          let baseDict;
-          if (typeof base === "object" && base !== null && !Array.isArray(base)) {
-            baseDict = base;
-          } else {
-            baseDict = {};
+        case "Array" :
+          return [generate(schema._0, schemasDict)];
+        case "Ref" :
+          let name = schema._0;
+          let resolved = schemasDict[name];
+          if (resolved !== undefined) {
+            _schema = resolved;
+            continue;
           }
-          baseDict["_tag"] = firstCase._tag;
+          let dict$1 = {};
+          dict$1["_ref"] = name;
+          return dict$1;
+        case "Enum" :
+          let v = schema._0[0];
+          if (v !== undefined) {
+            return v;
+          } else {
+            return "";
+          }
+        case "PolyVariant" :
+          let variantCase = schema._0[0];
+          if (variantCase === undefined) {
+            return null;
+          }
+          let dict$2 = generate(variantCase.payload, schemasDict);
+          let baseDict;
+          baseDict = typeof dict$2 === "object" && dict$2 !== null && !Array.isArray(dict$2) ? dict$2 : ({});
+          baseDict["_tag"] = variantCase._tag;
           return baseDict;
-        } else {
-          return null;
-        }
-      }
-      case "Union" : {
-        let firstType = schema._0[0];
-        if (firstType !== undefined) {
-          return generate(firstType, schemasDict);
-        } else {
-          return null;
-        }
+        case "Dict" :
+          let dict$3 = {};
+          dict$3["key"] = generate(schema._0, schemasDict);
+          return dict$3;
+        case "Union" :
+          let firstType = schema._0[0];
+          if (firstType === undefined) {
+            return null;
+          }
+          _schema = firstType;
+          continue;
       }
     }
-  }
+  };
 }
 
 function generateAll(schemas) {
