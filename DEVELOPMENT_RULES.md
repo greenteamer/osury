@@ -48,31 +48,43 @@ String | Number | Integer | Boolean | Null
 **Schema.res** (парсинг):
 - Возвращает `schemaType` — нужно добавить парсинг нового варианта
 
-**Codegen.res** (генерация):
-- `generateType` — генерация ReScript-типа
+**CodegenHelpers.res** (утилиты):
 - `isOptionalType` — проверка на Optional/Nullable обёртку
 - `isNullableType` — проверка на Nullable
-- `hasUnion` — рекурсивный поиск Union в дереве типов
 - `getTagForType` — имя тега для poly variant
+- `hasUnion` — рекурсивный поиск Union в дереве типов
+- `isPrimitiveOnlyUnion` — проверка что union содержит только примитивы
+
+**CodegenTypes.res** (генерация кода):
+- `generateType` — генерация ReScript-типа
+- `generateRecord` — генерация полей записи
+- `generateUnion` — генерация union как poly variant
+
+**CodegenTransforms.res** (трансформации AST):
 - `extractUnionsFromType` — извлечение Union для выделения в отдельный тип
 - `replaceUnionInType` — замена Union на Ref после извлечения
 - `getDependencies` — сбор Ref-зависимостей для топологической сортировки
-- `generateRecord` — генерация полей записи (если тип используется как поле)
+- `getUnionName` — структурное имя для union
+- `collectUnionWarnings` → `findUnions` — поиск union для диагностики
+
+**Codegen.res** (фасад):
+- Реэкспортирует всё из подмодулей, содержит `generateModule` оркестратор
 
 **Errors.res:**
 - Может потребовать новый `errorKind` для ошибок парсинга нового варианта
 
 **bin/osury.mjs:**
-- CLI обычно не требует изменений (работает через generateModule), но проверить вывод
+- CLI обычно не требует изменений (работает через Codegen.generateModule), но проверить вывод
 
 **Чеклист добавления нового варианта:**
 1. [ ] Добавить вариант в `schemaType` (Schema.res)
 2. [ ] Реализовать парсинг из JSON (Schema.res)
-3. [ ] Добавить генерацию ReScript-кода (Codegen.generateType)
-4. [ ] Обновить рекурсивные обходы: hasUnion, extractUnionsFromType, replaceUnionInType, getDependencies, getTagForType
-5. [ ] Добавить тест парсинга + тест генерации кода
-6. [ ] Проверить что `npm run res:build` проходит без warnings
-7. [ ] Проверить что сгенерированный код компилируется ReScript-ом
+3. [ ] Добавить генерацию ReScript-кода (CodegenTypes.generateType)
+4. [ ] Обновить утилиты: hasUnion, getTagForType, isPrimitiveOnlyUnion (CodegenHelpers.res)
+5. [ ] Обновить трансформации: extractUnionsFromType, replaceUnionInType, getDependencies, getUnionName (CodegenTransforms.res)
+6. [ ] Добавить тест парсинга + тест генерации кода
+7. [ ] Проверить что `npm run res:build` проходит без warnings
+8. [ ] Проверить что сгенерированный код компилируется ReScript-ом
 
 ---
 
