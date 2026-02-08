@@ -7,7 +7,7 @@ export function WindowFrame({
 }) {
   return (
     <div
-      className={`flex flex-col h-full border-2 ${active ? "border-[#8caaee]" : "border-[#414559]"} bg-[#232634] shadow-lg overflow-hidden transition-colors duration-300 ${className}`}
+      className={`flex flex-col min-h-0 border-2 ${active ? "border-[#8caaee]" : "border-[#414559]"} bg-[#232634] shadow-lg overflow-hidden transition-colors duration-300 ${className}`}
     >
       {/* Title Bar */}
       <div
@@ -33,7 +33,7 @@ export function WindowFrame({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden relative">{children}</div>
+      <div className="flex-1 min-h-0 overflow-auto relative">{children}</div>
     </div>
   );
 }

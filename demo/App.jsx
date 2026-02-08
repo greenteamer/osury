@@ -231,7 +231,7 @@ export function App() {
 
   return (
     <div
-      className="min-h-screen bg-[#303446] p-4 lg:p-8 flex flex-col gap-4 font-mono text-[#c6d0f5]"
+      className="h-screen bg-[#303446] p-4 lg:p-8 flex flex-col gap-4 font-mono text-[#c6d0f5] overflow-hidden"
       onKeyDown={handleKeyDown}
     >
       {/* Header */}
@@ -250,11 +250,11 @@ export function App() {
       </header>
 
       {/* Main Workspace */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[600px]">
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0 overflow-hidden">
         {/* Left Pane: Input */}
         <section
           onClick={() => setActivePane("input")}
-          className="flex flex-col gap-2 h-full"
+          className="flex flex-col gap-2 min-h-0 overflow-hidden"
         >
           <div className="flex gap-2 mb-1">
             <TerminalButton
@@ -308,7 +308,7 @@ export function App() {
         {/* Right Pane: Output */}
         <section
           onClick={() => setActivePane("output")}
-          className="flex flex-col gap-2 h-full"
+          className="flex flex-col gap-2 min-h-0 overflow-hidden"
         >
           <div className="flex gap-2 mb-1 justify-between">
             <div className="flex gap-2">
@@ -392,7 +392,7 @@ export function App() {
       </main>
 
       {/* Bottom Log Pane */}
-      <footer className="h-32 bg-[#232634] border-t-2 border-[#414559] flex flex-col">
+      <footer className="h-32 shrink-0 bg-[#232634] border-t-2 border-[#414559] flex flex-col">
         <div className="bg-[#414559] px-2 py-0.5 text-xs text-[#c6d0f5] font-bold">
           SYSTEM LOGS
         </div>
