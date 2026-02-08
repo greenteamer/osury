@@ -156,6 +156,25 @@ export type user = {
 
 The library uses **sury-ppx** for code-first approach — `@schema` annotation automatically generates runtime validators from type definitions.
 
+## Demo Playground
+
+This repository includes a local demo website for codegen exploration.
+
+### Run demo
+
+```bash
+npm run demo
+```
+
+Open [http://localhost:4173/demo/](http://localhost:4173/demo/).
+
+### What it supports
+
+- Upload OpenAPI JSON as a file
+- Paste OpenAPI JSON into a text area
+- Formatted ReScript output
+- Formatted TypeScript output (derived from osury AST and matching generated ReScript structures)
+
 ### Helper Files
 
 Also generates helper files:
