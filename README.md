@@ -158,9 +158,11 @@ The library uses **sury-ppx** for code-first approach — `@schema` annotation a
 
 ## Demo Playground
 
-This repository includes a local demo website for codegen exploration.
+Try it online: **[osury-production.up.railway.app](https://osury-production.up.railway.app/)**
 
-### Run demo
+This repository also includes a local demo for development:
+
+### Run locally
 
 ```bash
 npm run demo
