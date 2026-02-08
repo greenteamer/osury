@@ -1,6 +1,7 @@
 import * as Schema from '../Schema.res.mjs';
 import * as Codegen from '../Codegen.res.mjs';
 import * as OpenAPIParser from '../OpenAPIParser.res.mjs';
+import * as SampleData from '../SampleData.res.mjs';
 
 describe('Schema Parser', () => {
     test('parse string type', () => {
@@ -947,4 +948,235 @@ describe('Code Generator', () => {
         expect(code).not.toContain('SimpleSchema({');
     });
 
+});
+
+describe('Sample Data Generator', () => {
+    test('generate primitives', () => {
+        expect(SampleData.generate('String', {})).toBe('sample');
+        expect(SampleData.generate('Number', {})).toBe(3.14);
+        expect(SampleData.generate('Integer', {})).toBe(42);
+        expect(SampleData.generate('Boolean', {})).toBe(true);
+        expect(SampleData.generate('Null', {})).toBe(null);
+    });
+
+    test('generate array', () => {
+        const schema = { _tag: 'Array', _0: 'String' };
+        const result = SampleData.generate(schema, {});
+
+        expect(Array.isArray(result)).toBe(true);
+        expect(result.length).toBe(1);
+        expect(result[0]).toBe('sample');
+    });
+
+    test('generate optional unwraps inner type', () => {
+        const schema = { _tag: 'Optional', _0: 'Integer' };
+        const result = SampleData.generate(schema, {});
+
+        expect(result).toBe(42);
+    });
+
+    test('generate nullable unwraps inner type', () => {
+        const schema = { _tag: 'Nullable', _0: 'Number' };
+        const result = SampleData.generate(schema, {});
+
+        expect(result).toBe(3.14);
+    });
+
+    test('generate enum uses first value', () => {
+        const schema = { _tag: 'Enum', _0: ['pending', 'active', 'closed'] };
+        const result = SampleData.generate(schema, {});
+
+        expect(result).toBe('pending');
+    });
+
+    test('generate object with fields', () => {
+        const schema = {
+            _tag: 'Object',
+            _0: [
+                { name: 'id', type: 'Integer', required: true },
+                { name: 'email', type: 'String', required: true },
+                { name: 'score', type: 'Number', required: false }
+            ]
+        };
+        const result = SampleData.generate(schema, {});
+
+        expect(result).toEqual({
+            id: 42,
+            email: 'sample',
+            score: 3.14
+        });
+    });
+
+    test('generate dict', () => {
+        const schema = { _tag: 'Dict', _0: 'String' };
+        const result = SampleData.generate(schema, {});
+
+        expect(result).toEqual({ key: 'sample' });
+    });
+
+    test('generate ref resolves from schemasDict', () => {
+        const schema = { _tag: 'Ref', _0: 'Status' };
+        const schemasDict = {
+            Status: { _tag: 'Enum', _0: ['active', 'inactive'] }
+        };
+        const result = SampleData.generate(schema, schemasDict);
+
+        expect(result).toBe('active');
+    });
+
+    test('generate ref fallback for unknown ref', () => {
+        const schema = { _tag: 'Ref', _0: 'Unknown' };
+        const result = SampleData.generate(schema, {});
+
+        expect(result).toEqual({ _ref: 'Unknown' });
+    });
+
+    test('generate polyVariant with _tag discriminator', () => {
+        const schema = {
+            _tag: 'PolyVariant',
+            _0: [
+                {
+                    _tag: 'Success',
+                    payload: {
+                        _tag: 'Object',
+                        _0: [{ name: 'data', type: 'String', required: true }]
+                    }
+                },
+                {
+                    _tag: 'Error',
+                    payload: {
+                        _tag: 'Object',
+                        _0: [{ name: 'message', type: 'String', required: true }]
+                    }
+                }
+            ]
+        };
+        const result = SampleData.generate(schema, {});
+
+        expect(result).toEqual({
+            _tag: 'Success',
+            data: 'sample'
+        });
+    });
+
+    test('generate union uses first type', () => {
+        const schema = {
+            _tag: 'Union',
+            _0: [
+                { _tag: 'Ref', _0: 'Cat' },
+                { _tag: 'Ref', _0: 'Dog' }
+            ]
+        };
+        const schemasDict = {
+            Cat: { _tag: 'Object', _0: [{ name: 'meow', type: 'Boolean', required: true }] },
+            Dog: { _tag: 'Object', _0: [{ name: 'bark', type: 'Boolean', required: true }] }
+        };
+        const result = SampleData.generate(schema, schemasDict);
+
+        expect(result).toEqual({ meow: true });
+    });
+
+    test('generateAll from full OpenAPI doc', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Status: {
+                        type: "string",
+                        enum: ["active", "inactive"]
+                    },
+                    User: {
+                        type: "object",
+                        properties: {
+                            id: { type: "integer" },
+                            name: { type: "string" },
+                            status: { "$ref": "#/components/schemas/Status" }
+                        },
+                        required: ["id", "name"]
+                    }
+                }
+            }
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const samples = SampleData.generateAll(parseResult._0);
+
+        expect(samples.Status).toBe('active');
+        expect(samples.User).toEqual({
+            id: 42,
+            name: 'sample',
+            status: 'active'
+        });
+    });
+
+    test('generateForSchema returns specific schema sample', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    User: {
+                        type: "object",
+                        properties: {
+                            id: { type: "integer" },
+                            email: { type: "string" }
+                        },
+                        required: ["id", "email"]
+                    }
+                }
+            }
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const sample = SampleData.generateForSchema(parseResult._0, 'User');
+        expect(sample).toEqual({ id: 42, email: 'sample' });
+
+        const notFound = SampleData.generateForSchema(parseResult._0, 'Missing');
+        expect(notFound).toBeUndefined();
+    });
+
+    test('generate nested refs (User -> Status)', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Status: { type: "string", enum: ["pending", "active"] },
+                    User: {
+                        type: "object",
+                        properties: {
+                            id: { type: "integer" },
+                            status: { "$ref": "#/components/schemas/Status" },
+                            tags: { type: "array", items: { type: "string" } }
+                        },
+                        required: ["id", "status", "tags"]
+                    },
+                    ApiResponse: {
+                        type: "object",
+                        properties: {
+                            users: { type: "array", items: { "$ref": "#/components/schemas/User" } },
+                            total: { type: "integer" }
+                        },
+                        required: ["users", "total"]
+                    }
+                }
+            }
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const samples = SampleData.generateAll(parseResult._0);
+
+        expect(samples.ApiResponse).toEqual({
+            users: [{
+                id: 42,
+                status: 'pending',
+                tags: ['sample']
+            }],
+            total: 42
+        });
+    });
 });

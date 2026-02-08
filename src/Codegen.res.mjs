@@ -6,11 +6,8 @@ import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 import * as CodegenHelpers from "./CodegenHelpers.res.mjs";
 import * as CodegenTransforms from "./CodegenTransforms.res.mjs";
 
-function generateModule(schemas) {
+function generateModuleWithDiagnostics(schemas) {
   let warnings = CodegenTransforms.collectUnionWarnings(schemas);
-  warnings.forEach(w => {
-    console.log(w);
-  });
   let extractedUnions = schemas.flatMap(s => CodegenTransforms.extractUnions(s.name, s.schema).map(extracted => ({
     name: extracted.name,
     schema: extracted.schema,
@@ -44,7 +41,14 @@ function generateModule(schemas) {
   let sorted = CodegenTransforms.topologicalSort(allSchemas);
   let skipSet = {};
   let typeDefs = sorted.map(s => CodegenTypes.generateTypeDefWithSkipSet(s, skipSet, schemasDict, tagsDict)).join("\n\n");
-  return "module S = Sury\n\n" + typeDefs;
+  let code = "module S = Sury\n\n" + typeDefs;
+  return { code, warnings };
+}
+
+function generateModule(schemas) {
+  let result = generateModuleWithDiagnostics(schemas);
+  result.warnings.forEach(w => { console.log(w); });
+  return result.code;
 }
 
 let lcFirst = CodegenHelpers.lcFirst;
@@ -135,6 +139,7 @@ export {
   generateDictShim,
   generateNullableShim,
   generateNullableModule,
+  generateModuleWithDiagnostics,
   generateModule,
 }
 /* No side effect */
