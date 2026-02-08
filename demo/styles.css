@@ -1,0 +1,316 @@
+:root {
+  --bg: #0f1714;
+  --bg-soft: #18231f;
+  --panel: rgba(17, 28, 24, 0.86);
+  --panel-border: rgba(147, 175, 157, 0.22);
+  --text: #edf4ef;
+  --muted: #a8b7af;
+  --accent: #ff8d4d;
+  --accent-2: #5fd4bf;
+  --danger: #ff5d73;
+  --code-bg: #101a16;
+  --code-line: rgba(255, 255, 255, 0.03);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  color: var(--text);
+  background: radial-gradient(circle at 20% 20%, #20382f 0%, var(--bg) 52%), radial-gradient(circle at 85% 8%, #2f2f18 0%, transparent 44%), var(--bg);
+  font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+}
+
+.aurora {
+  position: fixed;
+  inset: -20%;
+  pointer-events: none;
+  background: conic-gradient(from 15deg at 20% 20%, transparent 0deg, rgba(95, 212, 191, 0.15) 90deg, transparent 180deg, rgba(255, 141, 77, 0.12) 270deg, transparent 360deg);
+  filter: blur(60px);
+  animation: drift 14s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(-2%, -1%, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(2%, 2%, 0) rotate(8deg);
+  }
+}
+
+.app-shell {
+  width: min(1200px, calc(100% - 2.5rem));
+  margin: 2.2rem auto 2.6rem;
+  display: grid;
+  gap: 1.2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.hero {
+  padding: 1.4rem 1.5rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: linear-gradient(130deg, rgba(16, 26, 22, 0.94), rgba(22, 36, 31, 0.83));
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  animation: rise 500ms ease-out both;
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  font-weight: 700;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-family: "Syne", "Trebuchet MS", sans-serif;
+  letter-spacing: 0.01em;
+}
+
+h1 {
+  margin-top: 0.3rem;
+  font-size: clamp(1.7rem, 3.8vw, 2.8rem);
+}
+
+.subtitle {
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 0.96rem;
+  max-width: 780px;
+}
+
+.panel {
+  border-radius: 16px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
+}
+
+.input-panel {
+  padding: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.status {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropzone {
+  display: grid;
+  place-items: center;
+  gap: 0.2rem;
+  text-align: center;
+  border-radius: 12px;
+  border: 1px dashed rgba(95, 212, 191, 0.55);
+  min-height: 86px;
+  cursor: pointer;
+  background: rgba(21, 36, 31, 0.65);
+  transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.dropzone:hover,
+.dropzone.drag-over {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  background: rgba(33, 51, 44, 0.8);
+}
+
+.dropzone input {
+  display: none;
+}
+
+.dropzone-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.dropzone-subtitle {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.textarea-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+#openapi-input {
+  width: 100%;
+  min-height: 290px;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid rgba(138, 170, 152, 0.32);
+  background: rgba(8, 14, 11, 0.9);
+  color: var(--text);
+  padding: 0.78rem 0.86rem;
+  font: 500 0.84rem/1.55 "IBM Plex Mono", "Menlo", monospace;
+  outline: none;
+}
+
+#openapi-input:focus {
+  border-color: rgba(255, 141, 77, 0.8);
+  box-shadow: 0 0 0 2px rgba(255, 141, 77, 0.2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.52rem;
+}
+
+.button,
+.copy-btn {
+  border: 1px solid rgba(191, 214, 200, 0.24);
+  background: rgba(28, 42, 36, 0.82);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.5rem 0.82rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: transform 140ms ease, border-color 140ms ease, background-color 140ms ease;
+}
+
+.button:hover,
+.copy-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 141, 77, 0.72);
+}
+
+.button-primary {
+  background: linear-gradient(135deg, rgba(255, 141, 77, 0.95), rgba(255, 188, 77, 0.92));
+  border-color: transparent;
+  color: #1e1409;
+}
+
+.outputs-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.output-card {
+  padding: 1rem;
+  display: grid;
+  gap: 0.65rem;
+  min-height: 340px;
+}
+
+.code-view {
+  margin: 0;
+  overflow: auto;
+  border-radius: 11px;
+  border: 1px solid rgba(171, 197, 182, 0.2);
+  background: linear-gradient(180deg, rgba(9, 17, 13, 0.94), rgba(8, 16, 12, 0.98));
+  padding: 0.2rem 0;
+  color: #f4f7f5;
+  line-height: 1;
+  font: 400 0.72rem/1 "IBM Plex Mono", "Consolas", monospace;
+}
+
+.code-line {
+  display: block;
+  position: relative;
+  white-space: pre;
+  padding: 0.01rem 0.75rem 0.01rem 3.2rem;
+}
+
+.code-line:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.code-line::before {
+  content: attr(data-line);
+  position: absolute;
+  left: 0;
+  width: 2.4rem;
+  text-align: right;
+  color: #688577;
+  padding-right: 0.52rem;
+  border-right: 1px solid rgba(165, 193, 177, 0.14);
+}
+
+.tok-comment {
+  color: #789488;
+}
+
+.tok-string {
+  color: #ffd792;
+}
+
+.tok-keyword {
+  color: #7ad4ff;
+  font-weight: 500;
+}
+
+.tok-annotation {
+  color: #fda26f;
+}
+
+.tok-punct {
+  color: #9eb7ab;
+}
+
+@media (max-width: 980px) {
+  .outputs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #openapi-input {
+    min-height: 240px;
+  }
+}
+
+@media (max-width: 620px) {
+  .app-shell {
+    width: calc(100% - 1.05rem);
+    margin: 1rem auto 1.6rem;
+  }
+
+  .hero,
+  .panel {
+    border-radius: 13px;
+  }
+
+  h1 {
+    font-size: clamp(1.42rem, 8vw, 1.85rem);
+  }
+}

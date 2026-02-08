@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>osury Playground</title>
+    <link rel="icon" href="data:," />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Syne:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "@rescript/core/": "/node_modules/@rescript/core/",
+          "@rescript/runtime/": "/node_modules/@rescript/runtime/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="aurora" aria-hidden="true"></div>
+
+    <main class="app-shell">
+      <header class="hero">
+        <p class="eyebrow">OpenAPI to ReScript + TypeScript</p>
+        <h1>osury Playground</h1>
+        <p class="subtitle">
+          Load OpenAPI JSON from a file or paste raw text, then inspect generated ReScript and TypeScript side by side.
+        </p>
+      </header>
+
+      <section class="panel input-panel">
+        <div class="panel-title-row">
+          <h2>Input</h2>
+          <p id="status-text" class="status">Ready</p>
+        </div>
+
+        <label class="dropzone" for="file-input" id="dropzone">
+          <input id="file-input" type="file" accept="application/json,.json" />
+          <span class="dropzone-title">Drop JSON file here</span>
+          <span class="dropzone-subtitle">or click to select a file</span>
+        </label>
+
+        <label class="textarea-label" for="openapi-input">OpenAPI JSON</label>
+        <textarea id="openapi-input" spellcheck="false"></textarea>
+
+        <div class="actions">
+          <button id="generate-btn" class="button button-primary">Generate</button>
+          <button id="sample-btn" class="button">Load sample</button>
+          <button id="clear-btn" class="button">Clear</button>
+        </div>
+      </section>
+
+      <section class="outputs-grid">
+        <article class="panel output-card">
+          <div class="panel-title-row">
+            <h2>ReScript</h2>
+            <button class="copy-btn" data-copy-target="rescript-output">Copy</button>
+          </div>
+          <pre class="code-view" id="rescript-output"></pre>
+        </article>
+
+        <article class="panel output-card">
+          <div class="panel-title-row">
+            <h2>TypeScript</h2>
+            <button class="copy-btn" data-copy-target="typescript-output">Copy</button>
+          </div>
+          <pre class="code-view" id="typescript-output"></pre>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
