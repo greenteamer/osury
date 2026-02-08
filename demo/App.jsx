@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import * as OpenAPIParser from "../src/OpenAPIParser.res.mjs";
 import * as Codegen from "../src/Codegen.res.mjs";
+import * as SampleData from "../src/SampleData.res.mjs";
 import {
   generateTypeScriptModule,
   linesCount,
@@ -19,7 +20,7 @@ import { TerminalButton } from "./components/TerminalButton.jsx";
 import { CodeEditor } from "./components/CodeEditor.jsx";
 
 const SAMPLE_URL = "/openapi.json";
-const TAB = { RESCRIPT: "RESCRIPT", TYPESCRIPT: "TYPESCRIPT" };
+const TAB = { RESCRIPT: "RESCRIPT", TYPESCRIPT: "TYPESCRIPT", PREVIEW: "PREVIEW" };
 
 function logId() {
   return Math.random().toString(36).substring(2, 9);
@@ -38,7 +39,7 @@ const LOG_COLORS = {
 
 export function App() {
   const [input, setInput] = useState("");
-  const [outputs, setOutputs] = useState({ rescript: "", typescript: "" });
+  const [outputs, setOutputs] = useState({ rescript: "", typescript: "", preview: "" });
   const [activeTab, setActiveTab] = useState(TAB.TYPESCRIPT);
   const [activePane, setActivePane] = useState("input");
   const [isLoading, setIsLoading] = useState(false);
@@ -74,7 +75,7 @@ export function App() {
       const trimmed = maybeTrim(rawInput);
 
       if (!trimmed) {
-        setOutputs({ rescript: "", typescript: "" });
+        setOutputs({ rescript: "", typescript: "", preview: "" });
         addLog("Input buffer is empty. Paste OpenAPI JSON or upload a file.", "system");
         return;
       }
@@ -86,7 +87,7 @@ export function App() {
       const parsedJson = parseJsonSafe(trimmed);
 
       if (!parsedJson.ok) {
-        setOutputs({ rescript: "", typescript: "" });
+        setOutputs({ rescript: "", typescript: "", preview: "" });
         addLog(`Invalid JSON: ${parsedJson.message}`, "error");
         setIsLoading(false);
         return;
@@ -95,7 +96,7 @@ export function App() {
       const parsed = OpenAPIParser.parseDocument(parsedJson.value);
 
       if (parsed.TAG !== "Ok") {
-        setOutputs({ rescript: "", typescript: "" });
+        setOutputs({ rescript: "", typescript: "", preview: "" });
         const errors = parsed._0
           .map((e) => {
             const loc = e?.location?.path?.length
@@ -118,7 +119,11 @@ export function App() {
       );
       const typescriptCode = generateTypeScriptModule(schemas);
 
-      setOutputs({ rescript: rescriptCode, typescript: typescriptCode });
+      // Generate sample data from AST
+      const sampleDataDict = SampleData.generateAll(schemas);
+      const previewJson = JSON.stringify(sampleDataDict, null, 2);
+
+      setOutputs({ rescript: rescriptCode, typescript: typescriptCode, preview: previewJson });
 
       const summary = summarizeGeneration(schemas);
       const metrics = formatMetrics({
@@ -155,7 +160,7 @@ export function App() {
 
   const handleClear = useCallback(() => {
     setInput("");
-    setOutputs({ rescript: "", typescript: "" });
+    setOutputs({ rescript: "", typescript: "", preview: "" });
     addLog("Input buffer cleared.", "system");
   }, [addLog]);
 
@@ -215,11 +220,21 @@ export function App() {
 
   // --- Highlighted output ---
   const currentCode =
-    activeTab === TAB.RESCRIPT ? outputs.rescript : outputs.typescript;
-  const currentLang = activeTab === TAB.RESCRIPT ? "rescript" : "typescript";
-  const highlightedHtml = currentCode.trim()
-    ? withLineNumbersAndHighlight(currentCode, currentLang)
-    : "";
+    activeTab === TAB.RESCRIPT
+      ? outputs.rescript
+      : activeTab === TAB.PREVIEW
+        ? outputs.preview
+        : outputs.typescript;
+  const currentLang =
+    activeTab === TAB.RESCRIPT
+      ? "rescript"
+      : activeTab === TAB.PREVIEW
+        ? "json"
+        : "typescript";
+  const highlightedHtml =
+    currentCode.trim() && activeTab !== TAB.PREVIEW
+      ? withLineNumbersAndHighlight(currentCode, currentLang)
+      : "";
 
   const stats = {
     schemas: 0,
@@ -334,6 +349,17 @@ export function App() {
               >
                 ReScript.res
               </TerminalButton>
+              <TerminalButton
+                onClick={() => setActiveTab(TAB.PREVIEW)}
+                variant={activeTab === TAB.PREVIEW ? "secondary" : "ghost"}
+                className={
+                  activeTab === TAB.PREVIEW
+                    ? "border-[#a6d189] text-[#a6d189]"
+                    : ""
+                }
+              >
+                Preview.json
+              </TerminalButton>
             </div>
             <TerminalButton
               onClick={copyToClipboard}
@@ -345,7 +371,7 @@ export function App() {
           </div>
 
           <WindowFrame
-            title={`~/generated/${activeTab === TAB.TYPESCRIPT ? "api.ts" : "api.res"}`}
+            title={`~/generated/${activeTab === TAB.TYPESCRIPT ? "api.ts" : activeTab === TAB.PREVIEW ? "sample_data.json" : "api.res"}`}
             active={activePane === "output"}
             className="flex-1 relative"
             rightControls={
@@ -376,6 +402,10 @@ export function App() {
                   Run EXECUTE to generate code.
                 </p>
               </div>
+            ) : activeTab === TAB.PREVIEW && currentCode ? (
+              <pre className="code-view h-full overflow-auto p-4 whitespace-pre text-[#e5c890]">
+                {currentCode}
+              </pre>
             ) : highlightedHtml ? (
               <pre
                 className="code-view h-full overflow-auto"

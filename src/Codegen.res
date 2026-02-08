@@ -40,7 +40,13 @@ let generateDictShim = CodegenShims.generateDictShim
 let generateNullableShim = CodegenShims.generateNullableShim
 let generateNullableModule = CodegenShims.generateNullableModule
 
-// Generate full module from array of schemas
+// Result type for diagnostics-aware code generation
+type generateResult = {
+  code: string,
+  warnings: array<string>,
+}
+
+// Generate full module with diagnostics (warnings returned, not printed)
 // Pipeline (DEVELOPMENT_RULES.md Rule 6):
 // 1. Diagnose: collectUnionWarnings
 // 2. Extract: inline Union → separate named types
@@ -49,10 +55,9 @@ let generateNullableModule = CodegenShims.generateNullableModule
 // 5. Build: schemas dict for inline record lookups
 // 6. Sort: topological order (Kahn's algorithm)
 // 7. Generate: ReScript code for each type
-let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
-  // Step 1: Diagnose — collect and print warnings for problematic unions
+let generateModuleWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): generateResult => {
+  // Step 1: Diagnose — collect warnings for problematic unions
   let warnings = CodegenTransforms.collectUnionWarnings(schemas)
-  warnings->Array.forEach(w => Console.log(w))
 
   // Step 2: Extract — find all inline unions in each schema
   let extractedUnions = schemas->Array.flatMap(s => {
@@ -97,5 +102,14 @@ let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
   let typeDefs = sorted->Array.map(s => CodegenTypes.generateTypeDefWithSkipSet(s, skipSet, schemasDict, tagsDict))->Array.join("\n\n")
 
   // Add module alias required by sury-ppx
-  "module S = Sury\n\n" ++ typeDefs
+  let code = "module S = Sury\n\n" ++ typeDefs
+  {code, warnings}
+}
+
+// Generate full module (backward-compatible wrapper)
+// Prints warnings to console and returns code string
+let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
+  let result = generateModuleWithDiagnostics(schemas)
+  result.warnings->Array.forEach(w => Console.log(w))
+  result.code
 }
