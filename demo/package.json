@@ -1,0 +1,12 @@
+{
+  "name": "osury-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node ../scripts/demo-server.mjs"
+  },
+  "dependencies": {
+    "@rescript/core": "^1.6.1",
+    "@rescript/runtime": "^12.1.0"
+  }
+}

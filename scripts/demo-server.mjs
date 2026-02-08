@@ -1,8 +1,10 @@
 import { createServer } from "node:http";
 import { stat, readFile } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { extname, join, normalize, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = process.cwd();
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const root = join(scriptDir, "..");
 const port = Number(process.env.PORT ?? "4173");
 
 const contentTypes = {
