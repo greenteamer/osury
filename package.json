@@ -10,6 +10,10 @@
   "files": [
     "bin/",
     "src/Codegen.res.mjs",
+    "src/CodegenHelpers.res.mjs",
+    "src/CodegenShims.res.mjs",
+    "src/CodegenTransforms.res.mjs",
+    "src/CodegenTypes.res.mjs",
     "src/Errors.res.mjs",
     "src/OpenAPIParser.res.mjs",
     "src/Schema.res.mjs",
