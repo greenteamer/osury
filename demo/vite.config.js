@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -30,6 +31,7 @@ export default defineConfig({
   },
 
   plugins: [
+    react(),
     {
       name: "serve-sample-openapi",
       configureServer(server) {
