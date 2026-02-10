@@ -302,6 +302,121 @@ describe('Schema Parser', () => {
         expect(errorFields[0].name).toBe('message');
     });
 
+    test('parse oneOf with discriminator.propertyName', () => {
+        const input = {
+            oneOf: [
+                {
+                    type: "object",
+                    properties: {
+                        type: { type: "string", const: "Cat" },
+                        meow: { type: "boolean" }
+                    },
+                    required: ["type", "meow"]
+                },
+                {
+                    type: "object",
+                    properties: {
+                        type: { type: "string", const: "Dog" },
+                        bark: { type: "boolean" }
+                    },
+                    required: ["type", "bark"]
+                }
+            ],
+            discriminator: { propertyName: "type" }
+        };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('PolyVariant');
+
+        const cases = result._0._0;
+        expect(cases.length).toBe(2);
+
+        const catCase = cases.find(c => c._tag === 'Cat');
+        expect(catCase).toBeDefined();
+        expect(catCase.payload._tag).toBe('Object');
+        // "type" field should be filtered out (discriminator property)
+        const catFields = catCase.payload._0;
+        expect(catFields.length).toBe(1);
+        expect(catFields[0].name).toBe('meow');
+        expect(catFields.find(f => f.name === 'type')).toBeUndefined();
+
+        const dogCase = cases.find(c => c._tag === 'Dog');
+        expect(dogCase).toBeDefined();
+        expect(dogCase.payload._0.length).toBe(1);
+        expect(dogCase.payload._0[0].name).toBe('bark');
+    });
+
+    test('parse oneOf with $ref items and discriminator.propertyName', () => {
+        const input = {
+            oneOf: [
+                { "$ref": "#/components/schemas/Cat" },
+                { "$ref": "#/components/schemas/Dog" }
+            ],
+            discriminator: { propertyName: "type" }
+        };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('PolyVariant');
+
+        const cases = result._0._0;
+        expect(cases.length).toBe(2);
+
+        const catCase = cases.find(c => c._tag === 'Cat');
+        expect(catCase).toBeDefined();
+        expect(catCase.payload._tag).toBe('Ref');
+        expect(catCase.payload._0).toBe('Cat');
+
+        const dogCase = cases.find(c => c._tag === 'Dog');
+        expect(dogCase).toBeDefined();
+        expect(dogCase.payload._tag).toBe('Ref');
+        expect(dogCase.payload._0).toBe('Dog');
+    });
+
+    test('OpenAPIParser extracts discriminatorPropertyName from oneOf schema', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Cat: {
+                        type: "object",
+                        properties: {
+                            type: { type: "string", const: "Cat" },
+                            meow: { type: "boolean" }
+                        },
+                        required: ["type"]
+                    },
+                    Dog: {
+                        type: "object",
+                        properties: {
+                            type: { type: "string", const: "Dog" },
+                            bark: { type: "boolean" }
+                        },
+                        required: ["type"]
+                    },
+                    Animal: {
+                        oneOf: [
+                            { "$ref": "#/components/schemas/Cat" },
+                            { "$ref": "#/components/schemas/Dog" }
+                        ],
+                        discriminator: { propertyName: "type" }
+                    }
+                }
+            }
+        };
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+
+        const animal = result._0.find(s => s.name === 'Animal');
+        expect(animal).toBeDefined();
+        expect(animal.discriminatorPropertyName).toBe('type');
+
+        // Schemas without discriminator should have undefined
+        const cat = result._0.find(s => s.name === 'Cat');
+        expect(cat.discriminatorPropertyName).toBeUndefined();
+    });
+
     test('parse additionalProperties (Dict)', () => {
         const input = {
             type: "object",
@@ -653,8 +768,8 @@ describe('Code Generator', () => {
                         },
                         required: ["name", "value"]
                     },
-                    TypeA: { type: "object", properties: { a: { type: "string" } } },
-                    TypeB: { type: "object", properties: { b: { type: "string" } } }
+                    TypeA: { type: "object", properties: { _tag: { type: "string", const: "TypeA" }, a: { type: "string" } }, required: ["_tag"] },
+                    TypeB: { type: "object", properties: { _tag: { type: "string", const: "TypeB" }, b: { type: "string" } }, required: ["_tag"] }
                 }
             }
         };
@@ -795,13 +910,13 @@ describe('Code Generator', () => {
                 schemas: {
                     TypeA: {
                         type: "object",
-                        properties: { name: { type: "string" } },
-                        required: ["name"]
+                        properties: { _tag: { type: "string", const: "TypeA" }, name: { type: "string" } },
+                        required: ["_tag", "name"]
                     },
                     TypeB: {
                         type: "object",
-                        properties: { count: { type: "integer" } },
-                        required: ["count"]
+                        properties: { _tag: { type: "string", const: "TypeB" }, count: { type: "integer" } },
+                        required: ["_tag", "count"]
                     },
                     Container: {
                         type: "object",
@@ -901,6 +1016,138 @@ describe('Code Generator', () => {
         expect(code).not.toContain('@tag("_tag")');
     });
 
+    test('generateModule emits @tag with custom discriminator property name', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Cat: {
+                        type: "object",
+                        properties: {
+                            type: { type: "string", const: "Cat" },
+                            meow: { type: "boolean" }
+                        },
+                        required: ["type", "meow"]
+                    },
+                    Dog: {
+                        type: "object",
+                        properties: {
+                            type: { type: "string", const: "Dog" },
+                            bark: { type: "boolean" }
+                        },
+                        required: ["type", "bark"]
+                    },
+                    Animal: {
+                        oneOf: [
+                            { "$ref": "#/components/schemas/Cat" },
+                            { "$ref": "#/components/schemas/Dog" }
+                        ],
+                        discriminator: { propertyName: "type" }
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+        // Should use @tag("type") not @tag("_tag")
+        expect(code).toContain('@tag("type")');
+        // Should have Cat and Dog variant cases
+        expect(code).toContain('Cat(');
+        expect(code).toContain('Dog(');
+    });
+
+    test('anyOf with discriminator treated as discriminated union', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Cat: {
+                        type: "object",
+                        properties: {
+                            kind: { type: "string", const: "Cat" },
+                            meow: { type: "boolean" }
+                        },
+                        required: ["kind"]
+                    },
+                    Dog: {
+                        type: "object",
+                        properties: {
+                            kind: { type: "string", const: "Dog" },
+                            bark: { type: "boolean" }
+                        },
+                        required: ["kind"]
+                    },
+                    Owner: {
+                        type: "object",
+                        properties: {
+                            name: { type: "string" },
+                            pet: {
+                                anyOf: [
+                                    { "$ref": "#/components/schemas/Cat" },
+                                    { "$ref": "#/components/schemas/Dog" }
+                                ],
+                                discriminator: { propertyName: "kind" }
+                            }
+                        },
+                        required: ["name", "pet"]
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+        // anyOf with discriminator should use @tag("kind")
+        expect(code).toContain('@tag("kind")');
+        // Should have variant cases
+        expect(code).toContain('Cat(');
+        expect(code).toContain('Dog(');
+        // Owner should reference the pet type directly (not extracted union)
+        expect(code).toContain('pet:');
+    });
+
+    test('error: anyOf union of object refs without discriminator', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Cat: {
+                        type: "object",
+                        properties: { meow: { type: "boolean" } },
+                        required: ["meow"]
+                    },
+                    Dog: {
+                        type: "object",
+                        properties: { bark: { type: "boolean" } },
+                        required: ["bark"]
+                    },
+                    Container: {
+                        type: "object",
+                        properties: {
+                            pet: {
+                                anyOf: [
+                                    { "$ref": "#/components/schemas/Cat" },
+                                    { "$ref": "#/components/schemas/Dog" }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const result = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(result.TAG).toBe('Error');
+        expect(result._0.length).toBeGreaterThan(0);
+        expect(result._0[0].kind.TAG).toBe('MissingDiscriminator');
+        expect(result._0[0].hint).toContain('discriminator');
+    });
+
     test('uses _tag const value as variant case name', () => {
         const doc = {
             openapi: "3.0.0",
@@ -946,6 +1193,67 @@ describe('Code Generator', () => {
         // Should NOT use full schema names
         expect(code).not.toContain('TimelineResponse_AdsSchema_({');
         expect(code).not.toContain('SimpleSchema({');
+    });
+
+    test('end-to-end: OpenAPI with discriminator.propertyName generates correct ReScript', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Circle: {
+                        type: "object",
+                        properties: {
+                            shapeType: { type: "string", const: "Circle" },
+                            radius: { type: "number" }
+                        },
+                        required: ["shapeType", "radius"]
+                    },
+                    Rectangle: {
+                        type: "object",
+                        properties: {
+                            shapeType: { type: "string", const: "Rectangle" },
+                            width: { type: "number" },
+                            height: { type: "number" }
+                        },
+                        required: ["shapeType", "width", "height"]
+                    },
+                    Shape: {
+                        oneOf: [
+                            { "$ref": "#/components/schemas/Circle" },
+                            { "$ref": "#/components/schemas/Rectangle" }
+                        ],
+                        discriminator: { propertyName: "shapeType" }
+                    },
+                    Canvas: {
+                        type: "object",
+                        properties: {
+                            name: { type: "string" },
+                            shape: { "$ref": "#/components/schemas/Shape" }
+                        },
+                        required: ["name", "shape"]
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const genResult = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(genResult.TAG).toBe('Ok');
+
+        const code = genResult._0.code;
+
+        // Shape should be a variant with @tag("shapeType")
+        expect(code).toContain('@tag("shapeType")');
+        // Should have Circle and Rectangle cases
+        expect(code).toContain('Circle(');
+        expect(code).toContain('Rectangle(');
+        // Canvas should reference shape
+        expect(code).toContain('shape: shape');
+        // Should include module S = Sury
+        expect(code).toContain('module S = Sury');
+        // Should have @schema on all types
+        expect(code).toContain('@schema');
     });
 
 });

@@ -77,6 +77,9 @@ function formatError(error) {
       case "CircularReference" :
         kindStr = `Circular reference detected: "` + value._0 + `"`;
         break;
+      case "MissingDiscriminator" :
+        kindStr = `Missing discriminator for union "` + value._0 + `"`;
+        break;
       case "InvalidJson" :
         kindStr = `Invalid JSON: ` + value._0;
         break;

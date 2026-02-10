@@ -193,6 +193,8 @@ function formatErrorKind(kind) {
       return `Circular reference ${c.bold(`"${kind._0}"`)}`;
     case "AmbiguousUnion":
       return `Ambiguous union (anyOf/oneOf cannot be distinguished)`;
+    case "MissingDiscriminator":
+      return `Missing discriminator for union ${c.bold(`"${kind._0}"`)}`;
     case "InvalidJson":
       return `Invalid JSON: ${kind._0}`;
     default:
@@ -301,7 +303,27 @@ function generate(inputPath, outputPath) {
   log(`  ${sym.success} Parsed ${c.bold(String(schemaCount))} schema${schemaCount !== 1 ? "s" : ""} from ${c.cyan(inputPath)}`);
 
   // ── Generate code ──
-  const { code, warnings } = Codegen.generateModuleWithDiagnostics(schemas);
+  const genResult = Codegen.generateModuleWithDiagnostics(schemas);
+
+  if (genResult.TAG !== "Ok") {
+    const errors = genResult._0;
+    const count = errors.length;
+
+    err(
+      `  ${sym.error} ${c.boldRed(`${count} codegen error${count !== 1 ? "s" : ""}`)} in ${c.cyan(inputPath)}`
+    );
+    blank();
+
+    errors.forEach((error, i) => {
+      err(formatParseError(error, i));
+      if (i < errors.length - 1) blank();
+    });
+
+    blank();
+    process.exit(1);
+  }
+
+  const { code, warnings } = genResult._0;
 
   // ── Print warnings ──
   if (warnings.length > 0) {

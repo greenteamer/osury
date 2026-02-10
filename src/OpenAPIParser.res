@@ -5,6 +5,8 @@ type namedSchema = {
   name: string,
   schema: Schema.schemaType,
   discriminatorTag: option<string>, // _tag.const value if present
+  discriminatorPropertyName: option<string>, // discriminator.propertyName if present
+  fieldDiscriminators: option<Dict.t<string>>, // union name → discriminator propertyName (from field-level anyOf)
 }
 
 // Convert path to PascalCase name: /v1/math/ads/executive-summary → V1MathAdsExecutiveSummary
@@ -65,7 +67,7 @@ let parsePathResponses = (pathsJson: JSON.t): result<array<namedSchema>, Errors.
                       | Some(schemaJson) =>
                         let name = ucFirst(method) ++ pathToName(path) ++ "Response"
                         switch Schema.parse(schemaJson) {
-                        | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None}))
+                        | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None, discriminatorPropertyName: None, fieldDiscriminators: None}))
                         | Error(e) => Some(Error(e))
                         }
                       | None => None
@@ -108,6 +110,79 @@ let parsePathResponses = (pathsJson: JSON.t): result<array<namedSchema>, Errors.
   }
 }
 
+// Extract field-level discriminators from a schema's raw JSON
+// Returns a Dict mapping structural union name → discriminator propertyName
+// For use when extracting inline unions into standalone types
+let extractFieldDiscriminators = (schemaJson: JSON.t): Dict.t<string> => {
+  let result = Dict.make()
+  switch schemaJson {
+  | Object(dict) =>
+    switch dict->Dict.get("properties") {
+    | Some(Object(propsDict)) =>
+      propsDict->Dict.toArray->Array.forEach(((_, propJson)) => {
+        switch propJson {
+        | Object(propDict) =>
+          // Check if this property has anyOf + discriminator
+          switch (propDict->Dict.get("anyOf"), propDict->Dict.get("discriminator")) {
+          | (Some(Array(items)), Some(Object(discDict))) =>
+            switch discDict->Dict.get("propertyName") {
+            | Some(String(propName)) =>
+              // Build structural union name from the anyOf members
+              let memberNames = items->Array.filterMap(item => {
+                switch item {
+                | Object(itemDict) =>
+                  switch itemDict->Dict.get("$ref") {
+                  | Some(String(refPath)) =>
+                    let parts = refPath->String.split("/")
+                    parts->Array.get(Array.length(parts) - 1)
+                  | _ => None
+                  }
+                | _ => None
+                }
+              })
+              if Array.length(memberNames) >= 2 {
+                // Build structural name matching CodegenTransforms.getUnionName logic:
+                // lcFirst(first) ++ "Or" ++ ucFirst(second) ++ ...
+                let lcNames = memberNames->Array.map(n => {
+                  let first = n->String.charAt(0)->String.toLowerCase
+                  let rest = n->String.sliceToEnd(~start=1)
+                  first ++ rest
+                })
+                let firstName = lcNames->Array.get(0)->Option.getOr("unknown")
+                let restNames = lcNames->Array.sliceToEnd(~start=1)
+                let unionName = firstName ++ restNames->Array.map(n => "Or" ++ ucFirst(n))->Array.join("")
+                result->Dict.set(unionName, propName)
+              }
+            | _ => ()
+            }
+          | _ => ()
+          }
+        | _ => ()
+        }
+      })
+    | _ => ()
+    }
+  | _ => ()
+  }
+  result
+}
+
+// Extract discriminator.propertyName from a schema JSON
+let extractDiscriminatorPropertyName = (schemaJson: JSON.t): option<string> => {
+  switch schemaJson {
+  | Object(dict) =>
+    switch dict->Dict.get("discriminator") {
+    | Some(Object(discDict)) =>
+      switch discDict->Dict.get("propertyName") {
+      | Some(String(propName)) => Some(propName)
+      | _ => None
+      }
+    | _ => None
+    }
+  | _ => None
+  }
+}
+
 // Extract _tag.const value from a schema JSON (for discriminator)
 let extractDiscriminatorTag = (schemaJson: JSON.t): option<string> => {
   switch schemaJson {
@@ -137,8 +212,15 @@ let parseComponentSchemas = (componentsJson: JSON.t): result<array<namedSchema>,
       let entries = schemas->Dict.toArray
       let results = entries->Array.map(((name, schemaJson)) => {
         let discriminatorTag = extractDiscriminatorTag(schemaJson)
+        let discriminatorPropertyName = extractDiscriminatorPropertyName(schemaJson)
+        let fieldDiscs = extractFieldDiscriminators(schemaJson)
+        let fieldDiscriminators = if Dict.toArray(fieldDiscs)->Array.length > 0 {
+          Some(fieldDiscs)
+        } else {
+          None
+        }
         switch Schema.parse(schemaJson) {
-        | Ok(schemaType) => Ok({name, schema: schemaType, discriminatorTag})
+        | Ok(schemaType) => Ok({name, schema: schemaType, discriminatorTag, discriminatorPropertyName, fieldDiscriminators})
         | Error(e) => Error(e)
         }
       })
