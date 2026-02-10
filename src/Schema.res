@@ -89,6 +89,30 @@ let extractTagFromConst = (dict: Dict.t<JSON.t>): option<string> => {
   }
 }
 
+// Helper: extract tag value from a named property's const (for discriminator.propertyName)
+let extractTagFromProperty = (dict: Dict.t<JSON.t>, propertyName: string): option<string> => {
+  switch dict->Dict.get(propertyName) {
+  | Some(Object(tagDict)) =>
+    switch tagDict->Dict.get("const") {
+    | Some(String(tagValue)) => Some(tagValue)
+    | _ => None
+    }
+  | _ => None
+  }
+}
+
+// Helper: extract discriminator.propertyName from a dict
+let extractDiscriminatorPropertyName = (dict: Dict.t<JSON.t>): option<string> => {
+  switch dict->Dict.get("discriminator") {
+  | Some(Object(discDict)) =>
+    switch discDict->Dict.get("propertyName") {
+    | Some(String(propName)) => Some(propName)
+    | _ => None
+    }
+  | _ => None
+  }
+}
+
 // Forward declaration for recursive parsing
 let rec parseSchema = (json: JSON.t): result<schemaType, Errors.errors> => {
   switch json {
@@ -298,66 +322,75 @@ and parseAllOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
   }
 }
 
-// Helper: parse oneOf (discriminated union with _tag)
-and parseOneOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
+// Helper: parse oneOf (discriminated union with _tag or discriminator.propertyName)
+and parseOneOf = (items: array<JSON.t>, ~discriminatorPropertyName: option<string>=None): result<schemaType, Errors.errors> => {
+  let propName = discriminatorPropertyName->Option.getOr("_tag")
   let caseResults = items->Array.map(item => {
     switch item {
     | Object(dict) =>
-      switch dict->Dict.get("properties") {
-      | Some(Object(propsDict)) =>
-        // Extract _tag value
-        switch extractTagFromConst(propsDict) {
-        | Some(tag) =>
-          // Get required fields for filtering
-          let requiredFields = switch dict->Dict.get("required") {
-          | Some(Array(arr)) =>
-            arr->Array.filterMap(i =>
-              switch i {
-              | String(s) => Some(s)
-              | _ => None
-              }
-            )
-          | _ => []
-          }
-
-          // Parse properties excluding _tag
-          let entries = propsDict->Dict.toArray->Array.filter(((name, _)) => name != "_tag")
-          let fieldResults = entries->Array.map(((name, propSchema)) => {
-            switch parseSchema(propSchema) {
-            | Ok(propType) =>
-              Ok({
-                name,
-                type_: propType,
-                required: requiredFields->Array.includes(name),
-              })
-            | Error(e) => Error(e)
-            }
-          })
-
-          // Collect errors
-          let errors = fieldResults->Array.filterMap(r =>
-            switch r {
-            | Error(e) => Some(e)
-            | Ok(_) => None
-            }
-          )->Array.flat
-
-          if Array.length(errors) > 0 {
-            Error(errors)
-          } else {
-            let fields = fieldResults->Array.filterMap(r =>
-              switch r {
-              | Ok(f) => Some(f)
-              | Error(_) => None
-              }
-            )
-            Ok({tag, payload: Object(fields)})
-          }
-        | None =>
-          Error([Errors.makeError(~kind=MissingRequiredField("_tag with const"), ())])
-        }
+      // Check for $ref first
+      switch dict->Dict.get("$ref") {
+      | Some(String(refPath)) =>
+        // $ref item with discriminator — use ref name as tag
+        let name = extractRefName(refPath)
+        Ok({tag: name, payload: Ref(name)})
       | _ =>
-        Error([Errors.makeError(~kind=InvalidJson("oneOf item must have properties"), ())])
+        switch dict->Dict.get("properties") {
+        | Some(Object(propsDict)) =>
+          // Extract tag value from the discriminator property
+          switch extractTagFromProperty(propsDict, propName) {
+          | Some(tag) =>
+            // Get required fields for filtering
+            let requiredFields = switch dict->Dict.get("required") {
+            | Some(Array(arr)) =>
+              arr->Array.filterMap(i =>
+                switch i {
+                | String(s) => Some(s)
+                | _ => None
+                }
+              )
+            | _ => []
+            }
+
+            // Parse properties excluding discriminator property
+            let entries = propsDict->Dict.toArray->Array.filter(((name, _)) => name != propName)
+            let fieldResults = entries->Array.map(((name, propSchema)) => {
+              switch parseSchema(propSchema) {
+              | Ok(propType) =>
+                Ok({
+                  name,
+                  type_: propType,
+                  required: requiredFields->Array.includes(name),
+                })
+              | Error(e) => Error(e)
+              }
+            })
+
+            // Collect errors
+            let errors = fieldResults->Array.filterMap(r =>
+              switch r {
+              | Error(e) => Some(e)
+              | Ok(_) => None
+              }
+            )->Array.flat
+
+            if Array.length(errors) > 0 {
+              Error(errors)
+            } else {
+              let fields = fieldResults->Array.filterMap(r =>
+                switch r {
+                | Ok(f) => Some(f)
+                | Error(_) => None
+                }
+              )
+              Ok({tag, payload: Object(fields)})
+            }
+          | None =>
+            Error([Errors.makeError(~kind=MissingRequiredField(propName ++ " with const"), ())])
+          }
+        | _ =>
+          Error([Errors.makeError(~kind=InvalidJson("oneOf item must have properties"), ())])
+        }
       }
     | _ =>
       Error([Errors.makeError(~kind=InvalidJson("oneOf item must be object"), ())])
@@ -394,7 +427,9 @@ and parseObject = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
   | None =>
     // Check for oneOf (discriminated union)
     switch dict->Dict.get("oneOf") {
-    | Some(Array(items)) => parseOneOf(items)
+    | Some(Array(items)) =>
+      let discriminatorPropName = extractDiscriminatorPropertyName(dict)
+      parseOneOf(items, ~discriminatorPropertyName=discriminatorPropName)
     | Some(_) => Error([Errors.makeError(~kind=InvalidJson("oneOf must be an array"), ())])
     | None =>
       // Check for allOf

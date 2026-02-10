@@ -3,6 +3,7 @@
 import * as Errors from "./Errors.res.mjs";
 import * as Schema from "./Schema.res.mjs";
 import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
+import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 
 function pathToName(path) {
   return path.split("/").filter(s => {
@@ -92,7 +93,9 @@ function parsePathResponses(pathsJson) {
             _0: {
               name: name,
               schema: schemaType._0,
-              discriminatorTag: undefined
+              discriminatorTag: undefined,
+              discriminatorPropertyName: undefined,
+              fieldDiscriminators: undefined
             }
           };
         } else {
@@ -128,6 +131,86 @@ function parsePathResponses(pathsJson) {
     TAG: "Ok",
     _0: schemas
   };
+}
+
+function extractFieldDiscriminators(schemaJson) {
+  let result = {};
+  if (typeof schemaJson === "object" && schemaJson !== null && !Array.isArray(schemaJson)) {
+    let match = schemaJson["properties"];
+    if (typeof match === "object" && match !== null && !Array.isArray(match)) {
+      Object.entries(match).forEach(param => {
+        let propJson = param[1];
+        if (typeof propJson !== "object" || propJson === null || Array.isArray(propJson)) {
+          return;
+        }
+        let match = propJson["anyOf"];
+        let match$1 = propJson["discriminator"];
+        if (match === undefined) {
+          return;
+        }
+        if (!Array.isArray(match)) {
+          return;
+        }
+        if (match$1 === undefined) {
+          return;
+        }
+        if (typeof match$1 !== "object" || match$1 === null || Array.isArray(match$1)) {
+          return;
+        }
+        let match$2 = match$1["propertyName"];
+        if (match$2 === undefined) {
+          return;
+        }
+        if (typeof match$2 !== "string") {
+          return;
+        }
+        let memberNames = Core__Array.filterMap(match, item => {
+          if (typeof item !== "object" || item === null || Array.isArray(item)) {
+            return;
+          }
+          let match = item["$ref"];
+          if (match === undefined) {
+            return;
+          }
+          if (typeof match !== "string") {
+            return;
+          }
+          let parts = match.split("/");
+          return parts[parts.length - 1 | 0];
+        });
+        if (memberNames.length < 2) {
+          return;
+        }
+        let lcNames = memberNames.map(n => {
+          let first = n.charAt(0).toLowerCase();
+          let rest = n.slice(1);
+          return first + rest;
+        });
+        let firstName = Core__Option.getOr(lcNames[0], "unknown");
+        let restNames = lcNames.slice(1);
+        let unionName = firstName + restNames.map(n => "Or" + ucFirst(n)).join("");
+        result[unionName] = match$2;
+      });
+    }
+  }
+  return result;
+}
+
+function extractDiscriminatorPropertyName(schemaJson) {
+  if (typeof schemaJson !== "object" || schemaJson === null || Array.isArray(schemaJson)) {
+    return;
+  }
+  let match = schemaJson["discriminator"];
+  if (match === undefined) {
+    return;
+  }
+  if (typeof match !== "object" || match === null || Array.isArray(match)) {
+    return;
+  }
+  let match$1 = match["propertyName"];
+  if (typeof match$1 === "string") {
+    return match$1;
+  }
 }
 
 function extractDiscriminatorTag(schemaJson) {
@@ -169,6 +252,9 @@ function parseComponentSchemas(componentsJson) {
       let results = entries.map(param => {
         let schemaJson = param[1];
         let discriminatorTag = extractDiscriminatorTag(schemaJson);
+        let discriminatorPropertyName = extractDiscriminatorPropertyName(schemaJson);
+        let fieldDiscs = extractFieldDiscriminators(schemaJson);
+        let fieldDiscriminators = Object.entries(fieldDiscs).length > 0 ? fieldDiscs : undefined;
         let schemaType = Schema.parse(schemaJson);
         if (schemaType.TAG === "Ok") {
           return {
@@ -176,7 +262,9 @@ function parseComponentSchemas(componentsJson) {
             _0: {
               name: param[0],
               schema: schemaType._0,
-              discriminatorTag: discriminatorTag
+              discriminatorTag: discriminatorTag,
+              discriminatorPropertyName: discriminatorPropertyName,
+              fieldDiscriminators: fieldDiscriminators
             }
           };
         } else {
@@ -280,6 +368,8 @@ export {
   pathToName,
   ucFirst,
   parsePathResponses,
+  extractFieldDiscriminators,
+  extractDiscriminatorPropertyName,
   extractDiscriminatorTag,
   parseComponentSchemas,
   parseDocument,

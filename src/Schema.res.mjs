@@ -3,6 +3,7 @@
 import * as Errors from "./Errors.res.mjs";
 import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
+import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
 
 function isNullType(json) {
   if (typeof json !== "object" || json === null || Array.isArray(json)) {
@@ -45,6 +46,34 @@ function extractTagFromConst(dict) {
     return;
   }
   let match$1 = match["const"];
+  if (typeof match$1 === "string") {
+    return match$1;
+  }
+}
+
+function extractTagFromProperty(dict, propertyName) {
+  let match = dict[propertyName];
+  if (match === undefined) {
+    return;
+  }
+  if (typeof match !== "object" || match === null || Array.isArray(match)) {
+    return;
+  }
+  let match$1 = match["const"];
+  if (typeof match$1 === "string") {
+    return match$1;
+  }
+}
+
+function extractDiscriminatorPropertyName(dict) {
+  let match = dict["discriminator"];
+  if (match === undefined) {
+    return;
+  }
+  if (typeof match !== "object" || match === null || Array.isArray(match)) {
+    return;
+  }
+  let match$1 = match["propertyName"];
   if (typeof match$1 === "string") {
     return match$1;
   }
@@ -458,76 +487,23 @@ function parseAllOf(items) {
   };
 }
 
-function parseOneOf(items) {
+function parseOneOf(items, discriminatorPropertyNameOpt) {
+  let discriminatorPropertyName = discriminatorPropertyNameOpt !== undefined ? Primitive_option.valFromOption(discriminatorPropertyNameOpt) : undefined;
+  let propName = Core__Option.getOr(discriminatorPropertyName, "_tag");
   let caseResults = items.map(item => {
     if (typeof item === "object" && item !== null && !Array.isArray(item)) {
-      let match = item["properties"];
+      let match = item["$ref"];
       let exit = 0;
       if (match !== undefined) {
-        if (typeof match === "object" && match !== null && !Array.isArray(match)) {
-          let tag = extractTagFromConst(match);
-          if (tag === undefined) {
-            return {
-              TAG: "Error",
-              _0: [Errors.makeError({
-                  TAG: "MissingRequiredField",
-                  _0: "_tag with const"
-                }, undefined, undefined, undefined)]
-            };
-          }
-          let match$1 = item["required"];
-          let requiredFields = match$1 !== undefined ? (
-              Array.isArray(match$1) ? Core__Array.filterMap(match$1, i => {
-                  if (typeof i === "string") {
-                    return i;
-                  }
-                }) : []
-            ) : [];
-          let entries = Object.entries(match).filter(param => param[0] !== "_tag");
-          let fieldResults = entries.map(param => {
-            let name = param[0];
-            let propType = parseSchema(param[1]);
-            if (propType.TAG === "Ok") {
-              return {
-                TAG: "Ok",
-                _0: {
-                  name: name,
-                  type: propType._0,
-                  required: requiredFields.includes(name)
-                }
-              };
-            } else {
-              return {
-                TAG: "Error",
-                _0: propType._0
-              };
-            }
-          });
-          let errors = Core__Array.filterMap(fieldResults, r => {
-            if (r.TAG === "Ok") {
-              return;
-            } else {
-              return r._0;
-            }
-          }).flat();
-          if (errors.length > 0) {
-            return {
-              TAG: "Error",
-              _0: errors
-            };
-          }
-          let fields = Core__Array.filterMap(fieldResults, r => {
-            if (r.TAG === "Ok") {
-              return r._0;
-            }
-          });
+        if (typeof match === "string") {
+          let name = extractRefName(match);
           return {
             TAG: "Ok",
             _0: {
-              _tag: tag,
+              _tag: name,
               payload: {
-                _tag: "Object",
-                _0: fields
+                _tag: "Ref",
+                _0: name
               }
             }
           };
@@ -537,13 +513,90 @@ function parseOneOf(items) {
         exit = 2;
       }
       if (exit === 2) {
-        return {
-          TAG: "Error",
-          _0: [Errors.makeError({
-              TAG: "InvalidJson",
-              _0: "oneOf item must have properties"
-            }, undefined, undefined, undefined)]
-        };
+        let match$1 = item["properties"];
+        let exit$1 = 0;
+        if (match$1 !== undefined) {
+          if (typeof match$1 === "object" && match$1 !== null && !Array.isArray(match$1)) {
+            let tag = extractTagFromProperty(match$1, propName);
+            if (tag === undefined) {
+              return {
+                TAG: "Error",
+                _0: [Errors.makeError({
+                    TAG: "MissingRequiredField",
+                    _0: propName + " with const"
+                  }, undefined, undefined, undefined)]
+              };
+            }
+            let match$2 = item["required"];
+            let requiredFields = match$2 !== undefined ? (
+                Array.isArray(match$2) ? Core__Array.filterMap(match$2, i => {
+                    if (typeof i === "string") {
+                      return i;
+                    }
+                  }) : []
+              ) : [];
+            let entries = Object.entries(match$1).filter(param => param[0] !== propName);
+            let fieldResults = entries.map(param => {
+              let name = param[0];
+              let propType = parseSchema(param[1]);
+              if (propType.TAG === "Ok") {
+                return {
+                  TAG: "Ok",
+                  _0: {
+                    name: name,
+                    type: propType._0,
+                    required: requiredFields.includes(name)
+                  }
+                };
+              } else {
+                return {
+                  TAG: "Error",
+                  _0: propType._0
+                };
+              }
+            });
+            let errors = Core__Array.filterMap(fieldResults, r => {
+              if (r.TAG === "Ok") {
+                return;
+              } else {
+                return r._0;
+              }
+            }).flat();
+            if (errors.length > 0) {
+              return {
+                TAG: "Error",
+                _0: errors
+              };
+            }
+            let fields = Core__Array.filterMap(fieldResults, r => {
+              if (r.TAG === "Ok") {
+                return r._0;
+              }
+            });
+            return {
+              TAG: "Ok",
+              _0: {
+                _tag: tag,
+                payload: {
+                  _tag: "Object",
+                  _0: fields
+                }
+              }
+            };
+          }
+          exit$1 = 3;
+        } else {
+          exit$1 = 3;
+        }
+        if (exit$1 === 3) {
+          return {
+            TAG: "Error",
+            _0: [Errors.makeError({
+                TAG: "InvalidJson",
+                _0: "oneOf item must have properties"
+              }, undefined, undefined, undefined)]
+          };
+        }
       }
     }
     return {
@@ -604,7 +657,8 @@ function parseObject(dict) {
   let match$1 = dict["oneOf"];
   if (match$1 !== undefined) {
     if (Array.isArray(match$1)) {
-      return parseOneOf(match$1);
+      let discriminatorPropName = extractDiscriminatorPropertyName(dict);
+      return parseOneOf(match$1, Primitive_option.some(discriminatorPropName));
     }
     return {
       TAG: "Error",
@@ -651,6 +705,8 @@ export {
   extractRefName,
   parseEnumValues,
   extractTagFromConst,
+  extractTagFromProperty,
+  extractDiscriminatorPropertyName,
   parseSchema,
   parsePrimitiveType,
   parseArrayType,

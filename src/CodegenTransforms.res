@@ -336,3 +336,91 @@ let collectUnionWarnings = (schemas: array<OpenAPIParser.namedSchema>): array<st
 
   warnings
 }
+
+// Validate that Union types of object refs have a discriminator
+// Returns errors for unions that need but lack a discriminator
+let validateUnionDiscriminators = (schemas: array<OpenAPIParser.namedSchema>): Errors.errors => {
+  let seen = Dict.make()
+  let errors = []
+
+  // Build a dict of all schemas for lookups
+  let schemasDict = Dict.make()
+  schemas->Array.forEach(s => {
+    schemasDict->Dict.set(s.name, s.schema)
+  })
+
+  // Build a dict of discriminator tags (from _tag.const)
+  let tagsDict = Dict.make()
+  schemas->Array.forEach(s => {
+    switch s.discriminatorTag {
+    | Some(tag) => tagsDict->Dict.set(s.name, tag)
+    | None => ()
+    }
+  })
+
+  // Build a dict of field discriminators from all schemas
+  let fieldDiscsDict = Dict.make()
+  schemas->Array.forEach(s => {
+    switch s.fieldDiscriminators {
+    | Some(dict) =>
+      dict->Dict.toArray->Array.forEach(((unionName, propName)) => {
+        fieldDiscsDict->Dict.set(unionName, propName)
+      })
+    | None => ()
+    }
+  })
+
+  // Check each schema for undiscriminated unions
+  let rec findUnions = (schema: Schema.schemaType): array<array<Schema.schemaType>> => {
+    switch schema {
+    | Union(types) => [types]
+    | Optional(inner) | Nullable(inner) | Array(inner) | Dict(inner) => findUnions(inner)
+    | Object(fields) => fields->Array.flatMap(f => findUnions(f.type_))
+    | _ => []
+    }
+  }
+
+  schemas->Array.forEach(s => {
+    let unions = findUnions(s.schema)
+    unions->Array.forEach(types => {
+      let unionName = getUnionName(types)
+      if seen->Dict.get(unionName)->Option.isNone {
+        seen->Dict.set(unionName, true)
+        // Skip primitive-only unions (they use @unboxed, no discriminator needed)
+        if !CodegenHelpers.isPrimitiveOnlyUnion(types) {
+          // Skip Ref+Dict unions (they get simplified to just Ref)
+          switch isRefPlusDictUnion(types) {
+          | Some(_) => ()
+          | None =>
+            // Skip Primitive+Dict unions (warning, not error)
+            switch isPrimitivePlusDictUnion(types) {
+            | Some(_) => ()
+            | None =>
+              // Check if this union has a field-level discriminator
+              if fieldDiscsDict->Dict.get(unionName)->Option.isNone {
+                // Check if all Ref members have _tag discriminator tags
+                let allRefsHaveTags = types->Array.every(t =>
+                  switch t {
+                  | Schema.Ref(name) => tagsDict->Dict.get(name)->Option.isSome
+                  | _ => true // non-Ref types (primitives) are ok
+                  }
+                )
+                if !allRefsHaveTags {
+                  errors->Array.push(
+                    Errors.makeError(
+                      ~kind=MissingDiscriminator(unionName),
+                      ~hint=Some("Add discriminator: { propertyName: \"type\" } to the anyOf/oneOf schema, or use the _tag convention with const values"),
+                      ()
+                    )
+                  )->ignore
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+  })
+
+  errors
+}

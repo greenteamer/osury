@@ -26,6 +26,7 @@ let getDependencies = CodegenTransforms.getDependencies
 let topologicalSort = CodegenTransforms.topologicalSort
 let buildSkipSchemaSet = CodegenTransforms.buildSkipSchemaSet
 let collectUnionWarnings = CodegenTransforms.collectUnionWarnings
+let validateUnionDiscriminators = CodegenTransforms.validateUnionDiscriminators
 
 // Re-export code generation for backward compatibility
 let generateType = CodegenTypes.generateType
@@ -55,14 +56,25 @@ type generateResult = {
 // 5. Build: schemas dict for inline record lookups
 // 6. Sort: topological order (Kahn's algorithm)
 // 7. Generate: ReScript code for each type
-let generateModuleWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): generateResult => {
+let generateModuleWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): result<generateResult, Errors.errors> => {
+  // Step 0: Validate — check that all object-ref unions have discriminators
+  let validationErrors = CodegenTransforms.validateUnionDiscriminators(schemas)
+  if Array.length(validationErrors) > 0 {
+    Error(validationErrors)
+  } else {
+
   // Step 1: Diagnose — collect warnings for problematic unions
   let warnings = CodegenTransforms.collectUnionWarnings(schemas)
 
   // Step 2: Extract — find all inline unions in each schema
   let extractedUnions = schemas->Array.flatMap(s => {
     CodegenTransforms.extractUnions(s.name, s.schema)->Array.map(extracted => {
-      {OpenAPIParser.name: extracted.name, schema: extracted.schema, discriminatorTag: None}
+      // Look up discriminator property name from parent schema's fieldDiscriminators
+      let discriminatorPropertyName = switch s.fieldDiscriminators {
+      | Some(dict) => dict->Dict.get(extracted.name)
+      | None => None
+      }
+      {OpenAPIParser.name: extracted.name, schema: extracted.schema, discriminatorTag: None, discriminatorPropertyName, fieldDiscriminators: None}
     })
   })
 
@@ -79,7 +91,7 @@ let generateModuleWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>):
 
   // Step 4: Replace — unions with refs in original schemas
   let modifiedSchemas = schemas->Array.map(s => {
-    {OpenAPIParser.name: s.name, schema: CodegenTransforms.replaceUnions(s.name, s.schema), discriminatorTag: s.discriminatorTag}
+    {OpenAPIParser.name: s.name, schema: CodegenTransforms.replaceUnions(s.name, s.schema), discriminatorTag: s.discriminatorTag, discriminatorPropertyName: s.discriminatorPropertyName, fieldDiscriminators: s.fieldDiscriminators}
   })
 
   // Step 5: Combine — unique unions + modified originals
@@ -103,13 +115,19 @@ let generateModuleWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>):
 
   // Add module alias required by sury-ppx
   let code = "module S = Sury\n\n" ++ typeDefs
-  {code, warnings}
+  Ok({code, warnings})
+  }
 }
 
 // Generate full module (backward-compatible wrapper)
 // Prints warnings to console and returns code string
 let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
-  let result = generateModuleWithDiagnostics(schemas)
-  result.warnings->Array.forEach(w => Console.log(w))
-  result.code
+  switch generateModuleWithDiagnostics(schemas) {
+  | Ok(result) =>
+    result.warnings->Array.forEach(w => Console.log(w))
+    result.code
+  | Error(errors) =>
+    errors->Array.forEach(e => Console.error(Errors.formatError(e)))
+    ""
+  }
 }

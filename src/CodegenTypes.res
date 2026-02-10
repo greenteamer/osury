@@ -127,14 +127,31 @@ let generateTypeDefWithSkipSet = (
   tagsDict: Dict.t<string>
 ): string => {
   let typeName = CodegenHelpers.lcFirst(namedSchema.name)
+  let tagName = namedSchema.discriminatorPropertyName->Option.getOr("_tag")
 
   switch namedSchema.schema {
+  | PolyVariant(cases) =>
+    // Discriminated union from oneOf — generate variant with @tag
+    let variantBody = cases->Array.map(c => {
+      switch c.payload {
+      | Ref(refName) =>
+        let inlineRecord = generateInlineRecord(refName, schemasDict)
+        `${CodegenHelpers.ucFirst(c.tag)}(${inlineRecord})`
+      | _ =>
+        let payloadStr = generateType(c.payload)
+        `${CodegenHelpers.ucFirst(c.tag)}(${payloadStr})`
+      }
+    })->Array.join(" | ")
+    `@genType
+@tag("${tagName}")
+@schema
+type ${typeName} = ${variantBody}`
   | Union(types) =>
     if CodegenHelpers.isPrimitiveOnlyUnion(types) {
       // Primitive-only union → @unboxed works
       let variantBody = generateVariantBody(types)
       `@genType
-@tag("_tag")
+@tag("${tagName}")
 @unboxed
 @schema
 type ${typeName} = ${variantBody}`
@@ -142,7 +159,7 @@ type ${typeName} = ${variantBody}`
       // Union with object types → inline Refs, keep primitives/Dict as-is
       let variantBody = generateInlineVariantBody(types, schemasDict, tagsDict)
       `@genType
-@tag("_tag")
+@tag("${tagName}")
 @schema
 type ${typeName} = ${variantBody}`
     }
@@ -158,13 +175,14 @@ type ${typeName} = ${typeBody}`
 // Public API: Generate type definition (for single schema without context)
 let generateTypeDef = (namedSchema: OpenAPIParser.namedSchema): string => {
   let typeName = CodegenHelpers.lcFirst(namedSchema.name)
+  let tagName = namedSchema.discriminatorPropertyName->Option.getOr("_tag")
 
   switch namedSchema.schema {
   | Union(types) =>
-    // Extracted union → generate variant with @tag("_tag")
+    // Extracted union → generate variant with @tag
     let variantBody = generateVariantBody(types)
     `@genType
-@tag("_tag")
+@tag("${tagName}")
 @unboxed
 @schema
 type ${typeName} = ${variantBody}`
