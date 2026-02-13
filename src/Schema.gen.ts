@@ -17,6 +17,7 @@ export type schemaType =
   | "Integer"
   | "Boolean"
   | "Null"
+  | "Unknown"
   | { _tag: "Optional"; _0: schemaType }
   | { _tag: "Nullable"; _0: schemaType }
   | { _tag: "Object"; _0: field[] }

@@ -19,6 +19,9 @@ function printPrimitive(p) {
 }
 
 function printType(t) {
+  if (typeof t !== "object") {
+    return "JSON.t";
+  }
   switch (t.TAG) {
     case "Primitive" :
       return printPrimitive(t._0);

@@ -23,6 +23,7 @@ function generate(_schema, schemasDict) {
         case "Boolean" :
           return true;
         case "Null" :
+        case "Unknown" :
           return null;
       }
     } else {

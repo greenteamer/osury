@@ -22,6 +22,7 @@ let rec convertType = (schema: Schema.schemaType): IR.irType => {
       let payload = convertType(c.payload)
       {IR.tag: c.tag, payload}
     }))
+  | Unknown => JSON
   | Union(types) =>
     InlineVariant(types->Array.map(t => {
       let tag = CodegenHelpers.getTagForType(t)
@@ -73,9 +74,11 @@ let convertToIrTypeDef = (
   namedSchema: OpenAPIParser.namedSchema,
   schemasDict: Dict.t<Schema.schemaType>,
   tagsDict: Dict.t<string>,
+  skipSchemaSet: Dict.t<bool>,
 ): IR.irTypeDef => {
   let typeName = CodegenHelpers.lcFirst(namedSchema.name)
   let tagName = namedSchema.discriminatorPropertyName->Option.getOr("_tag")
+  let shouldSkipSchema = skipSchemaSet->Dict.get(namedSchema.name)->Option.isSome
 
   switch namedSchema.schema {
   | PolyVariant(cases) =>
@@ -93,9 +96,14 @@ let convertToIrTypeDef = (
       }
       {IR.tag: CodegenHelpers.ucFirst(c.tag), payload}
     })
+    let annotations = if shouldSkipSchema {
+      [IR.GenType, Tag(tagName)]
+    } else {
+      [IR.GenType, Tag(tagName), Schema]
+    }
     {
       IR.name: typeName,
-      annotations: [GenType, Tag(tagName), Schema],
+      annotations,
       kind: VariantDef(irCases),
     }
 
@@ -107,9 +115,14 @@ let convertToIrTypeDef = (
         let payload = convertType(t)
         {IR.tag: tag, payload}
       })
+      let annotations = if shouldSkipSchema {
+        [IR.GenType, Tag(tagName), Unboxed]
+      } else {
+        [IR.GenType, Tag(tagName), Unboxed, Schema]
+      }
       {
         IR.name: typeName,
-        annotations: [GenType, Tag(tagName), Unboxed, Schema],
+        annotations,
         kind: VariantDef(irCases),
       }
     } else {
@@ -134,9 +147,14 @@ let convertToIrTypeDef = (
           {IR.tag: tag, payload}
         }
       })
+      let annotations = if shouldSkipSchema {
+        [IR.GenType, Tag(tagName)]
+      } else {
+        [IR.GenType, Tag(tagName), Schema]
+      }
       {
         IR.name: typeName,
-        annotations: [GenType, Tag(tagName), Schema],
+        annotations,
         kind: VariantDef(irCases),
       }
     }
@@ -147,9 +165,14 @@ let convertToIrTypeDef = (
     | Object(fields) => IR.RecordDef(fields->Array.map(convertField))
     | _ => AliasDef(convertType(namedSchema.schema))
     }
+    let annotations = if shouldSkipSchema {
+      [IR.GenType]
+    } else {
+      [IR.GenType, IR.Schema]
+    }
     {
       IR.name: typeName,
-      annotations: [GenType, Schema],
+      annotations,
       kind,
     }
   }
@@ -207,11 +230,14 @@ let generate = (schemas: array<OpenAPIParser.namedSchema>): result<IR.irModule, 
     }
   })
 
-  // Step 7: Topo sort
+  // Step 7: Build skip-schema set (propagates through refs)
+  let skipSchemaSet = CodegenTransforms.buildSkipSchemaSet(allSchemas)
+
+  // Step 8: Topo sort
   let sorted = CodegenTransforms.topologicalSort(allSchemas)
 
-  // Step 8: Convert to IR
-  let irTypes = sorted->Array.map(s => convertToIrTypeDef(s, schemasDict, tagsDict))
+  // Step 9: Convert to IR
+  let irTypes = sorted->Array.map(s => convertToIrTypeDef(s, schemasDict, tagsDict, skipSchemaSet))
 
   Ok({
     IR.preamble: "module S = Sury",

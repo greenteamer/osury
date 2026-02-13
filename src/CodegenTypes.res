@@ -20,6 +20,7 @@ let rec generateType = (schema: Schema.schemaType): string => {
   | Object(fields) => generateRecord(fields)
   | PolyVariant(cases) => generatePolyVariant(cases)
   | Union(types) => generateUnion(types)
+  | Unknown => "JSON.t"
   }
 }
 
@@ -188,7 +189,7 @@ let generateTypeDef = (namedSchema: OpenAPIParser.namedSchema): string => {
 type ${typeName} = ${variantBody}`
   | _ =>
     // Regular type
-    let annotations = if CodegenHelpers.hasUnion(namedSchema.schema) {
+    let annotations = if CodegenHelpers.hasUnion(namedSchema.schema) || CodegenHelpers.hasUnknown(namedSchema.schema) {
       "@genType"
     } else {
       "@genType\n@schema"

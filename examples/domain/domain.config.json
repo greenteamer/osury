@@ -1,0 +1,99 @@
+{
+  "modules": {
+    "AdsSummary": {
+      "source": "getAdsExecutiveSummaryResponse",
+      "fields": {
+        "ad_sales": {
+          "type": "Metric.t",
+          "mapper": "AdsSummaryMappers.adSales"
+        },
+        "ad_spend": {
+          "type": "Metric.t",
+          "mapper": "AdsSummaryMappers.adSpend"
+        },
+        "ad_ctr": {
+          "type": "Metric.t",
+          "mapper": "AdsSummaryMappers.adCtr"
+        },
+        "ad_impressions": {
+          "type": "Metric.t",
+          "mapper": "AdsSummaryMappers.adImpressions"
+        },
+        "ad_clicks": {
+          "type": "Metric.t",
+          "mapper": "AdsSummaryMappers.adClicks"
+        },
+        "ad_roas": {
+          "type": "Metric.t",
+          "mapper": "AdsSummaryMappers.adRoas"
+        },
+        "ad_acos": {
+          "type": "Metric.t",
+          "mapper": "AdsSummaryMappers.adAcos"
+        },
+        "ad_cpc": {
+          "type": "Metric.t",
+          "mapper": "AdsSummaryMappers.adCpc"
+        },
+        "campaign": {
+          "type": "string",
+          "source": "campaignName"
+        },
+        "status": {
+          "type": "string",
+          "source": "campaignStatus"
+        },
+        "date_range": {
+          "type": "dateRange",
+          "source": "dateRange"
+        }
+      }
+    },
+    "CampaignRow": {
+      "source": "campaign",
+      "fields": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "budget": {
+          "type": "Metric.t",
+          "mapper": "CampaignMappers.budget"
+        },
+        "spend": {
+          "type": "Metric.t",
+          "mapper": "CampaignMappers.spend"
+        },
+        "sales": {
+          "type": "Metric.t",
+          "mapper": "CampaignMappers.sales"
+        },
+        "impressions": {
+          "type": "Metric.t",
+          "mapper": "CampaignMappers.impressions"
+        },
+        "clicks": {
+          "type": "Metric.t",
+          "mapper": "CampaignMappers.clicks"
+        },
+        "ctr": {
+          "type": "Metric.t",
+          "mapper": "CampaignMappers.ctr"
+        },
+        "roas": {
+          "type": "Metric.t",
+          "mapper": "CampaignMappers.roas"
+        },
+        "acos": {
+          "type": "Metric.t",
+          "mapper": "CampaignMappers.acos"
+        }
+      }
+    }
+  }
+}

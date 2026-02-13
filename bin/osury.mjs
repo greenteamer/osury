@@ -2,6 +2,9 @@
 
 import * as OpenAPIParser from "../src/OpenAPIParser.res.mjs";
 import * as Codegen from "../src/Codegen.res.mjs";
+import * as DomainConfig from "../src/DomainConfig.res.mjs";
+import * as DomainGen from "../src/DomainGen.res.mjs";
+import * as DomainBackend from "../src/DomainBackend.res.mjs";
 import fs from "fs";
 import path from "path";
 import { createRequire } from "module";
@@ -78,6 +81,7 @@ function printHelp() {
   log(`  ${c.bold("Usage")}`);
   log(`    ${c.cyan("$")} osury ${c.cyan("<input.json>")} ${c.dim("[output.res]")}`);
   log(`    ${c.cyan("$")} osury generate ${c.cyan("<input.json>")} -o ${c.cyan("<output.res>")}`);
+  log(`    ${c.cyan("$")} osury domain ${c.dim("[options]")}`);
   blank();
   log(`  ${c.bold("Options")}`);
   log(`    ${c.cyan("-o")}, ${c.cyan("--output")}    Output file path ${c.dim("(default: ./Generated.res)")}`);
@@ -85,10 +89,16 @@ function printHelp() {
   log(`    ${c.cyan("-v")}, ${c.cyan("--version")}   Show version`);
   log(`    ${c.cyan("--no-color")}    Disable colored output`);
   blank();
+  log(`  ${c.bold("Domain options")}`);
+  log(`    ${c.cyan("--config")}      Config file path ${c.dim("(default: domain.config.json)")}`);
+  log(`    ${c.cyan("--api-module")}  API module name ${c.dim("(default: Api)")}`);
+  log(`    ${c.cyan("-o")}            Output directory ${c.dim("(default: src/domains/)")}`);
+  blank();
   log(`  ${c.bold("Examples")}`);
   log(`    ${c.cyan("$")} osury openapi.json`);
   log(`    ${c.cyan("$")} osury openapi.json src/API.res`);
   log(`    ${c.cyan("$")} osury generate schema.json -o src/Schema.res`);
+  log(`    ${c.cyan("$")} osury domain --config domain.config.json --api-module Api`);
   blank();
 }
 
@@ -368,18 +378,166 @@ function generate(inputPath, outputPath) {
   blank();
 }
 
-// ─── Entry point ─────────────────────────────────────────────────────────────
+// ─── Domain arg parsing ─────────────────────────────────────────────────────
 
-const options = parseArgs(process.argv.slice(2));
+function parseDomainArgs(args) {
+  const options = {
+    config: "domain.config.json",
+    apiModule: "Api",
+    outputDir: "src/domains/",
+  };
 
-if (!options.input) {
-  header();
-  err(`  ${sym.error} ${c.boldRed("No input file specified")}`);
-  blank();
-  err(`  ${c.dim("Usage:")} osury ${c.cyan("<input.json>")} ${c.dim("[output.res]")}`);
-  err(`  ${c.dim("Help:")}  osury ${c.cyan("--help")}`);
-  blank();
-  process.exit(1);
+  let i = 0;
+  while (i < args.length) {
+    const arg = args[i];
+
+    if (arg === "-h" || arg === "--help") {
+      printHelp();
+      process.exit(0);
+    } else if (arg === "--config") {
+      i++;
+      if (i >= args.length) {
+        header();
+        err(`  ${sym.error} ${c.boldRed("Missing value for --config")}`);
+        blank();
+        process.exit(1);
+      }
+      options.config = args[i];
+    } else if (arg === "--api-module") {
+      i++;
+      if (i >= args.length) {
+        header();
+        err(`  ${sym.error} ${c.boldRed("Missing value for --api-module")}`);
+        blank();
+        process.exit(1);
+      }
+      options.apiModule = args[i];
+    } else if (arg === "-o" || arg === "--output") {
+      i++;
+      if (i >= args.length) {
+        header();
+        err(`  ${sym.error} ${c.boldRed("Missing value for --output")}`);
+        blank();
+        process.exit(1);
+      }
+      options.outputDir = args[i];
+    } else if (arg === "--no-color") {
+      // already handled
+    }
+    i++;
+  }
+
+  return options;
 }
 
-generate(options.input, options.output);
+// ─── Domain generate ────────────────────────────────────────────────────────
+
+function generateDomain(options) {
+  const start = performance.now();
+
+  header();
+  log(`  ${c.dim("Mode:")} domain module generation`);
+  blank();
+
+  // ── Check config file exists ──
+  if (!fs.existsSync(options.config)) {
+    err(`  ${sym.error} ${c.boldRed("Config not found:")} ${c.cyan(options.config)}`);
+    blank();
+    process.exit(1);
+  }
+
+  // ── Read & parse config JSON ──
+  let configJson;
+  try {
+    const raw = fs.readFileSync(options.config, "utf8");
+    configJson = JSON.parse(raw);
+  } catch (e) {
+    err(`  ${sym.error} ${c.boldRed("Invalid JSON")} in ${c.cyan(options.config)}`);
+    blank();
+    if (e instanceof SyntaxError) {
+      err(`     ${c.red(e.message)}`);
+    } else {
+      err(`     ${c.red(e.message)}`);
+    }
+    blank();
+    process.exit(1);
+  }
+
+  // ── Parse domain config ──
+  const parseResult = DomainConfig.parse(configJson);
+
+  if (parseResult.TAG !== "Ok") {
+    const errors = parseResult._0;
+    const count = errors.length;
+
+    err(
+      `  ${sym.error} ${c.boldRed(`${count} config error${count !== 1 ? "s" : ""}`)} in ${c.cyan(options.config)}`
+    );
+    blank();
+
+    errors.forEach((error, i) => {
+      err(formatParseError(error, i));
+      if (i < errors.length - 1) blank();
+    });
+
+    blank();
+    process.exit(1);
+  }
+
+  const config = parseResult._0;
+  const moduleCount = config.modules.length;
+  log(`  ${sym.success} Parsed ${c.bold(String(moduleCount))} domain module${moduleCount !== 1 ? "s" : ""} from ${c.cyan(options.config)}`);
+
+  // ── Generate domain modules ──
+  const modules = DomainGen.generate(config, options.apiModule);
+
+  // ── Ensure output directory exists ──
+  if (!fs.existsSync(options.outputDir)) {
+    fs.mkdirSync(options.outputDir, { recursive: true });
+  }
+
+  // ── Write each module ──
+  const writtenFiles = [];
+  modules.forEach((mod) => {
+    const code = DomainBackend.printModule(mod);
+    const outputPath = path.join(options.outputDir, mod.output);
+    fs.writeFileSync(outputPath, code);
+    writtenFiles.push(outputPath);
+  });
+
+  // ── Success output ──
+  blank();
+  log(`  ${sym.success} Generated ${c.bold(String(writtenFiles.length))} domain module${writtenFiles.length !== 1 ? "s" : ""}`);
+  blank();
+  log(`  ${c.dim("Files written:")}`);
+  writtenFiles.forEach((f) => {
+    log(`    ${sym.bullet} ${c.cyan(f)}`);
+  });
+  blank();
+  log(`  ${c.dim(`Done in ${elapsed(start)}`)}`);
+  blank();
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+const rawArgs = process.argv.slice(2);
+
+// Check for "domain" subcommand
+if (rawArgs[0] === "domain") {
+  const domainOptions = parseDomainArgs(rawArgs.slice(1));
+  generateDomain(domainOptions);
+} else {
+  const options = parseArgs(rawArgs);
+
+  if (!options.input) {
+    header();
+    err(`  ${sym.error} ${c.boldRed("No input file specified")}`);
+    blank();
+    err(`  ${c.dim("Usage:")} osury ${c.cyan("<input.json>")} ${c.dim("[output.res]")}`);
+    err(`  ${c.dim("Help:")}  osury ${c.cyan("--help")}`);
+    blank();
+    process.exit(1);
+  }
+
+  generate(options.input, options.output);
+}

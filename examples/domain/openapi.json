@@ -1,0 +1,95 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Ads Executive API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/ads/executive-summary": {
+      "get": {
+        "operationId": "getAdsExecutiveSummary",
+        "responses": {
+          "200": {
+            "description": "Ads executive summary",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GetAdsExecutiveSummaryResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ads/campaigns": {
+      "get": {
+        "operationId": "getAdsCampaigns",
+        "responses": {
+          "200": {
+            "description": "Campaign list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Campaign" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GetAdsExecutiveSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "adSales": { "type": "number" },
+          "adSpend": { "type": "number" },
+          "adCtr": { "type": "number" },
+          "adImpressions": { "type": "integer" },
+          "adClicks": { "type": "integer" },
+          "adRoas": { "type": "number" },
+          "adAcos": { "type": "number" },
+          "adCpc": { "type": "number" },
+          "campaignName": { "type": "string" },
+          "campaignStatus": { "type": "string" },
+          "dateRange": { "$ref": "#/components/schemas/DateRange" }
+        },
+        "required": [
+          "adSales", "adSpend", "adCtr", "adImpressions", "adClicks",
+          "adRoas", "adAcos", "adCpc", "campaignName", "campaignStatus",
+          "dateRange"
+        ]
+      },
+      "Campaign": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "status": { "type": "string" },
+          "budget": { "type": "number" },
+          "spend": { "type": "number" },
+          "sales": { "type": "number" },
+          "impressions": { "type": "integer" },
+          "clicks": { "type": "integer" },
+          "ctr": { "type": "number" },
+          "roas": { "type": "number" },
+          "acos": { "type": "number" }
+        },
+        "required": [
+          "id", "name", "status", "budget", "spend", "sales",
+          "impressions", "clicks", "ctr", "roas", "acos"
+        ]
+      },
+      "DateRange": {
+        "type": "object",
+        "properties": {
+          "start": { "type": "string" },
+          "end": { "type": "string" }
+        },
+        "required": ["start", "end"]
+      }
+    }
+  }
+}

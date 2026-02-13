@@ -72,19 +72,34 @@ let rec getTagForType = (t: Schema.schemaType): string => {
   | Object(_) => "Object"
   | PolyVariant(_) => "Variant"
   | Union(_) => "Union"
+  | Unknown => "Unknown"
   }
 }
 
 // Check if schema contains inline Union types (incompatible with @schema PPX)
 let rec hasUnion = (schema: Schema.schemaType): bool => {
   switch schema {
-  | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) => false
+  | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => false
   | Union(_) => true
   | Optional(inner) | Nullable(inner) => hasUnion(inner)
   | Array(inner) => hasUnion(inner)
   | Dict(inner) => hasUnion(inner)
   | Object(fields) => fields->Array.some(f => hasUnion(f.type_))
   | PolyVariant(cases) => cases->Array.some(c => hasUnion(c.payload))
+  }
+}
+
+// Check if schema contains Unknown type (incompatible with @schema PPX — no sury schema for JSON.t)
+let rec hasUnknown = (schema: Schema.schemaType): bool => {
+  switch schema {
+  | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) => false
+  | Unknown => true
+  | Union(_) => false // unions are extracted before this check
+  | Optional(inner) | Nullable(inner) => hasUnknown(inner)
+  | Array(inner) => hasUnknown(inner)
+  | Dict(inner) => hasUnknown(inner)
+  | Object(fields) => fields->Array.some(f => hasUnknown(f.type_))
+  | PolyVariant(cases) => cases->Array.some(c => hasUnknown(c.payload))
   }
 }
 

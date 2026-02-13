@@ -120,6 +120,8 @@ function getTagForType(t) {
         return "Bool";
       case "Null" :
         return "Null";
+      case "Unknown" :
+        return "Unknown";
     }
   } else {
     switch (t._tag) {
@@ -170,6 +172,29 @@ function hasUnion(_schema) {
   };
 }
 
+function hasUnknown(_schema) {
+  while (true) {
+    let schema = _schema;
+    if (typeof schema !== "object") {
+      return schema === "Unknown";
+    }
+    switch (schema._tag) {
+      case "Object" :
+        return schema._0.some(f => hasUnknown(f.type));
+      case "PolyVariant" :
+        return schema._0.some(c => hasUnknown(c.payload));
+      case "Optional" :
+      case "Nullable" :
+      case "Array" :
+      case "Dict" :
+        _schema = schema._0;
+        continue;
+      default:
+        return false;
+    }
+  };
+}
+
 function isPrimitiveOnlyUnion(types) {
   return types.every(t => {
     if (typeof t === "object") {
@@ -196,6 +221,7 @@ export {
   isNullableType,
   getTagForType,
   hasUnion,
+  hasUnknown,
   isPrimitiveOnlyUnion,
 }
 /* No side effect */

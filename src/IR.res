@@ -21,6 +21,7 @@ type rec irType =
   | Enum(array<string>)
   | InlineRecord(array<irField>) // for variant case payloads
   | InlineVariant(array<irVariantCase>) // for poly variant types used inline
+  | JSON // any value (OpenAPI schema without type)
 
 and irField = {
   name: string, // final name ("type_" if reserved)

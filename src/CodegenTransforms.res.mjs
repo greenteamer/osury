@@ -89,6 +89,8 @@ function getUnionName(types) {
           return "bool";
         case "Null" :
           return "null";
+        default:
+          return "unknown";
       }
     } else {
       switch (t._tag) {
@@ -331,7 +333,7 @@ function topologicalSort(schemas) {
 function buildSkipSchemaSet(schemas) {
   let skipSet = {};
   schemas.forEach(s => {
-    if (CodegenHelpers.hasUnion(s.schema)) {
+    if (CodegenHelpers.hasUnion(s.schema) || CodegenHelpers.hasUnknown(s.schema)) {
       skipSet[s.name] = true;
       return;
     }

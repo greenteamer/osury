@@ -94,110 +94,115 @@ function parseSchema(json) {
 
 function parsePrimitiveType(dict) {
   let match = dict["type"];
-  if (match === undefined) {
-    return {
-      TAG: "Error",
-      _0: [Errors.missingField("type", undefined, undefined, undefined)]
-    };
-  }
-  if (typeof match === "string") {
-    switch (match) {
-      case "array" :
-        return parseArrayType(dict);
-      case "boolean" :
-        return {
-          TAG: "Ok",
-          _0: "Boolean"
-        };
-      case "integer" :
-        return {
-          TAG: "Ok",
-          _0: "Integer"
-        };
-      case "null" :
-        return {
-          TAG: "Ok",
-          _0: "Null"
-        };
-      case "number" :
-        return {
-          TAG: "Ok",
-          _0: "Number"
-        };
-      case "object" :
-        return parseObjectType(dict);
-      case "string" :
-        let match$1 = dict["const"];
-        let exit = 0;
-        if (match$1 !== undefined) {
-          if (typeof match$1 === "string") {
-            return {
-              TAG: "Ok",
-              _0: {
-                _tag: "Enum",
-                _0: [match$1]
-              }
-            };
-          }
-          exit = 2;
-        } else {
-          exit = 2;
-        }
-        if (exit === 2) {
-          let match$2 = dict["enum"];
-          if (match$2 === undefined) {
-            return {
-              TAG: "Ok",
-              _0: "String"
-            };
-          }
-          let exit$1 = 0;
-          if (Array.isArray(match$2)) {
-            let values = parseEnumValues(match$2);
-            if (values !== undefined) {
+  if (match !== undefined) {
+    if (typeof match === "string") {
+      switch (match) {
+        case "array" :
+          return parseArrayType(dict);
+        case "boolean" :
+          return {
+            TAG: "Ok",
+            _0: "Boolean"
+          };
+        case "integer" :
+          return {
+            TAG: "Ok",
+            _0: "Integer"
+          };
+        case "null" :
+          return {
+            TAG: "Ok",
+            _0: "Null"
+          };
+        case "number" :
+          return {
+            TAG: "Ok",
+            _0: "Number"
+          };
+        case "object" :
+          return parseObjectType(dict);
+        case "string" :
+          let match$1 = dict["const"];
+          let exit = 0;
+          if (match$1 !== undefined) {
+            if (typeof match$1 === "string") {
               return {
                 TAG: "Ok",
                 _0: {
                   _tag: "Enum",
-                  _0: values
+                  _0: [match$1]
                 }
               };
-            } else {
+            }
+            exit = 2;
+          } else {
+            exit = 2;
+          }
+          if (exit === 2) {
+            let match$2 = dict["enum"];
+            if (match$2 === undefined) {
+              return {
+                TAG: "Ok",
+                _0: "String"
+              };
+            }
+            let exit$1 = 0;
+            if (Array.isArray(match$2)) {
+              let values = parseEnumValues(match$2);
+              if (values !== undefined) {
+                return {
+                  TAG: "Ok",
+                  _0: {
+                    _tag: "Enum",
+                    _0: values
+                  }
+                };
+              } else {
+                return {
+                  TAG: "Error",
+                  _0: [Errors.makeError({
+                      TAG: "InvalidJson",
+                      _0: "enum values must be strings"
+                    }, undefined, undefined, undefined)]
+                };
+              }
+            }
+            exit$1 = 3;
+            if (exit$1 === 3) {
               return {
                 TAG: "Error",
                 _0: [Errors.makeError({
                     TAG: "InvalidJson",
-                    _0: "enum values must be strings"
+                    _0: "enum must be an array"
                   }, undefined, undefined, undefined)]
               };
             }
           }
-          exit$1 = 3;
-          if (exit$1 === 3) {
-            return {
-              TAG: "Error",
-              _0: [Errors.makeError({
-                  TAG: "InvalidJson",
-                  _0: "enum must be an array"
-                }, undefined, undefined, undefined)]
-            };
-          }
-        }
-        break;
-      default:
-        return {
-          TAG: "Error",
-          _0: [Errors.unknownType(match, undefined, undefined, undefined)]
-        };
+          break;
+        default:
+          return {
+            TAG: "Error",
+            _0: [Errors.unknownType(match, undefined, undefined, undefined)]
+          };
+      }
     }
+    return {
+      TAG: "Error",
+      _0: [Errors.makeError({
+          TAG: "InvalidJson",
+          _0: "type must be a string"
+        }, undefined, undefined, undefined)]
+    };
   }
-  return {
-    TAG: "Error",
-    _0: [Errors.makeError({
-        TAG: "InvalidJson",
-        _0: "type must be a string"
-      }, undefined, undefined, undefined)]
-  };
+  let match$3 = dict["properties"];
+  if (match$3 !== undefined) {
+    return parseObjectType(dict);
+  } else {
+    return {
+      TAG: "Ok",
+      _0: "Unknown"
+    };
+  }
 }
 
 function parseArrayType(dict) {
