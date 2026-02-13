@@ -16,6 +16,8 @@ function generateType(schema) {
         return "bool";
       case "Null" :
         return "unit";
+      case "Unknown" :
+        return "JSON.t";
     }
   } else {
     switch (schema._tag) {
@@ -165,7 +167,7 @@ function generateTypeDef(namedSchema) {
 @schema
 type ` + typeName + ` = ` + variantBody;
   }
-  let annotations = CodegenHelpers.hasUnion(namedSchema.schema) ? "@genType" : "@genType\n@schema";
+  let annotations = CodegenHelpers.hasUnion(namedSchema.schema) || CodegenHelpers.hasUnknown(namedSchema.schema) ? "@genType" : "@genType\n@schema";
   let typeBody = generateType(namedSchema.schema);
   return annotations + `
 type ` + typeName + ` = ` + typeBody;

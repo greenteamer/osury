@@ -25,7 +25,7 @@ OpenAPI JSON → Schema.parse → SchemaAST → Codegen.generateModule → ReScr
 
 Тип `Schema.schemaType` определяет всё, что компилятор умеет обрабатывать. Новая OpenAPI-конструкция поддерживается тогда и только тогда, когда она выражена в `schemaType`.
 
-Текущие варианты (14):
+Текущие варианты (15):
 ```
 String | Number | Integer | Boolean | Null
 | Optional(schemaType) | Nullable(schemaType)
@@ -33,6 +33,7 @@ String | Number | Integer | Boolean | Null
 | Ref(string) | Enum(array<string>)
 | PolyVariant(array<variantCase>)
 | Dict(schemaType) | Union(array<schemaType>)
+| Unknown
 ```
 
 **При добавлении нового варианта** — обязательно обновить всех потребителей (см. Правило 3).

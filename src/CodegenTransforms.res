@@ -164,7 +164,7 @@ and replaceUnionInType = (schema: Schema.schemaType): Schema.schemaType => {
 // Extract all Ref dependencies from a schema type
 let rec getDependencies = (schema: Schema.schemaType): array<string> => {
   switch schema {
-  | String | Number | Integer | Boolean | Null => []
+  | String | Number | Integer | Boolean | Null | Unknown => []
   | Optional(inner) | Nullable(inner) => getDependencies(inner)
   | Array(inner) => getDependencies(inner)
   | Dict(inner) => getDependencies(inner)
@@ -267,9 +267,9 @@ let topologicalSort = (schemas: array<OpenAPIParser.namedSchema>): array<OpenAPI
 let buildSkipSchemaSet = (schemas: array<OpenAPIParser.namedSchema>): Dict.t<bool> => {
   let skipSet = Dict.make()
 
-  // First pass: mark types with inline Union
+  // First pass: mark types with inline Union or Unknown (JSON.t)
   schemas->Array.forEach(s => {
-    if CodegenHelpers.hasUnion(s.schema) {
+    if CodegenHelpers.hasUnion(s.schema) || CodegenHelpers.hasUnknown(s.schema) {
       skipSet->Dict.set(s.name, true)
     }
   })

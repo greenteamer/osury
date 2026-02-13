@@ -15,7 +15,7 @@ let buildSchemasDict = (schemas: array<OpenAPIParser.namedSchema>): schemasDict 
 }
 
 // Generate sample JSON value from a schemaType
-// Exhaustive match on all 14 variants (Rule 3)
+// Exhaustive match on all 15 variants (Rule 3)
 let rec generate = (schema: Schema.schemaType, schemasDict: schemasDict): JSON.t => {
   switch schema {
   // Primitives
@@ -88,6 +88,9 @@ let rec generate = (schema: Schema.schemaType, schemasDict: schemasDict): JSON.t
     | Some(firstType) => generate(firstType, schemasDict)
     | None => JSON.Encode.null
     }
+
+  // Unknown — any JSON value
+  | Unknown => JSON.Encode.null
   }
 }
 

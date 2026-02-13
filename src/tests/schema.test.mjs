@@ -33,13 +33,27 @@ describe('Schema Parser', () => {
         expect(result._0[0].location.path).toEqual([]);
     });
 
-    test('error: missing type field', () => {
+    test('parse unknown type (no type field)', () => {
         const input = { title: "User" };
         const result = Schema.parse(input);
 
-        expect(result.TAG).toBe('Error');
-        expect(result._0[0].kind.TAG).toBe('MissingRequiredField');
-        expect(result._0[0].kind._0).toBe('type');
+        expect(result.TAG).toBe('Ok');
+        expect(result._0).toBe('Unknown');
+    });
+
+    test('parse implicit object (properties without type)', () => {
+        const input = {
+            properties: {
+                name: { type: "string" }
+            },
+            required: ["name"]
+        };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Object');
+        expect(result._0._0.length).toBe(1);
+        expect(result._0._0[0].name).toBe('name');
     });
 
     test('parse nullable (anyOf with null)', () => {

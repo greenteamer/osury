@@ -25,6 +25,7 @@ let rec printType = (t: IR.irType): string => {
     `[${variants}]`
   | InlineRecord(fields) => printRecord(fields)
   | InlineVariant(cases) => printVariantCases(cases)
+  | JSON => "JSON.t"
   }
 }
 

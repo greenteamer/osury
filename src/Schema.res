@@ -34,6 +34,7 @@ and schemaType =
   | PolyVariant(array<variantCase>)
   | Dict(schemaType)
   | Union(array<schemaType>)
+  | Unknown
 
 // Helper: check if schema is null type
 let isNullType = (json: JSON.t): bool => {
@@ -148,7 +149,12 @@ and parsePrimitiveType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.error
   | Some(String("array")) => parseArrayType(dict)
   | Some(String(unknown)) => Error([Errors.unknownType(~value=unknown, ())])
   | Some(_) => Error([Errors.makeError(~kind=InvalidJson("type must be a string"), ())])
-  | None => Error([Errors.missingField(~field="type", ())])
+  | None =>
+    // No type field: check if properties exist (implicit object) or treat as unknown/any
+    switch dict->Dict.get("properties") {
+    | Some(_) => parseObjectType(dict)
+    | None => Ok(Unknown)
+    }
   }
 }
 

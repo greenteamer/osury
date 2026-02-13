@@ -32,6 +32,8 @@ function convertType(schema) {
           TAG: "Primitive",
           _0: "PUnit"
         };
+      case "Unknown" :
+        return "JSON";
     }
   } else {
     switch (schema._tag) {
@@ -121,9 +123,10 @@ function convertField(field) {
   };
 }
 
-function convertToIrTypeDef(namedSchema, schemasDict, tagsDict) {
+function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet) {
   let typeName = CodegenHelpers.lcFirst(namedSchema.name);
   let tagName = Core__Option.getOr(namedSchema.discriminatorPropertyName, "_tag");
+  let shouldSkipSchema = Core__Option.isSome(skipSchemaSet[namedSchema.name]);
   let cases = namedSchema.schema;
   if (typeof cases === "object") {
     switch (cases._tag) {
@@ -151,16 +154,23 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict) {
             payload: payload
           };
         });
-        return {
-          name: typeName,
-          annotations: [
+        let annotations = shouldSkipSchema ? [
+            "GenType",
+            {
+              TAG: "Tag",
+              _0: tagName
+            }
+          ] : [
             "GenType",
             {
               TAG: "Tag",
               _0: tagName
             },
             "Schema"
-          ],
+          ];
+        return {
+          name: typeName,
+          annotations: annotations,
           kind: {
             TAG: "VariantDef",
             _0: irCases
@@ -177,9 +187,14 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict) {
               payload: payload
             };
           });
-          return {
-            name: typeName,
-            annotations: [
+          let annotations$1 = shouldSkipSchema ? [
+              "GenType",
+              {
+                TAG: "Tag",
+                _0: tagName
+              },
+              "Unboxed"
+            ] : [
               "GenType",
               {
                 TAG: "Tag",
@@ -187,7 +202,10 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict) {
               },
               "Unboxed",
               "Schema"
-            ],
+            ];
+          return {
+            name: typeName,
+            annotations: annotations$1,
             kind: {
               TAG: "VariantDef",
               _0: irCases$1
@@ -221,16 +239,23 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict) {
             payload: payload$1
           };
         });
-        return {
-          name: typeName,
-          annotations: [
+        let annotations$2 = shouldSkipSchema ? [
+            "GenType",
+            {
+              TAG: "Tag",
+              _0: tagName
+            }
+          ] : [
             "GenType",
             {
               TAG: "Tag",
               _0: tagName
             },
             "Schema"
-          ],
+          ];
+        return {
+          name: typeName,
+          annotations: annotations$2,
           kind: {
             TAG: "VariantDef",
             _0: irCases$2
@@ -247,12 +272,13 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict) {
       TAG: "RecordDef",
       _0: fields._0.map(convertField)
     });
-  return {
-    name: typeName,
-    annotations: [
+  let annotations$3 = shouldSkipSchema ? ["GenType"] : [
       "GenType",
       "Schema"
-    ],
+    ];
+  return {
+    name: typeName,
+    annotations: annotations$3,
     kind: kind
   };
 }
@@ -304,8 +330,9 @@ function generate(schemas) {
       return;
     }
   });
+  let skipSchemaSet = CodegenTransforms.buildSkipSchemaSet(allSchemas);
   let sorted = CodegenTransforms.topologicalSort(allSchemas);
-  let irTypes = sorted.map(s => convertToIrTypeDef(s, schemasDict, tagsDict));
+  let irTypes = sorted.map(s => convertToIrTypeDef(s, schemasDict, tagsDict, skipSchemaSet));
   return {
     TAG: "Ok",
     _0: {

@@ -2,7 +2,7 @@
   "name": "osury",
   "type": "module",
   "description": "Generate ReScript types with Sury schemas from OpenAPI specifications",
-  "version": "0.17.3",
+  "version": "0.19.0",
   "license": "MIT",
   "bin": {
     "osury": "bin/osury.mjs"
@@ -21,6 +21,10 @@
     "src/OpenAPIParser.res.mjs",
     "src/Schema.res.mjs",
     "src/Schema.gen.tsx",
+    "src/DomainConfig.res.mjs",
+    "src/DomainIR.res.mjs",
+    "src/DomainGen.res.mjs",
+    "src/DomainBackend.res.mjs",
     "README.md"
   ],
   "scripts": {
