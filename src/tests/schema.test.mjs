@@ -890,8 +890,9 @@ describe('Code Generator', () => {
         const parseResult = OpenAPIParser.parseDocument(doc);
         const code = Codegen.generateModule(parseResult._0);
 
-        // Should have @unboxed for primitive union
+        // Should have @unboxed and @schema for primitive union
         expect(code).toContain('@unboxed');
+        expect(code).toContain('@schema');
         expect(code).toContain('type stringOrInt = String(string) | Int(int)');
     });
 
