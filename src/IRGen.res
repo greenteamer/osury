@@ -96,14 +96,10 @@ let convertToIrTypeDef = (
       }
       {IR.tag: CodegenHelpers.ucFirst(c.tag), payload}
     })
-    let annotations = if shouldSkipSchema {
-      [IR.GenType, Tag(tagName)]
-    } else {
-      [IR.GenType, Tag(tagName), Schema]
-    }
+    // Variant types always get @schema — they inline records, always PPX-compatible
     {
       IR.name: typeName,
-      annotations,
+      annotations: [IR.GenType, Tag(tagName), Schema],
       kind: VariantDef(irCases),
     }
 
@@ -115,14 +111,10 @@ let convertToIrTypeDef = (
         let payload = convertType(t)
         {IR.tag: tag, payload}
       })
-      let annotations = if shouldSkipSchema {
-        [IR.GenType, Tag(tagName), Unboxed]
-      } else {
-        [IR.GenType, Tag(tagName), Unboxed, Schema]
-      }
+      // Variant types always get @schema — they inline records, always PPX-compatible
       {
         IR.name: typeName,
-        annotations,
+        annotations: [IR.GenType, Tag(tagName), Unboxed, Schema],
         kind: VariantDef(irCases),
       }
     } else {
@@ -147,14 +139,10 @@ let convertToIrTypeDef = (
           {IR.tag: tag, payload}
         }
       })
-      let annotations = if shouldSkipSchema {
-        [IR.GenType, Tag(tagName)]
-      } else {
-        [IR.GenType, Tag(tagName), Schema]
-      }
+      // Variant types always get @schema — they inline records, always PPX-compatible
       {
         IR.name: typeName,
-        annotations,
+        annotations: [IR.GenType, Tag(tagName), Schema],
         kind: VariantDef(irCases),
       }
     }
