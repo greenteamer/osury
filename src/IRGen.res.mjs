@@ -154,23 +154,16 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet) {
             payload: payload
           };
         });
-        let annotations = shouldSkipSchema ? [
-            "GenType",
-            {
-              TAG: "Tag",
-              _0: tagName
-            }
-          ] : [
+        return {
+          name: typeName,
+          annotations: [
             "GenType",
             {
               TAG: "Tag",
               _0: tagName
             },
             "Schema"
-          ];
-        return {
-          name: typeName,
-          annotations: annotations,
+          ],
           kind: {
             TAG: "VariantDef",
             _0: irCases
@@ -187,14 +180,9 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet) {
               payload: payload
             };
           });
-          let annotations$1 = shouldSkipSchema ? [
-              "GenType",
-              {
-                TAG: "Tag",
-                _0: tagName
-              },
-              "Unboxed"
-            ] : [
+          return {
+            name: typeName,
+            annotations: [
               "GenType",
               {
                 TAG: "Tag",
@@ -202,10 +190,7 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet) {
               },
               "Unboxed",
               "Schema"
-            ];
-          return {
-            name: typeName,
-            annotations: annotations$1,
+            ],
             kind: {
               TAG: "VariantDef",
               _0: irCases$1
@@ -239,23 +224,16 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet) {
             payload: payload$1
           };
         });
-        let annotations$2 = shouldSkipSchema ? [
-            "GenType",
-            {
-              TAG: "Tag",
-              _0: tagName
-            }
-          ] : [
+        return {
+          name: typeName,
+          annotations: [
             "GenType",
             {
               TAG: "Tag",
               _0: tagName
             },
             "Schema"
-          ];
-        return {
-          name: typeName,
-          annotations: annotations$2,
+          ],
           kind: {
             TAG: "VariantDef",
             _0: irCases$2
@@ -272,13 +250,13 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet) {
       TAG: "RecordDef",
       _0: fields._0.map(convertField)
     });
-  let annotations$3 = shouldSkipSchema ? ["GenType"] : [
+  let annotations = shouldSkipSchema ? ["GenType"] : [
       "GenType",
       "Schema"
     ];
   return {
     name: typeName,
-    annotations: annotations$3,
+    annotations: annotations,
     kind: kind
   };
 }
