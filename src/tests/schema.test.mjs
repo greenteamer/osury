@@ -1502,4 +1502,132 @@ describe('Sample Data Generator', () => {
             total: 42
         });
     });
+
+    test('extractUnions finds PolyVariant in object field', () => {
+        const schema = {
+            _tag: 'Object',
+            _0: [{
+                name: 'filters',
+                type: {
+                    _tag: 'Array',
+                    _0: {
+                        _tag: 'PolyVariant',
+                        _0: [
+                            { _tag: 'Cat', payload: { _tag: 'Ref', _0: 'Cat' } },
+                            { _tag: 'Dog', payload: { _tag: 'Ref', _0: 'Dog' } }
+                        ]
+                    }
+                },
+                required: true
+            }]
+        };
+        const extracted = Codegen.extractUnions('Parent', schema);
+
+        expect(extracted.length).toBe(1);
+        expect(extracted[0].name).toBe('catOrDog');
+        expect(extracted[0].schema._tag).toBe('PolyVariant');
+    });
+
+    test('replaceUnions replaces PolyVariant with Ref', () => {
+        const schema = {
+            _tag: 'Object',
+            _0: [{
+                name: 'filters',
+                type: {
+                    _tag: 'Array',
+                    _0: {
+                        _tag: 'PolyVariant',
+                        _0: [
+                            { _tag: 'Cat', payload: { _tag: 'Ref', _0: 'Cat' } },
+                            { _tag: 'Dog', payload: { _tag: 'Ref', _0: 'Dog' } }
+                        ]
+                    }
+                },
+                required: true
+            }]
+        };
+        const replaced = Codegen.replaceUnions('Parent', schema);
+
+        const field = replaced._0.find(f => f.name === 'filters');
+        // Array(Ref("catOrDog"))
+        expect(field.type._tag).toBe('Array');
+        expect(field.type._0._tag).toBe('Ref');
+        expect(field.type._0._0).toBe('catOrDog');
+    });
+
+    test('extractFieldDiscriminators handles oneOf + discriminator inside items', () => {
+        const schemaJson = {
+            type: "object",
+            properties: {
+                filters: {
+                    type: "array",
+                    items: {
+                        oneOf: [
+                            { "$ref": "#/components/schemas/MultiSelect" },
+                            { "$ref": "#/components/schemas/SingleSelect" }
+                        ],
+                        discriminator: { propertyName: "type" }
+                    }
+                }
+            }
+        };
+        const result = OpenAPIParser.extractFieldDiscriminators(schemaJson);
+        expect(result['multiSelectOrSingleSelect']).toBe('type');
+    });
+
+    test('generateModule extracts PolyVariant from array items with oneOf + discriminator', () => {
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    MultiSelect: {
+                        type: "object",
+                        properties: {
+                            type: { type: "string", const: "multi_select" },
+                            values: { type: "array", items: { type: "string" } }
+                        },
+                        required: ["type", "values"]
+                    },
+                    SingleSelect: {
+                        type: "object",
+                        properties: {
+                            type: { type: "string", const: "single_select" },
+                            value: { type: "string" }
+                        },
+                        required: ["type", "value"]
+                    },
+                    DemoFilters: {
+                        type: "object",
+                        properties: {
+                            filters: {
+                                type: "array",
+                                items: {
+                                    oneOf: [
+                                        { "$ref": "#/components/schemas/MultiSelect" },
+                                        { "$ref": "#/components/schemas/SingleSelect" }
+                                    ],
+                                    discriminator: { propertyName: "type" }
+                                }
+                            }
+                        },
+                        required: ["filters"]
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+        // Should extract PolyVariant into named type with @tag("type")
+        expect(code).toContain('@tag("type")');
+        expect(code).toContain('type multiSelectOrSingleSelect =');
+        // Should have variant cases with inline records
+        expect(code).toContain('MultiSelect(');
+        expect(code).toContain('SingleSelect(');
+        // DemoFilters should reference the extracted type
+        expect(code).toContain('filters: array<multiSelectOrSingleSelect>');
+        // Both types should have @schema
+        expect(code).toContain('@schema');
+    });
 });

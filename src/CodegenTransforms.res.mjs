@@ -113,6 +113,10 @@ function getUnionName(types) {
   return first + rest.map(n => "Or" + CodegenHelpers.ucFirst(n)).join("");
 }
 
+function getPolyVariantName(cases) {
+  return getUnionName(cases.map(c => c.payload));
+}
+
 function extractUnionsFromType(_schema) {
   while (true) {
     let schema = _schema;
@@ -122,6 +126,12 @@ function extractUnionsFromType(_schema) {
     switch (schema._tag) {
       case "Object" :
         return schema._0.flatMap(field => extractUnionsFromType(field.type));
+      case "PolyVariant" :
+        let name = getPolyVariantName(schema._0);
+        return [{
+            name: name,
+            schema: schema
+          }];
       case "Optional" :
       case "Nullable" :
       case "Array" :
@@ -134,9 +144,9 @@ function extractUnionsFromType(_schema) {
         if (match !== undefined) {
           return [];
         }
-        let name = getUnionName(types);
+        let name$1 = getUnionName(types);
         return [{
-            name: name,
+            name: name$1,
             schema: schema
           }];
       default:
@@ -187,6 +197,11 @@ function replaceUnionInType(schema) {
       return {
         _tag: "Array",
         _0: replaceUnionInType(schema._0)
+      };
+    case "PolyVariant" :
+      return {
+        _tag: "Ref",
+        _0: getPolyVariantName(schema._0)
       };
     case "Dict" :
       return {
@@ -499,6 +514,7 @@ export {
   isRefPlusDictUnion,
   isPrimitivePlusDictUnion,
   getUnionName,
+  getPolyVariantName,
   extractUnions,
   extractUnionsFromType,
   replaceUnions,

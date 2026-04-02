@@ -113,6 +113,42 @@ let parsePathResponses = (pathsJson: JSON.t): result<array<namedSchema>, Errors.
 // Extract field-level discriminators from a schema's raw JSON
 // Returns a Dict mapping structural union name → discriminator propertyName
 // For use when extracting inline unions into standalone types
+// Helper: extract discriminator mapping from (items, discriminator) pair
+// Returns Some((unionName, propertyName)) if valid
+let extractDiscriminatorFromPair = (items: array<JSON.t>, discDict: Dict.t<JSON.t>): option<(string, string)> => {
+  switch discDict->Dict.get("propertyName") {
+  | Some(String(propName)) =>
+    let memberNames = items->Array.filterMap(item => {
+      switch item {
+      | Object(itemDict) =>
+        switch itemDict->Dict.get("$ref") {
+        | Some(String(refPath)) =>
+          let parts = refPath->String.split("/")
+          parts->Array.get(Array.length(parts) - 1)
+        | _ => None
+        }
+      | _ => None
+      }
+    })
+    if Array.length(memberNames) >= 2 {
+      // Build structural name matching CodegenTransforms.getUnionName logic:
+      // lcFirst(first) ++ "Or" ++ ucFirst(second) ++ ...
+      let lcNames = memberNames->Array.map(n => {
+        let first = n->String.charAt(0)->String.toLowerCase
+        let rest = n->String.sliceToEnd(~start=1)
+        first ++ rest
+      })
+      let firstName = lcNames->Array.get(0)->Option.getOr("unknown")
+      let restNames = lcNames->Array.sliceToEnd(~start=1)
+      let unionName = firstName ++ restNames->Array.map(n => "Or" ++ ucFirst(n))->Array.join("")
+      Some((unionName, propName))
+    } else {
+      None
+    }
+  | _ => None
+  }
+}
+
 let extractFieldDiscriminators = (schemaJson: JSON.t): Dict.t<string> => {
   let result = Dict.make()
   switch schemaJson {
@@ -122,40 +158,43 @@ let extractFieldDiscriminators = (schemaJson: JSON.t): Dict.t<string> => {
       propsDict->Dict.toArray->Array.forEach(((_, propJson)) => {
         switch propJson {
         | Object(propDict) =>
-          // Check if this property has anyOf + discriminator
-          switch (propDict->Dict.get("anyOf"), propDict->Dict.get("discriminator")) {
-          | (Some(Array(items)), Some(Object(discDict))) =>
-            switch discDict->Dict.get("propertyName") {
-            | Some(String(propName)) =>
-              // Build structural union name from the anyOf members
-              let memberNames = items->Array.filterMap(item => {
-                switch item {
-                | Object(itemDict) =>
-                  switch itemDict->Dict.get("$ref") {
-                  | Some(String(refPath)) =>
-                    let parts = refPath->String.split("/")
-                    parts->Array.get(Array.length(parts) - 1)
-                  | _ => None
-                  }
+          // Check direct anyOf/oneOf + discriminator on property
+          let directItems = switch propDict->Dict.get("anyOf") {
+          | Some(Array(items)) => Some(items)
+          | _ =>
+            switch propDict->Dict.get("oneOf") {
+            | Some(Array(items)) => Some(items)
+            | _ => None
+            }
+          }
+          switch (directItems, propDict->Dict.get("discriminator")) {
+          | (Some(items), Some(Object(discDict))) =>
+            switch extractDiscriminatorFromPair(items, discDict) {
+            | Some((unionName, propName)) => result->Dict.set(unionName, propName)
+            | None => ()
+            }
+          | _ =>
+            // Check anyOf/oneOf + discriminator inside items (for array fields)
+            switch propDict->Dict.get("items") {
+            | Some(Object(itemsDict)) =>
+              let nestedItems = switch itemsDict->Dict.get("anyOf") {
+              | Some(Array(items)) => Some(items)
+              | _ =>
+                switch itemsDict->Dict.get("oneOf") {
+                | Some(Array(items)) => Some(items)
                 | _ => None
                 }
-              })
-              if Array.length(memberNames) >= 2 {
-                // Build structural name matching CodegenTransforms.getUnionName logic:
-                // lcFirst(first) ++ "Or" ++ ucFirst(second) ++ ...
-                let lcNames = memberNames->Array.map(n => {
-                  let first = n->String.charAt(0)->String.toLowerCase
-                  let rest = n->String.sliceToEnd(~start=1)
-                  first ++ rest
-                })
-                let firstName = lcNames->Array.get(0)->Option.getOr("unknown")
-                let restNames = lcNames->Array.sliceToEnd(~start=1)
-                let unionName = firstName ++ restNames->Array.map(n => "Or" ++ ucFirst(n))->Array.join("")
-                result->Dict.set(unionName, propName)
+              }
+              switch (nestedItems, itemsDict->Dict.get("discriminator")) {
+              | (Some(items), Some(Object(discDict))) =>
+                switch extractDiscriminatorFromPair(items, discDict) {
+                | Some((unionName, propName)) => result->Dict.set(unionName, propName)
+                | None => ()
+                }
+              | _ => ()
               }
             | _ => ()
             }
-          | _ => ()
           }
         | _ => ()
         }

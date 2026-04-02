@@ -18,6 +18,7 @@ type extractedUnion = CodegenTransforms.extractedUnion
 let isRefPlusDictUnion = CodegenTransforms.isRefPlusDictUnion
 let isPrimitivePlusDictUnion = CodegenTransforms.isPrimitivePlusDictUnion
 let getUnionName = CodegenTransforms.getUnionName
+let getPolyVariantName = CodegenTransforms.getPolyVariantName
 let extractUnions = CodegenTransforms.extractUnions
 let extractUnionsFromType = CodegenTransforms.extractUnionsFromType
 let replaceUnions = CodegenTransforms.replaceUnions
