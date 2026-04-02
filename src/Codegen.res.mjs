@@ -66,6 +66,8 @@ let isPrimitivePlusDictUnion = CodegenTransforms.isPrimitivePlusDictUnion;
 
 let getUnionName = CodegenTransforms.getUnionName;
 
+let getPolyVariantName = CodegenTransforms.getPolyVariantName;
+
 let extractUnions = CodegenTransforms.extractUnions;
 
 let extractUnionsFromType = CodegenTransforms.extractUnionsFromType;
@@ -115,6 +117,7 @@ export {
   isRefPlusDictUnion,
   isPrimitivePlusDictUnion,
   getUnionName,
+  getPolyVariantName,
   extractUnions,
   extractUnionsFromType,
   replaceUnions,

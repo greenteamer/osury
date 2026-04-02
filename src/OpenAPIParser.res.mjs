@@ -133,6 +133,45 @@ function parsePathResponses(pathsJson) {
   };
 }
 
+function extractDiscriminatorFromPair(items, discDict) {
+  let match = discDict["propertyName"];
+  if (match === undefined) {
+    return;
+  }
+  if (typeof match !== "string") {
+    return;
+  }
+  let memberNames = Core__Array.filterMap(items, item => {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
+      return;
+    }
+    let match = item["$ref"];
+    if (match === undefined) {
+      return;
+    }
+    if (typeof match !== "string") {
+      return;
+    }
+    let parts = match.split("/");
+    return parts[parts.length - 1 | 0];
+  });
+  if (memberNames.length < 2) {
+    return;
+  }
+  let lcNames = memberNames.map(n => {
+    let first = n.charAt(0).toLowerCase();
+    let rest = n.slice(1);
+    return first + rest;
+  });
+  let firstName = Core__Option.getOr(lcNames[0], "unknown");
+  let restNames = lcNames.slice(1);
+  let unionName = firstName + restNames.map(n => "Or" + ucFirst(n)).join("");
+  return [
+    unionName,
+    match
+  ];
+}
+
 function extractFieldDiscriminators(schemaJson) {
   let result = {};
   if (typeof schemaJson === "object" && schemaJson !== null && !Array.isArray(schemaJson)) {
@@ -144,52 +183,71 @@ function extractFieldDiscriminators(schemaJson) {
           return;
         }
         let match = propJson["anyOf"];
-        let match$1 = propJson["discriminator"];
-        if (match === undefined) {
-          return;
+        let directItems;
+        let exit = 0;
+        if (Array.isArray(match)) {
+          directItems = match;
+        } else {
+          exit = 1;
         }
-        if (!Array.isArray(match)) {
-          return;
+        if (exit === 1) {
+          let match$1 = propJson["oneOf"];
+          directItems = Array.isArray(match$1) ? match$1 : undefined;
         }
-        if (match$1 === undefined) {
-          return;
+        let match$2 = propJson["discriminator"];
+        let exit$1 = 0;
+        if (directItems !== undefined && match$2 !== undefined) {
+          if (typeof match$2 === "object" && match$2 !== null && !Array.isArray(match$2)) {
+            let match$3 = extractDiscriminatorFromPair(directItems, match$2);
+            if (match$3 !== undefined) {
+              result[match$3[0]] = match$3[1];
+              return;
+            } else {
+              return;
+            }
+          }
+          exit$1 = 1;
+        } else {
+          exit$1 = 1;
         }
-        if (typeof match$1 !== "object" || match$1 === null || Array.isArray(match$1)) {
-          return;
-        }
-        let match$2 = match$1["propertyName"];
-        if (match$2 === undefined) {
-          return;
-        }
-        if (typeof match$2 !== "string") {
-          return;
-        }
-        let memberNames = Core__Array.filterMap(match, item => {
-          if (typeof item !== "object" || item === null || Array.isArray(item)) {
+        if (exit$1 === 1) {
+          let match$4 = propJson["items"];
+          if (match$4 === undefined) {
             return;
           }
-          let match = item["$ref"];
-          if (match === undefined) {
+          if (typeof match$4 !== "object" || match$4 === null || Array.isArray(match$4)) {
             return;
           }
-          if (typeof match !== "string") {
+          let match$5 = match$4["anyOf"];
+          let nestedItems;
+          let exit$2 = 0;
+          if (Array.isArray(match$5)) {
+            nestedItems = match$5;
+          } else {
+            exit$2 = 2;
+          }
+          if (exit$2 === 2) {
+            let match$6 = match$4["oneOf"];
+            nestedItems = Array.isArray(match$6) ? match$6 : undefined;
+          }
+          let match$7 = match$4["discriminator"];
+          if (nestedItems === undefined) {
             return;
           }
-          let parts = match.split("/");
-          return parts[parts.length - 1 | 0];
-        });
-        if (memberNames.length < 2) {
-          return;
+          if (match$7 === undefined) {
+            return;
+          }
+          if (typeof match$7 !== "object" || match$7 === null || Array.isArray(match$7)) {
+            return;
+          }
+          let match$8 = extractDiscriminatorFromPair(nestedItems, match$7);
+          if (match$8 !== undefined) {
+            result[match$8[0]] = match$8[1];
+            return;
+          } else {
+            return;
+          }
         }
-        let lcNames = memberNames.map(n => {
-          let first = n.charAt(0).toLowerCase();
-          let rest = n.slice(1);
-          return first + rest;
-        });
-        let firstName = Core__Option.getOr(lcNames[0], "unknown");
-        let restNames = lcNames.slice(1);
-        let unionName = firstName + restNames.map(n => "Or" + ucFirst(n)).join("");
-        result[unionName] = match$2;
       });
     }
   }
@@ -368,6 +426,7 @@ export {
   pathToName,
   ucFirst,
   parsePathResponses,
+  extractDiscriminatorFromPair,
   extractFieldDiscriminators,
   extractDiscriminatorPropertyName,
   extractDiscriminatorTag,

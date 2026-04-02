@@ -90,6 +90,13 @@ let getUnionName = (types: array<Schema.schemaType>): string => {
   }
 }
 
+// Generate a structural name for a PolyVariant type based on its case payloads
+// Reuses getUnionName logic: PolyVariant([{payload: Ref("Cat")}, {payload: Ref("Dog")}]) → "catOrDog"
+let getPolyVariantName = (cases: array<Schema.variantCase>): string => {
+  let types = cases->Array.map(c => c.payload)
+  getUnionName(types)
+}
+
 // Extract Union types from schema fields
 // Returns array of {name, schema} for each Union found
 // Uses structural naming based on Union members
@@ -114,6 +121,9 @@ and extractUnionsFromType = (schema: Schema.schemaType): array<extractedUnion> =
       let name = getUnionName(types)
       [{name, schema}]
     }
+  | PolyVariant(cases) =>
+    let name = getPolyVariantName(cases)
+    [{name, schema}]
   | Optional(inner) | Nullable(inner) => extractUnionsFromType(inner)
   | Array(inner) => extractUnionsFromType(inner)
   | Dict(inner) => extractUnionsFromType(inner)
@@ -146,6 +156,7 @@ and replaceUnionInType = (schema: Schema.schemaType): Schema.schemaType => {
     | Some(refName) => Ref(refName)
     | None => Ref(getUnionName(types))
     }
+  | PolyVariant(cases) => Ref(getPolyVariantName(cases))
   | Optional(inner) => Optional(replaceUnionInType(inner))
   | Nullable(inner) => Nullable(replaceUnionInType(inner))
   | Array(inner) => Array(replaceUnionInType(inner))
