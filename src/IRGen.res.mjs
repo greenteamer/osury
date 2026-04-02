@@ -139,15 +139,22 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet) {
           } else {
             let refName$1 = refName._0;
             let other = schemasDict[refName$1];
-            payload = other !== undefined ? (
-                typeof other !== "object" || other._tag !== "Object" ? convertType(other) : ({
-                    TAG: "InlineRecord",
-                    _0: other._0.map(convertField)
-                  })
-              ) : ({
+            if (other !== undefined) {
+              if (typeof other !== "object" || other._tag !== "Object") {
+                payload = convertType(other);
+              } else {
+                let filtered = other._0.filter(f => f.name !== tagName);
+                payload = {
+                  TAG: "InlineRecord",
+                  _0: filtered.map(convertField)
+                };
+              }
+            } else {
+              payload = {
                 TAG: "Named",
                 _0: CodegenHelpers.lcFirst(refName$1)
-              });
+              };
+            }
           }
           return {
             tag: CodegenHelpers.ucFirst(c._tag),
@@ -203,15 +210,23 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet) {
             let tagValue = tagsDict[name];
             let tag = tagValue !== undefined ? CodegenHelpers.ucFirst(tagValue) : CodegenHelpers.ucFirst(name);
             let other = schemasDict[name];
-            let payload = other !== undefined ? (
-                typeof other !== "object" || other._tag !== "Object" ? convertType(other) : ({
-                    TAG: "InlineRecord",
-                    _0: other._0.map(convertField)
-                  })
-              ) : ({
+            let payload;
+            if (other !== undefined) {
+              if (typeof other !== "object" || other._tag !== "Object") {
+                payload = convertType(other);
+              } else {
+                let filtered = other._0.filter(f => f.name !== tagName);
+                payload = {
+                  TAG: "InlineRecord",
+                  _0: filtered.map(convertField)
+                };
+              }
+            } else {
+              payload = {
                 TAG: "Named",
                 _0: CodegenHelpers.lcFirst(name)
-              });
+              };
+            }
             return {
               tag: tag,
               payload: payload

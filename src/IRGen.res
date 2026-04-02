@@ -86,9 +86,12 @@ let convertToIrTypeDef = (
     let irCases = cases->Array.map(c => {
       let payload = switch c.payload {
       | Ref(refName) =>
-        // Resolve Ref to inline record
+        // Resolve Ref to inline record, filtering out discriminator field
+        // to avoid conflict: @tag("type") + @as("type") type_ on same runtime name
         switch schemasDict->Dict.get(refName) {
-        | Some(Object(fields)) => IR.InlineRecord(fields->Array.map(convertField))
+        | Some(Object(fields)) =>
+          let filtered = fields->Array.filter(f => f.name != tagName)
+          IR.InlineRecord(filtered->Array.map(convertField))
         | Some(other) => convertType(other)
         | None => IR.Named(CodegenHelpers.lcFirst(refName))
         }
@@ -128,7 +131,9 @@ let convertToIrTypeDef = (
           | None => CodegenHelpers.ucFirst(name)
           }
           let payload = switch schemasDict->Dict.get(name) {
-          | Some(Object(fields)) => IR.InlineRecord(fields->Array.map(convertField))
+          | Some(Object(fields)) =>
+            let filtered = fields->Array.filter(f => f.name != tagName)
+            IR.InlineRecord(filtered->Array.map(convertField))
           | Some(other) => convertType(other)
           | None => IR.Named(CodegenHelpers.lcFirst(name))
           }
