@@ -75,7 +75,7 @@
           "expiresAt": {
             "anyOf": [{ "type": "string" }, { "type": "null" }]
           },
-          "invitedBy": { "$ref": "#/components/schemas/User" }
+          "invitedBy": { "type": "string" }
         },
         "required": ["_tag"]
       },
