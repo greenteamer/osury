@@ -107,10 +107,18 @@ let rec hasUnknown = (schema: Schema.schemaType): bool => {
 // Primitives: Number, String, Integer, Boolean
 // Non-primitives: Ref (object), Dict (object), Object, Array
 let isPrimitiveOnlyUnion = (types: array<Schema.schemaType>): bool => {
-  types->Array.every(t => {
+  let allPrimitive = types->Array.every(t => {
     switch t {
     | Number | String | Integer | Boolean => true
     | _ => false
     }
   })
+  if !allPrimitive {
+    false
+  } else {
+    // @unboxed can't distinguish int and float at runtime (both JS number)
+    let hasFloat = types->Array.some(t => t == Number)
+    let hasInt = types->Array.some(t => t == Integer)
+    !(hasFloat && hasInt)
+  }
 }
