@@ -196,7 +196,7 @@ function hasUnknown(_schema) {
 }
 
 function isPrimitiveOnlyUnion(types) {
-  return types.every(t => {
+  let allPrimitive = types.every(t => {
     if (typeof t === "object") {
       return false;
     }
@@ -210,6 +210,12 @@ function isPrimitiveOnlyUnion(types) {
         return false;
     }
   });
+  if (!allPrimitive) {
+    return false;
+  }
+  let hasFloat = types.some(t => t === "Number");
+  let hasInt = types.some(t => t === "Integer");
+  return !(hasFloat && hasInt);
 }
 
 export {
