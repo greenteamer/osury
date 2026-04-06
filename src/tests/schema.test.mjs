@@ -168,6 +168,82 @@ describe('Schema Parser', () => {
         expect(fields[0].required).toBe(true);
     });
 
+    test('parse nullable string (type array: ["string", "null"])', () => {
+        const input = { type: ["string", "null"] };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Nullable');
+        expect(result._0._0).toBe('String');
+    });
+
+    test('parse nullable integer (type array: ["integer", "null"])', () => {
+        const input = { type: ["integer", "null"] };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Nullable');
+        expect(result._0._0).toBe('Integer');
+    });
+
+    test('parse nullable array (type array: ["array", "null"] with items)', () => {
+        const input = {
+            type: ["array", "null"],
+            items: { type: "string" }
+        };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Nullable');
+        expect(result._0._0._tag).toBe('Array');
+        expect(result._0._0._0).toBe('String');
+    });
+
+    test('parse nullable object (type array: ["object", "null"] with additionalProperties)', () => {
+        const input = {
+            type: ["object", "null"],
+            additionalProperties: {}
+        };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Nullable');
+    });
+
+    test('parse nullable $ref (oneOf with $ref and null)', () => {
+        const input = {
+            oneOf: [
+                { "$ref": "#/components/schemas/Subscription" },
+                { type: "null" }
+            ]
+        };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Nullable');
+        expect(result._0._0._tag).toBe('Ref');
+        expect(result._0._0._0).toBe('Subscription');
+    });
+
+    test('parse nullable: true on string', () => {
+        const input = { type: "string", nullable: true };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Nullable');
+        expect(result._0._0).toBe('String');
+    });
+
+    test('parse nullable: true on $ref', () => {
+        const input = { "$ref": "#/components/schemas/User", nullable: true };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Nullable');
+        expect(result._0._0._tag).toBe('Ref');
+        expect(result._0._0._0).toBe('User');
+    });
+
     test('parse nullable $ref (anyOf with $ref and null)', () => {
         const input = {
             anyOf: [
