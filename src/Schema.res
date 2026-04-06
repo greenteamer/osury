@@ -148,7 +148,34 @@ and parsePrimitiveType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.error
   | Some(String("object")) => parseObjectType(dict)
   | Some(String("array")) => parseArrayType(dict)
   | Some(String(unknown)) => Error([Errors.unknownType(~value=unknown, ())])
-  | Some(_) => Error([Errors.makeError(~kind=InvalidJson("type must be a string"), ())])
+  | Some(Array(typeArr)) =>
+    // OpenAPI 3.1: type as array, e.g. ["string", "null"]
+    let typeStrings = typeArr->Array.filterMap(t =>
+      switch t {
+      | String(s) => Some(s)
+      | _ => None
+      }
+    )
+    let hasNull = typeStrings->Array.includes("null")
+    let nonNullTypes = typeStrings->Array.filter(t => t != "null")
+    switch (hasNull, nonNullTypes) {
+    | (true, [nonNullType]) =>
+      // Nullable pattern: ["T", "null"] → Nullable(T)
+      // Create a copy of dict with type set to the non-null type string
+      let newDict = Dict.fromArray(dict->Dict.toArray->Array.map(((k, v)) =>
+        if k == "type" { (k, JSON.String(nonNullType)) } else { (k, v) }
+      ))
+      switch parsePrimitiveType(newDict) {
+      | Ok(inner) => Ok(Nullable(inner))
+      | Error(e) => Error(e)
+      }
+    | (false, _) =>
+      // No null in array — unsupported multi-type union via type array
+      Error([Errors.makeError(~kind=UnsupportedFeature("type array without null"), ())])
+    | _ =>
+      Error([Errors.makeError(~kind=InvalidJson("type array must have exactly one non-null type"), ())])
+    }
+  | Some(_) => Error([Errors.makeError(~kind=InvalidJson("type must be a string or array"), ())])
   | None =>
     // No type field: check if properties exist (implicit object) or treat as unknown/any
     switch dict->Dict.get("properties") {
@@ -424,18 +451,53 @@ and parseOneOf = (items: array<JSON.t>, ~discriminatorPropertyName: option<strin
   }
 }
 
+// Wrap result in Nullable if dict has nullable: true (OpenAPI 3.0)
+// Avoids double-wrapping: if result is already Nullable, don't wrap again
+and applyNullable = (dict: Dict.t<JSON.t>, result: result<schemaType, Errors.errors>): result<schemaType, Errors.errors> => {
+  switch (dict->Dict.get("nullable"), result) {
+  | (Some(Boolean(true)), Ok(Nullable(_) as t)) => Ok(t) // already nullable
+  | (Some(Boolean(true)), Ok(inner)) => Ok(Nullable(inner))
+  | _ => result
+  }
+}
+
 // Main parse object dispatcher
 and parseObject = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
   // Check for $ref first
   switch dict->Dict.get("$ref") {
-  | Some(String(refPath)) => Ok(Ref(extractRefName(refPath)))
+  | Some(String(refPath)) =>
+    applyNullable(dict, Ok(Ref(extractRefName(refPath))))
   | Some(_) => Error([Errors.makeError(~kind=InvalidJson("$ref must be a string"), ())])
   | None =>
-    // Check for oneOf (discriminated union)
+    // Check for oneOf (discriminated union or nullable)
     switch dict->Dict.get("oneOf") {
     | Some(Array(items)) =>
-      let discriminatorPropName = extractDiscriminatorPropertyName(dict)
-      parseOneOf(items, ~discriminatorPropertyName=discriminatorPropName)
+      // Check if oneOf contains null type — nullable pattern
+      let hasNull = items->Array.some(isNullType)
+      let nonNullItems = items->Array.filter(item => !isNullType(item))
+      if hasNull && Array.length(nonNullItems) == 1 {
+        // oneOf: [T, {type: "null"}] → Nullable(T)
+        switch nonNullItems->Array.get(0) {
+        | Some(Object(innerDict)) =>
+          switch parseObject(innerDict) {
+          | Ok(innerType) => Ok(Nullable(innerType))
+          | Error(e) => Error(e)
+          }
+        | Some(_) => Error([Errors.makeError(~kind=InvalidJson("oneOf item must be object"), ())])
+        | None => Error([Errors.makeError(~kind=InvalidJson("oneOf with only null types"), ())])
+        }
+      } else if hasNull && Array.length(nonNullItems) >= 2 {
+        // oneOf: [A, B, {type: "null"}] → Nullable(parseOneOf([A, B]))
+        let discriminatorPropName = extractDiscriminatorPropertyName(dict)
+        switch parseOneOf(nonNullItems, ~discriminatorPropertyName=discriminatorPropName) {
+        | Ok(inner) => Ok(Nullable(inner))
+        | Error(e) => Error(e)
+        }
+      } else {
+        // No null — regular discriminated union
+        let discriminatorPropName = extractDiscriminatorPropertyName(dict)
+        parseOneOf(items, ~discriminatorPropertyName=discriminatorPropName)
+      }
     | Some(_) => Error([Errors.makeError(~kind=InvalidJson("oneOf must be an array"), ())])
     | None =>
       // Check for allOf
@@ -443,11 +505,11 @@ and parseObject = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
       | Some(Array(items)) => parseAllOf(items)
       | Some(_) => Error([Errors.makeError(~kind=InvalidJson("allOf must be an array"), ())])
       | None =>
-        // Check for anyOf
+        // Check for anyOf (already handles nullable internally)
         switch dict->Dict.get("anyOf") {
         | Some(Array(items)) => parseAnyOf(items)
         | Some(_) => Error([Errors.makeError(~kind=InvalidJson("anyOf must be an array"), ())])
-        | None => parsePrimitiveType(dict)
+        | None => applyNullable(dict, parsePrimitiveType(dict))
         }
       }
     }
