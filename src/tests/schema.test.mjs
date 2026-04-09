@@ -1706,4 +1706,30 @@ describe('Sample Data Generator', () => {
         // Both types should have @schema
         expect(code).toContain('@schema');
     });
+
+    test('enum with special characters (dashes) generates quoted poly variant tags', () => {
+        const doc = {
+            openapi: "3.0.0",
+            info: { title: "Test", version: "1.0" },
+            paths: {},
+            components: {
+                schemas: {
+                    AuthProvider: {
+                        type: "string",
+                        enum: ["google-oauth2", "amazon", "username-password"]
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+        // Dashes in enum values must be quoted
+        expect(code).toContain('#"google-oauth2"');
+        expect(code).toContain('#"username-password"');
+        // Simple values should NOT be quoted
+        expect(code).toContain('#amazon');
+        expect(code).not.toContain('#"amazon"');
+    });
 });
