@@ -3,6 +3,18 @@
 import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 
+function quoteTag(tag) {
+  let needsQuoting = tag.split("").some(c => {
+    let code = c.charCodeAt(0);
+    return !(code >= 97.0 && code <= 122.0 || code >= 65.0 && code <= 90.0 || code >= 48.0 && code <= 57.0 || code === 95.0);
+  });
+  if (needsQuoting) {
+    return `"` + tag + `"`;
+  } else {
+    return tag;
+  }
+}
+
 function printPrimitive(p) {
   switch (p) {
     case "PString" :
@@ -36,7 +48,7 @@ function printType(t) {
     case "Named" :
       return t._0;
     case "Enum" :
-      let variants = t._0.map(v => `#` + v).join(" | ");
+      let variants = t._0.map(v => `#` + quoteTag(v)).join(" | ");
       return `[` + variants + `]`;
     case "InlineRecord" :
       return printRecord(t._0);
@@ -79,7 +91,7 @@ function printVariantCase(c) {
 
 function printVariantCases(cases) {
   let caseStrs = cases.map(printVariantCase);
-  return `[` + caseStrs.map(c => `#` + c).join(" | ") + `]`;
+  return `[` + caseStrs.map(c => `#` + quoteTag(c)).join(" | ") + `]`;
 }
 
 function printAnnotation(ann) {
@@ -130,6 +142,7 @@ function print(module_) {
 }
 
 export {
+  quoteTag,
   printPrimitive,
   printType,
   printField,

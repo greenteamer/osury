@@ -2,6 +2,25 @@
 // No decisions, no lookups, no calls to CodegenHelpers.
 // All decisions are already captured in the IR.
 
+// Quote poly variant tag if it contains non-alphanumeric characters
+let quoteTag = (tag: string): string => {
+  let needsQuoting = tag->String.split("")->Array.some(c => {
+    let code = c->String.charCodeAt(0)
+    // Allow: a-z, A-Z, 0-9, _
+    !(
+      (code >= 97.0 && code <= 122.0) ||
+        (code >= 65.0 && code <= 90.0) ||
+        (code >= 48.0 && code <= 57.0) ||
+        code == 95.0
+    )
+  })
+  if needsQuoting {
+    `"${tag}"`
+  } else {
+    tag
+  }
+}
+
 let printPrimitive = (p: IR.primitive): string => {
   switch p {
   | PString => "string"
@@ -21,7 +40,7 @@ let rec printType = (t: IR.irType): string => {
   | Dict(inner) => `Dict.t<${printType(inner)}>`
   | Named(name) => name
   | Enum(values) =>
-    let variants = values->Array.map(v => `#${v}`)->Array.join(" | ")
+    let variants = values->Array.map(v => `#${quoteTag(v)}`)->Array.join(" | ")
     `[${variants}]`
   | InlineRecord(fields) => printRecord(fields)
   | InlineVariant(cases) => printVariantCases(cases)
@@ -66,7 +85,7 @@ and printVariantCase = (c: IR.irVariantCase): string => {
 
 and printVariantCases = (cases: array<IR.irVariantCase>): string => {
   let caseStrs = cases->Array.map(printVariantCase)
-  `[${caseStrs->Array.map(c => `#${c}`)->Array.join(" | ")}]`
+  `[${caseStrs->Array.map(c => `#${quoteTag(c)}`)->Array.join(" | ")}]`
 }
 
 let printAnnotation = (ann: IR.annotation): option<string> => {
