@@ -1732,4 +1732,36 @@ describe('Sample Data Generator', () => {
         expect(code).toContain('#amazon');
         expect(code).not.toContain('#"amazon"');
     });
+
+    test('empty object (no properties) generates JSON.t, not empty record', () => {
+        const doc = {
+            openapi: "3.0.0",
+            info: { title: "Test", version: "1.0" },
+            paths: {},
+            components: {
+                schemas: {
+                    EmptyObj: {
+                        type: "object"
+                    },
+                    WithEmptyField: {
+                        type: "object",
+                        properties: {
+                            data: { type: "object" }
+                        },
+                        required: ["data"]
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+        // Top-level empty object → alias to JSON.t
+        expect(code).toContain('type emptyObj = JSON.t');
+        // Inline empty object field → JSON.t
+        expect(code).toContain('data: JSON.t');
+        // No empty records
+        expect(code).not.toContain('{}');
+    });
 });
