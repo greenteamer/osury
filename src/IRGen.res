@@ -16,6 +16,7 @@ let rec convertType = (schema: Schema.schemaType): IR.irType => {
   | Dict(inner) => Dict(convertType(inner))
   | Ref(name) => Named(CodegenHelpers.lcFirst(name))
   | Enum(values) => Enum(values)
+  | Object(fields) if Array.length(fields) == 0 => JSON
   | Object(fields) => InlineRecord(fields->Array.map(convertField))
   | PolyVariant(cases) =>
     InlineVariant(cases->Array.map(c => {
@@ -155,7 +156,7 @@ let convertToIrTypeDef = (
   | _ =>
     // Regular type (record, enum, alias)
     let kind = switch namedSchema.schema {
-    | Object(fields) => IR.RecordDef(fields->Array.map(convertField))
+    | Object(fields) if Array.length(fields) > 0 => IR.RecordDef(fields->Array.map(convertField))
     | _ => AliasDef(convertType(namedSchema.schema))
     }
     let annotations = if shouldSkipSchema {

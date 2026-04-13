@@ -48,10 +48,15 @@ function convertType(schema) {
           _0: convertType(schema._0)
         };
       case "Object" :
-        return {
-          TAG: "InlineRecord",
-          _0: schema._0.map(convertField)
-        };
+        let fields = schema._0;
+        if (fields.length === 0) {
+          return "JSON";
+        } else {
+          return {
+            TAG: "InlineRecord",
+            _0: fields.map(convertField)
+          };
+        }
       case "Array" :
         return {
           TAG: "Array",
@@ -258,13 +263,21 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet) {
   }
   let fields = namedSchema.schema;
   let kind;
-  kind = typeof fields !== "object" || fields._tag !== "Object" ? ({
+  if (typeof fields !== "object" || fields._tag !== "Object") {
+    kind = {
       TAG: "AliasDef",
       _0: convertType(namedSchema.schema)
-    }) : ({
-      TAG: "RecordDef",
-      _0: fields._0.map(convertField)
-    });
+    };
+  } else {
+    let fields$1 = fields._0;
+    kind = fields$1.length > 0 ? ({
+        TAG: "RecordDef",
+        _0: fields$1.map(convertField)
+      }) : ({
+        TAG: "AliasDef",
+        _0: convertType(namedSchema.schema)
+      });
+  }
   let annotations = shouldSkipSchema ? ["GenType"] : [
       "GenType",
       "Schema"
