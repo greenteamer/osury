@@ -39,6 +39,7 @@ let generateInlineRecord = CodegenTypes.generateInlineRecord
 
 // Re-export shims for backward compatibility
 let generateDictShim = CodegenShims.generateDictShim
+let generateJsonShim = CodegenShims.generateJsonShim
 let generateNullableShim = CodegenShims.generateNullableShim
 let generateNullableModule = CodegenShims.generateNullableModule
 
