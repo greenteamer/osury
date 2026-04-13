@@ -358,6 +358,9 @@ function generate(inputPath, outputPath) {
   const dictShimPath = path.join(outputDir || ".", "Dict.gen.ts");
   fs.writeFileSync(dictShimPath, Codegen.generateDictShim());
 
+  const jsonShimPath = path.join(outputDir || ".", "JSON.gen.ts");
+  fs.writeFileSync(jsonShimPath, Codegen.generateJsonShim());
+
   const nullableResPath = path.join(outputDir || ".", "Nullable.res");
   fs.writeFileSync(nullableResPath, Codegen.generateNullableModule());
 
@@ -371,6 +374,7 @@ function generate(inputPath, outputPath) {
   log(`  ${c.dim("Files written:")}`);
   log(`    ${sym.bullet} ${c.cyan(outputPath)} ${c.dim("(main module)")}`);
   log(`    ${sym.bullet} ${c.cyan(dictShimPath)} ${c.dim("(TS shim)")}`);
+  log(`    ${sym.bullet} ${c.cyan(jsonShimPath)} ${c.dim("(TS shim)")}`);
   log(`    ${sym.bullet} ${c.cyan(nullableResPath)} ${c.dim("(ReScript module)")}`);
   log(`    ${sym.bullet} ${c.cyan(nullableShimPath)} ${c.dim("(TS shim)")}`);
   blank();

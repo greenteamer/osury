@@ -100,6 +100,8 @@ let generateInlineRecord = CodegenTypes.generateInlineRecord;
 
 let generateDictShim = CodegenShims.generateDictShim;
 
+let generateJsonShim = CodegenShims.generateJsonShim;
+
 let generateNullableShim = CodegenShims.generateNullableShim;
 
 let generateNullableModule = CodegenShims.generateNullableModule;
@@ -134,6 +136,7 @@ export {
   generateInlineVariantBody,
   generateInlineRecord,
   generateDictShim,
+  generateJsonShim,
   generateNullableShim,
   generateNullableModule,
   generateModuleWithDiagnostics,
