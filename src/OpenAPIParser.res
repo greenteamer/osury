@@ -289,6 +289,115 @@ let parseComponentSchemas = (componentsJson: JSON.t): result<array<namedSchema>,
   }
 }
 
+// Build a synthetic object schema from operation parameters
+// Filters to query+path only (headers excluded), feeds through Schema.parse
+// so default→required, anyOf→Nullable, etc. all work uniformly.
+let buildParamsObjectJson = (params: array<JSON.t>): option<JSON.t> => {
+  let properties = Dict.make()
+  let required = []
+
+  params->Array.forEach(param => {
+    switch param {
+    | Object(p) =>
+      let location = switch p->Dict.get("in") {
+      | Some(String(s)) => Some(s)
+      | _ => None
+      }
+      let isQueryOrPath = switch location {
+      | Some("query") | Some("path") => true
+      | _ => false
+      }
+      if isQueryOrPath {
+        switch (p->Dict.get("name"), p->Dict.get("schema")) {
+        | (Some(String(name)), Some(schema)) =>
+          properties->Dict.set(name, schema)
+          let isRequired = switch p->Dict.get("required") {
+          | Some(Boolean(b)) => b
+          | _ => false
+          }
+          // path params are always required per OpenAPI spec
+          let pathRequired = switch location {
+          | Some("path") => true
+          | _ => false
+          }
+          if isRequired || pathRequired {
+            required->Array.push(JSON.Encode.string(name))
+          }
+        | _ => ()
+        }
+      }
+    | _ => ()
+    }
+  })
+
+  if Dict.toArray(properties)->Array.length == 0 {
+    None
+  } else {
+    let obj = Dict.make()
+    obj->Dict.set("type", JSON.Encode.string("object"))
+    obj->Dict.set("properties", JSON.Encode.object(properties))
+    obj->Dict.set("required", JSON.Encode.array(required))
+    Some(JSON.Encode.object(obj))
+  }
+}
+
+// Parse query/path parameters from paths into Params named schemas
+let parsePathParameters = (pathsJson: JSON.t): result<array<namedSchema>, Errors.errors> => {
+  switch pathsJson {
+  | Object(paths) =>
+    let results = paths->Dict.toArray->Array.flatMap(((path, methodsJson)) => {
+      switch methodsJson {
+      | Object(methods) =>
+        methods->Dict.toArray->Array.filterMap(((method, opJson)) => {
+          let httpMethods = ["get", "post", "put", "patch", "delete"]
+          if !(httpMethods->Array.includes(method)) {
+            None
+          } else {
+            switch opJson {
+            | Object(op) =>
+              switch op->Dict.get("parameters") {
+              | Some(Array(params)) =>
+                switch buildParamsObjectJson(params) {
+                | Some(objJson) =>
+                  let name = ucFirst(method) ++ pathToName(path) ++ "Params"
+                  switch Schema.parse(objJson) {
+                  | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None, discriminatorPropertyName: None, fieldDiscriminators: None}))
+                  | Error(e) => Some(Error(e))
+                  }
+                | None => None
+                }
+              | _ => None
+              }
+            | _ => None
+            }
+          }
+        })
+      | _ => []
+      }
+    })
+
+    let errors = results->Array.filterMap(r =>
+      switch r {
+      | Error(e) => Some(e)
+      | Ok(_) => None
+      }
+    )->Array.flat
+
+    if Array.length(errors) > 0 {
+      Error(errors)
+    } else {
+      let schemas = results->Array.filterMap(r =>
+        switch r {
+        | Ok(s) => Some(s)
+        | Error(_) => None
+        }
+      )
+      Ok(schemas)
+    }
+  | _ => Ok([])
+  }
+}
+
 // Parse OpenAPI document: components/schemas + paths responses
 let parseDocument = (json: JSON.t): result<array<namedSchema>, Errors.errors> => {
   switch json {
@@ -305,12 +414,23 @@ let parseDocument = (json: JSON.t): result<array<namedSchema>, Errors.errors> =>
     | None => Ok([])
     }
 
+    // Parse path parameters (query + path → Params types)
+    let paramSchemas = switch doc->Dict.get("paths") {
+    | Some(pathsJson) => parsePathParameters(pathsJson)
+    | None => Ok([])
+    }
+
     // Combine results
-    switch (componentSchemas, pathSchemas) {
-    | (Ok(cs), Ok(ps)) => Ok(Array.concat(cs, ps))
-    | (Error(e), Ok(_)) => Error(e)
-    | (Ok(_), Error(e)) => Error(e)
-    | (Error(e1), Error(e2)) => Error(Array.concat(e1, e2))
+    switch (componentSchemas, pathSchemas, paramSchemas) {
+    | (Ok(cs), Ok(ps), Ok(qs)) => Ok(Array.concat(Array.concat(cs, ps), qs))
+    | (cs, ps, qs) =>
+      let errs = [cs, ps, qs]->Array.filterMap(r =>
+        switch r {
+        | Error(e) => Some(e)
+        | Ok(_) => None
+        }
+      )->Array.flat
+      Error(errs)
     }
   | _ => Error([Errors.makeError(~kind=InvalidJson("document must be an object"), ())])
   }

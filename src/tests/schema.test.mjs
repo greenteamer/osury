@@ -588,6 +588,226 @@ describe('Schema Parser', () => {
         expect(status).toBeDefined();
         expect(status.schema._tag).toBe('Enum');
     });
+
+    test('OpenAPIParser emits Params type for GET with primitive query parameters', () => {
+        const doc = {
+            openapi: "3.0.0",
+            paths: {
+                "/v1/products/list": {
+                    get: {
+                        operationId: "get_products_v1_products_list_get",
+                        parameters: [
+                            {
+                                name: "sort_direction",
+                                in: "query",
+                                required: false,
+                                schema: { enum: ["asc", "desc"], type: "string", default: "desc" }
+                            },
+                            {
+                                name: "offset",
+                                in: "query",
+                                required: false,
+                                schema: { type: "integer", minimum: 0, default: 0 }
+                            },
+                            {
+                                name: "limit",
+                                in: "query",
+                                required: true,
+                                schema: { type: "integer", maximum: 40, minimum: 1 }
+                            }
+                        ],
+                        responses: {
+                            "200": { description: "ok", content: { "application/json": { schema: { type: "object" } } } }
+                        }
+                    }
+                }
+            }
+        };
+
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+
+        const params = result._0.find(s => s.name === 'GetV1ProductsListParams');
+        expect(params).toBeDefined();
+        expect(params.schema._tag).toBe('Object');
+
+        const fields = params.schema._0;
+        expect(fields.length).toBe(3);
+
+        const sortDir = fields.find(f => f.name === 'sort_direction');
+        expect(sortDir).toBeDefined();
+        expect(sortDir.required).toBe(true); // has default → required (existing convention)
+        expect(sortDir.type._tag).toBe('Enum');
+        expect(sortDir.type._0).toEqual(['asc', 'desc']);
+
+        const offset = fields.find(f => f.name === 'offset');
+        expect(offset).toBeDefined();
+        expect(offset.required).toBe(true); // has default
+        expect(offset.type).toBe('Integer');
+
+        const limit = fields.find(f => f.name === 'limit');
+        expect(limit).toBeDefined();
+        expect(limit.required).toBe(true);
+        expect(limit.type).toBe('Integer');
+    });
+
+    test('OpenAPIParser: optional query param without default stays optional, path param always required', () => {
+        const doc = {
+            openapi: "3.0.0",
+            paths: {
+                "/v1/items/{id}": {
+                    get: {
+                        parameters: [
+                            {
+                                name: "id",
+                                in: "path",
+                                // path params: required omitted but per spec MUST be required
+                                schema: { type: "string" }
+                            },
+                            {
+                                name: "search",
+                                in: "query",
+                                required: false,
+                                // no default, no anyOf+null — pure optional
+                                schema: { type: "string" }
+                            },
+                            {
+                                name: "page",
+                                in: "query",
+                                // required omitted → defaults to false
+                                schema: { type: "integer" }
+                            }
+                        ],
+                        responses: {
+                            "200": { description: "ok", content: { "application/json": { schema: { type: "object" } } } }
+                        }
+                    }
+                }
+            }
+        };
+
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+
+        const params = result._0.find(s => s.name === 'GetV1ItemsParams');
+        expect(params).toBeDefined();
+        const fields = params.schema._0;
+
+        const id = fields.find(f => f.name === 'id');
+        expect(id.required).toBe(true); // path param → always required
+        expect(id.type).toBe('String');
+
+        const search = fields.find(f => f.name === 'search');
+        expect(search.required).toBe(false);
+        expect(search.type).toBe('String');
+
+        const page = fields.find(f => f.name === 'page');
+        expect(page.required).toBe(false);
+        expect(page.type).toBe('Integer');
+    });
+
+    test('OpenAPIParser: query param anyOf [T, null] becomes Nullable<T>, array element', () => {
+        const doc = {
+            openapi: "3.0.0",
+            paths: {
+                "/v1/products/list": {
+                    get: {
+                        parameters: [
+                            {
+                                name: "country",
+                                in: "query",
+                                required: false,
+                                schema: {
+                                    anyOf: [{ type: "string" }, { type: "null" }]
+                                }
+                            },
+                            {
+                                name: "asins",
+                                in: "query",
+                                required: false,
+                                schema: {
+                                    anyOf: [
+                                        { type: "array", items: { type: "string" } },
+                                        { type: "null" }
+                                    ]
+                                }
+                            }
+                        ],
+                        responses: {
+                            "200": { description: "ok", content: { "application/json": { schema: { type: "object" } } } }
+                        }
+                    }
+                }
+            }
+        };
+
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+
+        const params = result._0.find(s => s.name === 'GetV1ProductsListParams');
+        const fields = params.schema._0;
+
+        const country = fields.find(f => f.name === 'country');
+        expect(country.type._tag).toBe('Nullable');
+        expect(country.type._0).toBe('String');
+
+        const asins = fields.find(f => f.name === 'asins');
+        expect(asins.type._tag).toBe('Nullable');
+        expect(asins.type._0._tag).toBe('Array');
+        expect(asins.type._0._0).toBe('String');
+    });
+
+    test('generateModule emits Params record with @schema for path operation', () => {
+        const doc = {
+            openapi: "3.0.0",
+            paths: {
+                "/v1/products/list": {
+                    get: {
+                        parameters: [
+                            {
+                                name: "sort_direction",
+                                in: "query",
+                                required: false,
+                                schema: { enum: ["asc", "desc"], type: "string", default: "desc" }
+                            },
+                            {
+                                name: "limit",
+                                in: "query",
+                                required: true,
+                                schema: { type: "integer" }
+                            },
+                            {
+                                name: "country",
+                                in: "query",
+                                required: false,
+                                schema: { anyOf: [{ type: "string" }, { type: "null" }] }
+                            }
+                        ],
+                        responses: {
+                            "200": { description: "ok", content: { "application/json": { schema: { type: "object" } } } }
+                        }
+                    }
+                }
+            }
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+
+        // Params type defined as record with @genType + @schema
+        expect(code).toContain('type getV1ProductsListParams');
+        // sort_direction has default → required field
+        expect(code).toMatch(/sort_direction:\s*\[#asc \| #desc\]/);
+        // limit required int
+        expect(code).toMatch(/limit:\s*int/);
+        // country: anyOf+null → Nullable.t<string> (with @s.null sury annotation)
+        expect(code).toMatch(/country:\s*@s\.null Nullable\.t<string>/);
+        // @schema must be present so sury-ppx auto-derives the runtime schema
+        expect(code).toContain('@schema');
+        expect(code).toContain('@genType');
+    });
 });
 
 describe('Code Generator', () => {

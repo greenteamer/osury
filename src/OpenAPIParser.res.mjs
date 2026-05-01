@@ -375,6 +375,147 @@ function parseComponentSchemas(componentsJson) {
   };
 }
 
+function buildParamsObjectJson(params) {
+  let properties = {};
+  let required = [];
+  params.forEach(param => {
+    if (typeof param !== "object" || param === null || Array.isArray(param)) {
+      return;
+    }
+    let match = param["in"];
+    let location = typeof match === "string" ? match : undefined;
+    let isQueryOrPath;
+    if (location !== undefined) {
+      switch (location) {
+        case "path" :
+        case "query" :
+          isQueryOrPath = true;
+          break;
+        default:
+          isQueryOrPath = false;
+      }
+    } else {
+      isQueryOrPath = false;
+    }
+    if (!isQueryOrPath) {
+      return;
+    }
+    let match$1 = param["name"];
+    let match$2 = param["schema"];
+    if (match$1 === undefined) {
+      return;
+    }
+    if (typeof match$1 !== "string") {
+      return;
+    }
+    if (match$2 === undefined) {
+      return;
+    }
+    properties[match$1] = match$2;
+    let match$3 = param["required"];
+    let isRequired = match$3 === true;
+    let pathRequired = location === "path";
+    if (isRequired || pathRequired) {
+      required.push(match$1);
+      return;
+    }
+  });
+  if (Object.entries(properties).length === 0) {
+    return;
+  }
+  let obj = {};
+  obj["type"] = "object";
+  obj["properties"] = properties;
+  obj["required"] = required;
+  return obj;
+}
+
+function parsePathParameters(pathsJson) {
+  if (typeof pathsJson !== "object" || pathsJson === null || Array.isArray(pathsJson)) {
+    return {
+      TAG: "Ok",
+      _0: []
+    };
+  }
+  let results = Object.entries(pathsJson).flatMap(param => {
+    let methodsJson = param[1];
+    let path = param[0];
+    if (typeof methodsJson === "object" && methodsJson !== null && !Array.isArray(methodsJson)) {
+      return Core__Array.filterMap(Object.entries(methodsJson), param => {
+        let opJson = param[1];
+        let method = param[0];
+        let httpMethods = [
+          "get",
+          "post",
+          "put",
+          "patch",
+          "delete"
+        ];
+        if (!httpMethods.includes(method)) {
+          return;
+        }
+        if (typeof opJson !== "object" || opJson === null || Array.isArray(opJson)) {
+          return;
+        }
+        let match = opJson["parameters"];
+        if (match === undefined) {
+          return;
+        }
+        if (!Array.isArray(match)) {
+          return;
+        }
+        let objJson = buildParamsObjectJson(match);
+        if (objJson === undefined) {
+          return;
+        }
+        let name = ucFirst(method) + pathToName(path) + "Params";
+        let schemaType = Schema.parse(objJson);
+        if (schemaType.TAG === "Ok") {
+          return {
+            TAG: "Ok",
+            _0: {
+              name: name,
+              schema: schemaType._0,
+              discriminatorTag: undefined,
+              discriminatorPropertyName: undefined,
+              fieldDiscriminators: undefined
+            }
+          };
+        } else {
+          return {
+            TAG: "Error",
+            _0: schemaType._0
+          };
+        }
+      });
+    } else {
+      return [];
+    }
+  });
+  let errors = Core__Array.filterMap(results, r => {
+    if (r.TAG === "Ok") {
+      return;
+    } else {
+      return r._0;
+    }
+  }).flat();
+  if (errors.length > 0) {
+    return {
+      TAG: "Error",
+      _0: errors
+    };
+  }
+  let schemas = Core__Array.filterMap(results, r => {
+    if (r.TAG === "Ok") {
+      return r._0;
+    }
+  });
+  return {
+    TAG: "Ok",
+    _0: schemas
+  };
+}
+
 function parseDocument(json) {
   if (typeof json === "object" && json !== null && !Array.isArray(json)) {
     let componentsJson = json["components"];
@@ -387,29 +528,38 @@ function parseDocument(json) {
         TAG: "Ok",
         _0: []
       });
-    if (componentSchemas.TAG === "Ok") {
-      if (pathSchemas.TAG === "Ok") {
+    let pathsJson$1 = json["paths"];
+    let paramSchemas = pathsJson$1 !== undefined ? parsePathParameters(pathsJson$1) : ({
+        TAG: "Ok",
+        _0: []
+      });
+    let exit = 0;
+    if (componentSchemas.TAG === "Ok" && pathSchemas.TAG === "Ok") {
+      if (paramSchemas.TAG === "Ok") {
         return {
           TAG: "Ok",
-          _0: componentSchemas._0.concat(pathSchemas._0)
-        };
-      } else {
-        return {
-          TAG: "Error",
-          _0: pathSchemas._0
+          _0: componentSchemas._0.concat(pathSchemas._0).concat(paramSchemas._0)
         };
       }
-    }
-    let e = componentSchemas._0;
-    if (pathSchemas.TAG === "Ok") {
-      return {
-        TAG: "Error",
-        _0: e
-      };
+      exit = 2;
     } else {
+      exit = 2;
+    }
+    if (exit === 2) {
+      let errs = Core__Array.filterMap([
+        componentSchemas,
+        pathSchemas,
+        paramSchemas
+      ], r => {
+        if (r.TAG === "Ok") {
+          return;
+        } else {
+          return r._0;
+        }
+      }).flat();
       return {
         TAG: "Error",
-        _0: e.concat(pathSchemas._0)
+        _0: errs
       };
     }
   }
@@ -431,6 +581,8 @@ export {
   extractDiscriminatorPropertyName,
   extractDiscriminatorTag,
   parseComponentSchemas,
+  buildParamsObjectJson,
+  parsePathParameters,
   parseDocument,
 }
 /* No side effect */
