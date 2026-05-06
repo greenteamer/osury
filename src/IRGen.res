@@ -100,10 +100,14 @@ let convertToIrTypeDef = (
       }
       {IR.tag: CodegenHelpers.ucFirst(c.tag), payload}
     })
-    // Variant types always get @schema — they inline records, always PPX-compatible
+    // Variant types normally get @schema (they inline records, PPX-compatible),
+    // BUT skip when transitive deps reach an Unknown (JSON.t) — sury-ppx can't
+    // synthesize a schema for inlined fields whose dep types lack *Schema.
+    let baseAnnotations = [IR.GenType, IR.Tag(tagName)]
+    let annotations = if shouldSkipSchema { baseAnnotations } else { Array.concat(baseAnnotations, [IR.Schema]) }
     {
       IR.name: typeName,
-      annotations: [IR.GenType, Tag(tagName), Schema],
+      annotations,
       kind: VariantDef(irCases),
     }
 
@@ -115,10 +119,11 @@ let convertToIrTypeDef = (
         let payload = convertType(t)
         {IR.tag: tag, payload}
       })
-      // Variant types always get @schema — they inline records, always PPX-compatible
+      let baseAnnotations = [IR.GenType, IR.Tag(tagName), IR.Unboxed]
+      let annotations = if shouldSkipSchema { baseAnnotations } else { Array.concat(baseAnnotations, [IR.Schema]) }
       {
         IR.name: typeName,
-        annotations: [IR.GenType, Tag(tagName), Unboxed, Schema],
+        annotations,
         kind: VariantDef(irCases),
       }
     } else {
@@ -145,10 +150,11 @@ let convertToIrTypeDef = (
           {IR.tag: tag, payload}
         }
       })
-      // Variant types always get @schema — they inline records, always PPX-compatible
+      let baseAnnotations = [IR.GenType, IR.Tag(tagName)]
+      let annotations = if shouldSkipSchema { baseAnnotations } else { Array.concat(baseAnnotations, [IR.Schema]) }
       {
         IR.name: typeName,
-        annotations: [IR.GenType, Tag(tagName), Schema],
+        annotations,
         kind: VariantDef(irCases),
       }
     }

@@ -757,6 +757,102 @@ describe('Schema Parser', () => {
         expect(asins.type._0._0).toBe('String');
     });
 
+    test('@schema skip propagates transitively through chain Outer→Middle→Inner(Unknown)', () => {
+        // Inner has anyOf [{}, null] → Nullable<Unknown> → must skip @schema
+        // Middle has field referencing Inner → must skip
+        // Outer (PolyVariant with Ref(Middle)) → must also skip
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Inner: {
+                        type: "object",
+                        properties: {
+                            value: { anyOf: [{}, { type: "null" }] }
+                        },
+                        required: ["value"]
+                    },
+                    Middle: {
+                        type: "object",
+                        properties: {
+                            inner: { "$ref": "#/components/schemas/Inner" }
+                        },
+                        required: ["inner"]
+                    },
+                    OuterCase: {
+                        type: "object",
+                        properties: {
+                            _tag: { type: "string", const: "OuterCase" },
+                            data: { "$ref": "#/components/schemas/Middle" }
+                        },
+                        required: ["_tag", "data"]
+                    },
+                    Outer: {
+                        oneOf: [{ "$ref": "#/components/schemas/OuterCase" }]
+                    }
+                }
+            }
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+        const code = Codegen.generateModule(parseResult._0);
+
+        // Inner has Unknown → must NOT have @schema
+        const inner = code.match(/((?:@[a-zA-Z()."_]+\s*)+)type inner =/);
+        expect(inner[1]).not.toContain('@schema');
+
+        // Middle references Inner → must NOT have @schema
+        const middle = code.match(/((?:@[a-zA-Z()."_]+\s*)+)type middle =/);
+        expect(middle[1]).not.toContain('@schema');
+
+        // Outer is PolyVariant inlining Middle's fields → transitively reaches Inner → must NOT have @schema
+        const outer = code.match(/((?:@[a-zA-Z()."_]+\s*)+)type outer =/);
+        expect(outer[1]).not.toContain('@schema');
+    });
+
+    test('@schema propagates to types referencing extracted unions', () => {
+        // TaskDestination-like pattern: a field has anyOf [enum, string, null].
+        // After union extraction, it becomes Ref(<extractedUnion>) which itself
+        // gets @schema. The referencing type MUST also keep @schema, otherwise
+        // sury-ppx fails with "<extractedUnion>Schema can't be found" in the
+        // referencing type's generated schema.
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    TaskDestination: {
+                        type: "object",
+                        properties: {
+                            type: {
+                                anyOf: [
+                                    { type: "string", enum: ["a", "b"] },
+                                    { type: "string" },
+                                    { type: "null" }
+                                ]
+                            },
+                            label: {
+                                anyOf: [{ type: "string" }, { type: "null" }]
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+
+        // Locate the taskDestination definition block
+        const m = code.match(/((?:@[a-zA-Z()."_]+\s*)+)type taskDestination =/);
+        expect(m).not.toBeNull();
+        const annotations = m[1];
+        expect(annotations).toContain('@genType');
+        expect(annotations).toContain('@schema');
+    });
+
     test('generateModule emits Params record with @schema for path operation', () => {
         const doc = {
             openapi: "3.0.0",

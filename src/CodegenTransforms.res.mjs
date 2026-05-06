@@ -348,7 +348,39 @@ function topologicalSort(schemas) {
 function buildSkipSchemaSet(schemas) {
   let skipSet = {};
   schemas.forEach(s => {
-    if (CodegenHelpers.hasUnion(s.schema) || CodegenHelpers.hasUnknown(s.schema)) {
+    let types = s.schema;
+    let hasInlineProblem;
+    let exit = 0;
+    if (typeof types !== "object") {
+      exit = 1;
+    } else {
+      switch (types._tag) {
+        case "PolyVariant" :
+          hasInlineProblem = types._0.some(c => {
+            if (CodegenHelpers.hasUnion(c.payload)) {
+              return true;
+            } else {
+              return CodegenHelpers.hasUnknown(c.payload);
+            }
+          });
+          break;
+        case "Union" :
+          hasInlineProblem = types._0.some(t => {
+            if (CodegenHelpers.hasUnion(t)) {
+              return true;
+            } else {
+              return CodegenHelpers.hasUnknown(t);
+            }
+          });
+          break;
+        default:
+          exit = 1;
+      }
+    }
+    if (exit === 1) {
+      hasInlineProblem = CodegenHelpers.hasUnion(s.schema) || CodegenHelpers.hasUnknown(s.schema);
+    }
+    if (hasInlineProblem) {
       skipSet[s.name] = true;
       return;
     }
