@@ -44,7 +44,10 @@ let rec printType = (t: IR.irType): string => {
     `[${variants}]`
   | InlineRecord(fields) => printRecord(fields)
   | InlineVariant(cases) => printVariantCases(cases)
-  | JSON => "JSON.t"
+  // JSON.t carries @s.matches(S.json) so sury-ppx synthesizes Sury.json,
+  // letting any enclosing record/variant still get @schema instead of being
+  // poisoned by an Unknown leaf.
+  | JSON => "@s.matches(S.json) JSON.t"
   }
 }
 

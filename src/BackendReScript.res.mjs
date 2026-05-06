@@ -32,7 +32,7 @@ function printPrimitive(p) {
 
 function printType(t) {
   if (typeof t !== "object") {
-    return "JSON.t";
+    return "@s.matches(S.json) JSON.t";
   }
   switch (t.TAG) {
     case "Primitive" :

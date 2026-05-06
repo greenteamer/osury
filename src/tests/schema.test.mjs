@@ -757,10 +757,11 @@ describe('Schema Parser', () => {
         expect(asins.type._0._0).toBe('String');
     });
 
-    test('@schema skip propagates transitively through chain Outer→Middle→Inner(Unknown)', () => {
-        // Inner has anyOf [{}, null] → Nullable<Unknown> → must skip @schema
-        // Middle has field referencing Inner → must skip
-        // Outer (PolyVariant with Ref(Middle)) → must also skip
+    test('@schema reaches all types in chain Outer→Middle→Inner(Unknown) via @s.matches(S.json)', () => {
+        // Inner has anyOf [{}, null] → Nullable<JSON.t>. Previously this
+        // poisoned every enclosing type (skip @schema). Now the JSON.t leaf
+        // carries @s.matches(S.json) so sury-ppx synthesizes Sury.json and
+        // every enclosing record/PolyVariant keeps @schema.
         const doc = {
             openapi: "3.0.0",
             components: {
@@ -798,17 +799,18 @@ describe('Schema Parser', () => {
         expect(parseResult.TAG).toBe('Ok');
         const code = Codegen.generateModule(parseResult._0);
 
-        // Inner has Unknown → must NOT have @schema
+        // The Unknown leaf must be tagged with @s.matches so sury-ppx maps it to Sury.json
+        expect(code).toMatch(/value:\s*@s\.null\s+Nullable\.t<@s\.matches\(S\.json\)\s+JSON\.t>/);
+
+        // All three layers must keep @schema
         const inner = code.match(/((?:@[a-zA-Z()."_]+\s*)+)type inner =/);
-        expect(inner[1]).not.toContain('@schema');
+        expect(inner[1]).toContain('@schema');
 
-        // Middle references Inner → must NOT have @schema
         const middle = code.match(/((?:@[a-zA-Z()."_]+\s*)+)type middle =/);
-        expect(middle[1]).not.toContain('@schema');
+        expect(middle[1]).toContain('@schema');
 
-        // Outer is PolyVariant inlining Middle's fields → transitively reaches Inner → must NOT have @schema
         const outer = code.match(/((?:@[a-zA-Z()."_]+\s*)+)type outer =/);
-        expect(outer[1]).not.toContain('@schema');
+        expect(outer[1]).toContain('@schema');
     });
 
     test('@schema propagates to types referencing extracted unions', () => {
@@ -2073,10 +2075,11 @@ describe('Sample Data Generator', () => {
         expect(parseResult.TAG).toBe('Ok');
 
         const code = Codegen.generateModule(parseResult._0);
-        // Top-level empty object → alias to JSON.t
-        expect(code).toContain('type emptyObj = JSON.t');
-        // Inline empty object field → JSON.t
-        expect(code).toContain('data: JSON.t');
+        // Top-level empty object → alias to @s.matches-tagged JSON.t (so sury-ppx
+        // can still synthesize a runtime schema via Sury.json)
+        expect(code).toContain('type emptyObj = @s.matches(S.json) JSON.t');
+        // Inline empty object field → JSON.t with @s.matches
+        expect(code).toContain('data: @s.matches(S.json) JSON.t');
         // No empty records
         expect(code).not.toContain('{}');
     });

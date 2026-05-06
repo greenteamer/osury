@@ -278,19 +278,18 @@ let topologicalSort = (schemas: array<OpenAPIParser.namedSchema>): array<OpenAPI
 let buildSkipSchemaSet = (schemas: array<OpenAPIParser.namedSchema>): Dict.t<bool> => {
   let skipSet = Dict.make()
 
-  // First pass: mark types with inline Union or Unknown (JSON.t)
+  // First pass: mark types with inline Union (incompatible with @schema PPX).
+  // Unknown (JSON.t) no longer blocks @schema — BackendReScript emits
+  // `@s.matches(S.json) JSON.t` so sury-ppx synthesizes Sury.json on the spot.
   // Top-level Union/PolyVariant are NOT inline — they're extracted/discriminated
-  // and always get @schema from IRGen, so we only check for inline Union/Unknown
-  // within their structure (skipping the outermost wrapper).
+  // and always get @schema, so check only inline Union within their payloads.
   schemas->Array.forEach(s => {
     let hasInlineProblem = switch s.schema {
     | Union(types) =>
-      // Top-level Union is fine; check payloads for inline Union/Unknown
-      types->Array.some(t => CodegenHelpers.hasUnion(t) || CodegenHelpers.hasUnknown(t))
+      types->Array.some(t => CodegenHelpers.hasUnion(t))
     | PolyVariant(cases) =>
-      // Top-level PolyVariant is fine; check payloads
-      cases->Array.some(c => CodegenHelpers.hasUnion(c.payload) || CodegenHelpers.hasUnknown(c.payload))
-    | _ => CodegenHelpers.hasUnion(s.schema) || CodegenHelpers.hasUnknown(s.schema)
+      cases->Array.some(c => CodegenHelpers.hasUnion(c.payload))
+    | _ => CodegenHelpers.hasUnion(s.schema)
     }
     if hasInlineProblem {
       skipSet->Dict.set(s.name, true)
