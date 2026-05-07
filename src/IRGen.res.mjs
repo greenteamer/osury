@@ -301,7 +301,13 @@ function generate(schemas) {
     };
   }
   let warnings = CodegenTransforms.collectUnionWarnings(schemas);
-  let extractedUnions = schemas.flatMap(s => CodegenTransforms.extractUnions(s.name, s.schema).map(extracted => {
+  let enumOccurrences = CodegenTransforms.collectInlineEnums(schemas);
+  let topLevelNames = schemas.map(s => s.name);
+  let enumNames = CodegenTransforms.resolveEnumNames(enumOccurrences, topLevelNames);
+  let enumSchemas = CodegenTransforms.buildExtractedEnumSchemas(enumOccurrences, enumNames);
+  let schemasAfterEnumPromotion = CodegenTransforms.replaceInlineEnums(schemas, enumNames);
+  let schemas$1 = enumSchemas.concat(schemasAfterEnumPromotion);
+  let extractedUnions = schemas$1.flatMap(s => CodegenTransforms.extractUnions(s.name, s.schema).map(extracted => {
     let dict = s.fieldDiscriminators;
     let discriminatorPropertyName = dict !== undefined ? dict[extracted.name] : undefined;
     return {
@@ -321,7 +327,7 @@ function generate(schemas) {
       return true;
     }
   });
-  let modifiedSchemas = schemas.map(s => ({
+  let modifiedSchemas = schemas$1.map(s => ({
     name: s.name,
     schema: CodegenTransforms.replaceUnions(s.name, s.schema),
     discriminatorTag: s.discriminatorTag,

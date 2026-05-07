@@ -4,6 +4,246 @@ import * as Errors from "./Errors.res.mjs";
 import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 import * as CodegenHelpers from "./CodegenHelpers.res.mjs";
+import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js";
+
+function collectEnumsFromType(parentType, fieldPath, _schema) {
+  while (true) {
+    let schema = _schema;
+    if (typeof schema !== "object") {
+      return [];
+    }
+    switch (schema._tag) {
+      case "Object" :
+        return schema._0.flatMap(f => collectEnumsFromType(parentType, fieldPath.concat([f.name]), f.type));
+      case "Enum" :
+        if (fieldPath.length > 0) {
+          return [{
+              parentType: parentType,
+              fieldPath: fieldPath,
+              values: schema._0
+            }];
+        } else {
+          return [];
+        }
+      case "PolyVariant" :
+        return schema._0.flatMap(c => collectEnumsFromType(parentType, fieldPath, c.payload));
+      case "Optional" :
+      case "Nullable" :
+      case "Array" :
+      case "Dict" :
+        break;
+      case "Union" :
+        return schema._0.flatMap(t => collectEnumsFromType(parentType, fieldPath, t));
+      default:
+        return [];
+    }
+    _schema = schema._0;
+    continue;
+  };
+}
+
+function collectInlineEnums(schemas) {
+  return schemas.flatMap(s => {
+    let match = s.schema;
+    if (typeof match !== "object") {
+      return collectEnumsFromType(s.name, [], s.schema);
+    } else if (match._tag === "Enum") {
+      return [];
+    } else {
+      return collectEnumsFromType(s.name, [], s.schema);
+    }
+  });
+}
+
+function camelize(s) {
+  let parts = s.replace(/-/g, "_").split("_").filter(p => p !== "");
+  let first = parts[0];
+  if (first === undefined) {
+    return s;
+  }
+  let rest = parts.slice(1);
+  return CodegenHelpers.lcFirst(first) + rest.map(CodegenHelpers.ucFirst).join("");
+}
+
+function occurrenceKey(occ) {
+  return occ.parentType + "::" + occ.fieldPath.join("/");
+}
+
+function valuesCanonicalKey(values) {
+  let cmp = (a, b) => {
+    if (Primitive_object.lessthan(a, b)) {
+      return -1.0;
+    } else if (Primitive_object.greaterthan(a, b)) {
+      return 1.0;
+    } else {
+      return 0.0;
+    }
+  };
+  return values.toSorted(cmp).join("");
+}
+
+function leafFieldName(occ) {
+  let s = occ.fieldPath[occ.fieldPath.length - 1 | 0];
+  if (s !== undefined) {
+    return s;
+  } else {
+    return "unknown";
+  }
+}
+
+function replaceEnumsInType(parentType, fieldPath, names, schema) {
+  if (typeof schema !== "object") {
+    return schema;
+  }
+  switch (schema._tag) {
+    case "Optional" :
+      return {
+        _tag: "Optional",
+        _0: replaceEnumsInType(parentType, fieldPath, names, schema._0)
+      };
+    case "Nullable" :
+      return {
+        _tag: "Nullable",
+        _0: replaceEnumsInType(parentType, fieldPath, names, schema._0)
+      };
+    case "Object" :
+      return {
+        _tag: "Object",
+        _0: schema._0.map(f => {
+          let newType = replaceEnumsInType(parentType, fieldPath.concat([f.name]), names, f.type);
+          return {
+            name: f.name,
+            type: newType,
+            required: f.required
+          };
+        })
+      };
+    case "Array" :
+      return {
+        _tag: "Array",
+        _0: replaceEnumsInType(parentType, fieldPath, names, schema._0)
+      };
+    case "Enum" :
+      if (fieldPath.length <= 0) {
+        return schema;
+      }
+      let key = parentType + "::" + fieldPath.join("/");
+      let name = names[key];
+      if (name !== undefined) {
+        return {
+          _tag: "Ref",
+          _0: CodegenHelpers.ucFirst(name)
+        };
+      } else {
+        return schema;
+      }
+    case "PolyVariant" :
+      return {
+        _tag: "PolyVariant",
+        _0: schema._0.map(c => {
+          let payload = replaceEnumsInType(parentType, fieldPath, names, c.payload);
+          return {
+            _tag: c._tag,
+            payload: payload
+          };
+        })
+      };
+    case "Dict" :
+      return {
+        _tag: "Dict",
+        _0: replaceEnumsInType(parentType, fieldPath, names, schema._0)
+      };
+    case "Union" :
+      return {
+        _tag: "Union",
+        _0: schema._0.map(t => replaceEnumsInType(parentType, fieldPath, names, t))
+      };
+    default:
+      return schema;
+  }
+}
+
+function replaceInlineEnums(schemas, names) {
+  return schemas.map(s => {
+    let match = s.schema;
+    let newSchema;
+    let exit = 0;
+    if (typeof match !== "object" || match._tag !== "Enum") {
+      exit = 1;
+    } else {
+      newSchema = s.schema;
+    }
+    if (exit === 1) {
+      newSchema = replaceEnumsInType(s.name, [], names, s.schema);
+    }
+    return {
+      name: s.name,
+      schema: newSchema,
+      discriminatorTag: s.discriminatorTag,
+      discriminatorPropertyName: s.discriminatorPropertyName,
+      fieldDiscriminators: s.fieldDiscriminators
+    };
+  });
+}
+
+function buildExtractedEnumSchemas(occurrences, names) {
+  let seen = {};
+  let result = [];
+  occurrences.forEach(occ => {
+    let key = occurrenceKey(occ);
+    let name = names[key];
+    if (name === undefined) {
+      return;
+    }
+    let typeName = CodegenHelpers.ucFirst(name);
+    if (Core__Option.isNone(seen[typeName])) {
+      seen[typeName] = true;
+      result.push({
+        name: typeName,
+        schema: {
+          _tag: "Enum",
+          _0: occ.values
+        },
+        discriminatorTag: undefined,
+        discriminatorPropertyName: undefined,
+        fieldDiscriminators: undefined
+      });
+      return;
+    }
+  });
+  return result;
+}
+
+function resolveEnumNames(occurrences, topLevelNames) {
+  let topLevelSet = {};
+  topLevelNames.forEach(n => {
+    topLevelSet[CodegenHelpers.lcFirst(n)] = true;
+  });
+  let buckets = {};
+  occurrences.forEach(occ => {
+    let leaf = leafFieldName(occ);
+    let vKey = valuesCanonicalKey(occ.values);
+    let set = buckets[leaf];
+    if (set !== undefined) {
+      set[vKey] = true;
+      return;
+    }
+    let set$1 = {};
+    set$1[vKey] = true;
+    buckets[leaf] = set$1;
+  });
+  let result = {};
+  occurrences.forEach(occ => {
+    let leaf = leafFieldName(occ);
+    let camelized = camelize(leaf);
+    let distinctSets = Core__Option.mapOr(buckets[leaf], 1, set => Object.keys(set).length);
+    let collidesTopLevel = Core__Option.isSome(topLevelSet[camelized]);
+    let baseName = distinctSets > 1 || collidesTopLevel ? CodegenHelpers.lcFirst(occ.parentType) + CodegenHelpers.ucFirst(camelized) : camelized;
+    let name = CodegenHelpers.isReservedKeyword(baseName) ? baseName + "_" : baseName;
+    result[occurrenceKey(occ)] = name;
+  });
+  return result;
+}
 
 function isRefPlusDictUnion(types) {
   if (types.length !== 2) {
@@ -527,6 +767,16 @@ function validateUnionDiscriminators(schemas) {
 }
 
 export {
+  collectEnumsFromType,
+  collectInlineEnums,
+  camelize,
+  occurrenceKey,
+  valuesCanonicalKey,
+  leafFieldName,
+  replaceEnumsInType,
+  replaceInlineEnums,
+  buildExtractedEnumSchemas,
+  resolveEnumNames,
   isRefPlusDictUnion,
   isPrimitivePlusDictUnion,
   getUnionName,

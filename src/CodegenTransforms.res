@@ -8,6 +8,242 @@ type extractedUnion = {
   schema: Schema.schemaType,
 }
 
+// One inline-enum occurrence: where it appears + what values it carries.
+// Used for two-pass naming (field-name first, qualified prefix on collision).
+type enumOccurrence = {
+  parentType: string, // top-level schema name that contains this field
+  fieldPath: array<string>, // ["sort_direction"] or ["filters", "granularity"]
+  values: array<string>, // ["asc", "desc"] in original spec order
+}
+
+// Walk a schema collecting inline Enum occurrences with their field paths.
+// Top-level Enum (a namedSchema whose root IS an Enum) is NOT collected —
+// it is already a named type by virtue of being in components/schemas.
+let rec collectEnumsFromType = (
+  ~parentType: string,
+  ~fieldPath: array<string>,
+  schema: Schema.schemaType,
+): array<enumOccurrence> => {
+  switch schema {
+  | Enum(values) =>
+    // Only collect if we are inside a field (fieldPath non-empty).
+    // Top-level enums (called from collectInlineEnums with empty path
+    // and special-cased there) don't reach this branch.
+    if Array.length(fieldPath) > 0 {
+      [{parentType, fieldPath, values}]
+    } else {
+      []
+    }
+  | Optional(inner) | Nullable(inner) | Array(inner) | Dict(inner) =>
+    collectEnumsFromType(~parentType, ~fieldPath, inner)
+  | Object(fields) =>
+    fields->Array.flatMap(f =>
+      collectEnumsFromType(~parentType, ~fieldPath=Array.concat(fieldPath, [f.name]), f.type_)
+    )
+  | PolyVariant(cases) =>
+    cases->Array.flatMap(c => collectEnumsFromType(~parentType, ~fieldPath, c.payload))
+  | Union(types) => types->Array.flatMap(t => collectEnumsFromType(~parentType, ~fieldPath, t))
+  | _ => []
+  }
+}
+
+// Public entry: walk all schemas, collect inline-enum occurrences.
+// Skips top-level Enum schemas (already named via components/schemas).
+let collectInlineEnums = (schemas: array<OpenAPIParser.namedSchema>): array<enumOccurrence> => {
+  schemas->Array.flatMap(s => {
+    switch s.schema {
+    | Enum(_) => [] // top-level enum, already named
+    | _ => collectEnumsFromType(~parentType=s.name, ~fieldPath=[], s.schema)
+    }
+  })
+}
+
+// snake_case / kebab-case → camelCase. "sort_direction" → "sortDirection".
+let camelize = (s: string): string => {
+  let parts =
+    s
+    ->String.replaceRegExp(/-/g, "_")
+    ->String.split("_")
+    ->Array.filter(p => p != "")
+  switch parts->Array.get(0) {
+  | None => s
+  | Some(first) =>
+    let rest = parts->Array.sliceToEnd(~start=1)
+    CodegenHelpers.lcFirst(first) ++ rest->Array.map(CodegenHelpers.ucFirst)->Array.join("")
+  }
+}
+
+// Stable identity for an enum occurrence (for the output Dict).
+let occurrenceKey = (occ: enumOccurrence): string =>
+  occ.parentType ++ "::" ++ occ.fieldPath->Array.join("/")
+
+// Canonical key for value-set comparison (order-independent).
+let valuesCanonicalKey = (values: array<string>): string => {
+  let cmp = (a, b) =>
+    if a < b {
+      -1.0
+    } else if a > b {
+      1.0
+    } else {
+      0.0
+    }
+  // ASCII Unit Separator (\x1F) — designed for record separation, never appears
+  // in real string values. A plain space would collide on multi-word enum values.
+  values->Array.toSorted(cmp)->Array.join("")
+}
+
+// Leaf field name (last segment of fieldPath).
+let leafFieldName = (occ: enumOccurrence): string =>
+  switch occ.fieldPath->Array.get(Array.length(occ.fieldPath) - 1) {
+  | Some(s) => s
+  | None => "unknown"
+  }
+
+// Replace inline Enum with Ref(resolvedName) inside a single schemaType,
+// driven by the same path-walking logic used for collection.
+// `names` is the Dict from `resolveEnumNames`, keyed by `occurrenceKey`.
+let rec replaceEnumsInType = (
+  ~parentType: string,
+  ~fieldPath: array<string>,
+  ~names: Dict.t<string>,
+  schema: Schema.schemaType,
+): Schema.schemaType => {
+  switch schema {
+  | Enum(_) =>
+    // Only inline enums (fieldPath non-empty) get promoted.
+    if Array.length(fieldPath) > 0 {
+      let key = parentType ++ "::" ++ fieldPath->Array.join("/")
+      switch names->Dict.get(key) {
+      | Some(name) => Ref(CodegenHelpers.ucFirst(name))
+      | None => schema
+      }
+    } else {
+      schema
+    }
+  | Optional(inner) => Optional(replaceEnumsInType(~parentType, ~fieldPath, ~names, inner))
+  | Nullable(inner) => Nullable(replaceEnumsInType(~parentType, ~fieldPath, ~names, inner))
+  | Array(inner) => Array(replaceEnumsInType(~parentType, ~fieldPath, ~names, inner))
+  | Dict(inner) => Dict(replaceEnumsInType(~parentType, ~fieldPath, ~names, inner))
+  | Object(fields) =>
+    Object(
+      fields->Array.map(f => {
+        let newType = replaceEnumsInType(
+          ~parentType,
+          ~fieldPath=Array.concat(fieldPath, [f.name]),
+          ~names,
+          f.type_,
+        )
+        {...f, type_: newType}
+      }),
+    )
+  | PolyVariant(cases) =>
+    PolyVariant(
+      cases->Array.map(c => {
+        let payload = replaceEnumsInType(~parentType, ~fieldPath, ~names, c.payload)
+        {...c, payload}
+      }),
+    )
+  | Union(types) =>
+    Union(types->Array.map(t => replaceEnumsInType(~parentType, ~fieldPath, ~names, t)))
+  | other => other
+  }
+}
+
+// Apply `replaceEnumsInType` to each top-level schema, producing rewritten
+// schemas where inline Enum-leaves are now Ref(...). Top-level Enum schemas
+// are left untouched (they were never collected).
+let replaceInlineEnums = (schemas: array<OpenAPIParser.namedSchema>, ~names: Dict.t<string>): array<
+  OpenAPIParser.namedSchema,
+> => {
+  schemas->Array.map(s => {
+    let newSchema = switch s.schema {
+    | Enum(_) => s.schema
+    | _ => replaceEnumsInType(~parentType=s.name, ~fieldPath=[], ~names, s.schema)
+    }
+    {...s, schema: newSchema}
+  })
+}
+
+// Build the new top-level namedSchema records for each unique resolved enum
+// name. Returns at most one record per resolved name (dedup'd).
+let buildExtractedEnumSchemas = (occurrences: array<enumOccurrence>, ~names: Dict.t<string>): array<
+  OpenAPIParser.namedSchema,
+> => {
+  let seen = Dict.make()
+  let result = []
+  occurrences->Array.forEach(occ => {
+    let key = occurrenceKey(occ)
+    switch names->Dict.get(key) {
+    | None => ()
+    | Some(name) =>
+      let typeName = CodegenHelpers.ucFirst(name)
+      if seen->Dict.get(typeName)->Option.isNone {
+        seen->Dict.set(typeName, true)
+        result
+        ->Array.push({
+          OpenAPIParser.name: typeName,
+          schema: Schema.Enum(occ.values),
+          discriminatorTag: None,
+          discriminatorPropertyName: None,
+          fieldDiscriminators: None,
+        })
+        ->ignore
+      }
+    }
+  })
+  result
+}
+
+// Two-pass naming: clean field-derived name when unambiguous,
+// qualified prefix `<parentType><FieldName>` on collision OR clash with
+// an existing top-level named schema.
+let resolveEnumNames = (occurrences: array<enumOccurrence>, topLevelNames: array<string>): Dict.t<
+  string,
+> => {
+  // topLevelSet: lcFirst'd names that are already taken by components/schemas
+  let topLevelSet = Dict.make()
+  topLevelNames->Array.forEach(n => topLevelSet->Dict.set(CodegenHelpers.lcFirst(n), true))
+
+  // Pass 1: bucket distinct value-sets per leaf-field name.
+  let buckets: Dict.t<Dict.t<bool>> = Dict.make()
+  occurrences->Array.forEach(occ => {
+    let leaf = leafFieldName(occ)
+    let vKey = valuesCanonicalKey(occ.values)
+    switch buckets->Dict.get(leaf) {
+    | Some(set) => set->Dict.set(vKey, true)
+    | None =>
+      let set = Dict.make()
+      set->Dict.set(vKey, true)
+      buckets->Dict.set(leaf, set)
+    }
+  })
+
+  // Pass 2: assign a name per occurrence.
+  let result = Dict.make()
+  occurrences->Array.forEach(occ => {
+    let leaf = leafFieldName(occ)
+    let camelized = camelize(leaf)
+    let distinctSets =
+      buckets
+      ->Dict.get(leaf)
+      ->Option.mapOr(1, set => set->Dict.keysToArray->Array.length)
+    let collidesTopLevel = topLevelSet->Dict.get(camelized)->Option.isSome
+    let baseName = if distinctSets > 1 || collidesTopLevel {
+      CodegenHelpers.lcFirst(occ.parentType) ++ CodegenHelpers.ucFirst(camelized)
+    } else {
+      camelized
+    }
+    // Avoid emitting a `type <reserved>` declaration — append underscore.
+    let name = if CodegenHelpers.isReservedKeyword(baseName) {
+      baseName ++ "_"
+    } else {
+      baseName
+    }
+    result->Dict.set(occurrenceKey(occ), name)
+  })
+  result
+}
+
 // Detect pattern: Union([Ref(X), Dict(String)]) - anyOf with concrete type + catch-all dict
 // This pattern lacks discriminator, so we simplify to just the concrete Ref type
 let isRefPlusDictUnion = (types: array<Schema.schemaType>): option<string> => {
@@ -80,6 +316,7 @@ let getUnionName = (types: array<Schema.schemaType>): string => {
     | _ => "unknown"
     }
   })
+
   // Join with "Or": [a, b, c] → "aOrBOrC"
   if Array.length(names) == 0 {
     "emptyUnion"
@@ -181,18 +418,17 @@ let rec getDependencies = (schema: Schema.schemaType): array<string> => {
   | Dict(inner) => getDependencies(inner)
   | Ref(name) => [name]
   | Enum(_) => []
-  | Object(fields) =>
-    fields->Array.flatMap(f => getDependencies(f.type_))
-  | PolyVariant(cases) =>
-    cases->Array.flatMap(c => getDependencies(c.payload))
-  | Union(types) =>
-    types->Array.flatMap(getDependencies)
+  | Object(fields) => fields->Array.flatMap(f => getDependencies(f.type_))
+  | PolyVariant(cases) => cases->Array.flatMap(c => getDependencies(c.payload))
+  | Union(types) => types->Array.flatMap(getDependencies)
   }
 }
 
 // Topological sort using Kahn's algorithm
 // Types with no dependencies come first, then types that depend on them
-let topologicalSort = (schemas: array<OpenAPIParser.namedSchema>): array<OpenAPIParser.namedSchema> => {
+let topologicalSort = (schemas: array<OpenAPIParser.namedSchema>): array<
+  OpenAPIParser.namedSchema,
+> => {
   // Build name -> schema map
   let schemaMap = Dict.make()
   schemas->Array.forEach(s => schemaMap->Dict.set(s.name, s))
@@ -217,7 +453,9 @@ let topologicalSort = (schemas: array<OpenAPIParser.namedSchema>): array<OpenAPI
   // Build reverse dependency graph (name -> names that depend on it)
   let reverseDeps = Dict.make()
   schemas->Array.forEach(s => reverseDeps->Dict.set(s.name, []))
-  deps->Dict.toArray->Array.forEach(((name, refNames)) => {
+  deps
+  ->Dict.toArray
+  ->Array.forEach(((name, refNames)) => {
     refNames->Array.forEach(refName => {
       switch reverseDeps->Dict.get(refName) {
       | Some(arr) => arr->Array.push(name)->ignore
@@ -227,7 +465,8 @@ let topologicalSort = (schemas: array<OpenAPIParser.namedSchema>): array<OpenAPI
   })
 
   // Find all nodes with out-degree 0 (no dependencies)
-  let queue = schemas
+  let queue =
+    schemas
     ->Array.filter(s => outDegree->Dict.get(s.name)->Option.getOr(0) == 0)
     ->Array.map(s => s.name)
 
@@ -285,10 +524,8 @@ let buildSkipSchemaSet = (schemas: array<OpenAPIParser.namedSchema>): Dict.t<boo
   // and always get @schema, so check only inline Union within their payloads.
   schemas->Array.forEach(s => {
     let hasInlineProblem = switch s.schema {
-    | Union(types) =>
-      types->Array.some(t => CodegenHelpers.hasUnion(t))
-    | PolyVariant(cases) =>
-      cases->Array.some(c => CodegenHelpers.hasUnion(c.payload))
+    | Union(types) => types->Array.some(t => CodegenHelpers.hasUnion(t))
+    | PolyVariant(cases) => cases->Array.some(c => CodegenHelpers.hasUnion(c.payload))
     | _ => CodegenHelpers.hasUnion(s.schema)
     }
     if hasInlineProblem {
@@ -304,9 +541,7 @@ let buildSkipSchemaSet = (schemas: array<OpenAPIParser.namedSchema>): Dict.t<boo
       if skipSet->Dict.get(s.name)->Option.isNone {
         // Check if this type references any type that skips @schema
         let refs = getDependencies(s.schema)
-        let refsSkipSchema = refs->Array.some(refName =>
-          skipSet->Dict.get(refName)->Option.isSome
-        )
+        let refsSkipSchema = refs->Array.some(refName => skipSet->Dict.get(refName)->Option.isSome)
         if refsSkipSchema {
           skipSet->Dict.set(s.name, true)
           changed := true
@@ -337,18 +572,29 @@ let collectUnionWarnings = (schemas: array<OpenAPIParser.namedSchema>): array<st
     let unions = findUnions(s.schema)
     unions->Array.forEach(types => {
       let unionName = getUnionName(types)
+
       // Skip if already warned about this union
       if seen->Dict.get(unionName)->Option.isNone {
         seen->Dict.set(unionName, true)
         // Check for [Ref, Dict] pattern (will be simplified)
         switch isRefPlusDictUnion(types) {
         | Some(refName) =>
-          warnings->Array.push(`⚠ ${unionName}: anyOf without discriminator, simplified to ${CodegenHelpers.lcFirst(refName)}`)->ignore
+          warnings
+          ->Array.push(
+            `⚠ ${unionName}: anyOf without discriminator, simplified to ${CodegenHelpers.lcFirst(
+                refName,
+              )}`,
+          )
+          ->ignore
         | None =>
           // Check for [Primitive, Dict] pattern (kept but problematic)
           switch isPrimitivePlusDictUnion(types) {
           | Some(primName) =>
-            warnings->Array.push(`⚠ ${unionName}: anyOf [${primName}, Dict] without discriminator, @tag("_tag") may not work at runtime`)->ignore
+            warnings
+            ->Array.push(
+              `⚠ ${unionName}: anyOf [${primName}, Dict] without discriminator, @tag("_tag") may not work at runtime`,
+            )
+            ->ignore
           | None => ()
           }
         }
@@ -385,7 +631,9 @@ let validateUnionDiscriminators = (schemas: array<OpenAPIParser.namedSchema>): E
   schemas->Array.forEach(s => {
     switch s.fieldDiscriminators {
     | Some(dict) =>
-      dict->Dict.toArray->Array.forEach(((unionName, propName)) => {
+      dict
+      ->Dict.toArray
+      ->Array.forEach(((unionName, propName)) => {
         fieldDiscsDict->Dict.set(unionName, propName)
       })
     | None => ()
@@ -408,6 +656,7 @@ let validateUnionDiscriminators = (schemas: array<OpenAPIParser.namedSchema>): E
       let unionName = getUnionName(types)
       if seen->Dict.get(unionName)->Option.isNone {
         seen->Dict.set(unionName, true)
+
         // Skip primitive-only unions (they use @unboxed, no discriminator needed)
         if !CodegenHelpers.isPrimitiveOnlyUnion(types) {
           // Skip Ref+Dict unions (they get simplified to just Ref)
@@ -421,20 +670,25 @@ let validateUnionDiscriminators = (schemas: array<OpenAPIParser.namedSchema>): E
               // Check if this union has a field-level discriminator
               if fieldDiscsDict->Dict.get(unionName)->Option.isNone {
                 // Check if all Ref members have _tag discriminator tags
-                let allRefsHaveTags = types->Array.every(t =>
-                  switch t {
-                  | Schema.Ref(name) => tagsDict->Dict.get(name)->Option.isSome
-                  | _ => true // non-Ref types (primitives) are ok
-                  }
+                let allRefsHaveTags = types->Array.every(
+                  t =>
+                    switch t {
+                    | Schema.Ref(name) => tagsDict->Dict.get(name)->Option.isSome
+                    | _ => true // non-Ref types (primitives) are ok
+                    },
                 )
                 if !allRefsHaveTags {
-                  errors->Array.push(
+                  errors
+                  ->Array.push(
                     Errors.makeError(
                       ~kind=MissingDiscriminator(unionName),
-                      ~hint=Some("Add discriminator: { propertyName: \"type\" } to the anyOf/oneOf schema, or use the _tag convention with const values"),
-                      ()
-                    )
-                  )->ignore
+                      ~hint=Some(
+                        "Add discriminator: { propertyName: \"type\" } to the anyOf/oneOf schema, or use the _tag convention with const values",
+                      ),
+                      (),
+                    ),
+                  )
+                  ->ignore
                 }
               }
             }

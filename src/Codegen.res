@@ -15,6 +15,12 @@ let isPrimitiveOnlyUnion = CodegenHelpers.isPrimitiveOnlyUnion
 
 // Re-export transforms for backward compatibility
 type extractedUnion = CodegenTransforms.extractedUnion
+type enumOccurrence = CodegenTransforms.enumOccurrence
+let collectInlineEnums = CodegenTransforms.collectInlineEnums
+let resolveEnumNames = CodegenTransforms.resolveEnumNames
+let camelize = CodegenTransforms.camelize
+let replaceInlineEnums = CodegenTransforms.replaceInlineEnums
+let buildExtractedEnumSchemas = CodegenTransforms.buildExtractedEnumSchemas
 let isRefPlusDictUnion = CodegenTransforms.isRefPlusDictUnion
 let isPrimitivePlusDictUnion = CodegenTransforms.isPrimitivePlusDictUnion
 let getUnionName = CodegenTransforms.getUnionName

@@ -896,8 +896,10 @@ describe('Schema Parser', () => {
 
         // Params type defined as record with @genType + @schema
         expect(code).toContain('type getV1ProductsListParams');
-        // sort_direction has default → required field
-        expect(code).toMatch(/sort_direction:\s*\[#asc \| #desc\]/);
+        // sort_direction enum is promoted to a named top-level type
+        expect(code).toMatch(/type sortDirection = \[#asc \| #desc\]/);
+        // Field references the promoted enum (not inline)
+        expect(code).toMatch(/sort_direction:\s*sortDirection/);
         // limit required int
         expect(code).toMatch(/limit:\s*int/);
         // country: anyOf+null → Nullable.t<string> (with @s.null sury annotation)
@@ -905,6 +907,214 @@ describe('Schema Parser', () => {
         // @schema must be present so sury-ppx auto-derives the runtime schema
         expect(code).toContain('@schema');
         expect(code).toContain('@genType');
+    });
+
+    test('generateModule: same fieldName + same values across endpoints → one shared promoted enum', () => {
+        const doc = {
+            openapi: "3.0.0",
+            paths: {
+                "/v1/a/list": {
+                    get: {
+                        operationId: "getV1AList",
+                        parameters: [{ name: "sort_direction", in: "query", required: true, schema: { type: "string", enum: ["asc", "desc"] } }],
+                        responses: { "200": { description: "ok", content: { "application/json": { schema: { type: "object" } } } } },
+                    },
+                },
+                "/v1/b/list": {
+                    get: {
+                        operationId: "getV1BList",
+                        parameters: [{ name: "sort_direction", in: "query", required: true, schema: { type: "string", enum: ["asc", "desc"] } }],
+                        responses: { "200": { description: "ok", content: { "application/json": { schema: { type: "object" } } } } },
+                    },
+                },
+            },
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+
+        // Single shared type definition
+        const matches = code.match(/type sortDirection = \[#asc \| #desc\]/g) || [];
+        expect(matches.length).toBe(1);
+        // Both Params records reference it
+        expect(code).toMatch(/getV1AListParams[\s\S]*sort_direction:\s*sortDirection/);
+        expect(code).toMatch(/getV1BListParams[\s\S]*sort_direction:\s*sortDirection/);
+    });
+
+    test('generateModule: promoted enum carries @genType + @schema annotations', () => {
+        const doc = {
+            openapi: "3.0.0",
+            paths: {
+                "/v1/x/list": {
+                    get: {
+                        operationId: "getV1XList",
+                        parameters: [
+                            { name: "priority", in: "query", required: true, schema: { type: "string", enum: ["low", "medium", "high"] } },
+                        ],
+                        responses: { "200": { description: "ok", content: { "application/json": { schema: { type: "object" } } } } },
+                    },
+                },
+            },
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+
+        // Locate the promoted enum block in the output
+        const enumBlock = code.match(/(@genType[\s\S]*?)\ntype priority = \[#low \| #medium \| #high\]/);
+        expect(enumBlock).not.toBeNull();
+        // Must have both annotations (sury-ppx supports literal poly-variant out of box)
+        expect(enumBlock[1]).toContain('@genType');
+        expect(enumBlock[1]).toContain('@schema');
+    });
+
+    test('generateModule: inline enum is promoted to a named top-level type', () => {
+        const doc = {
+            openapi: "3.0.0",
+            paths: {
+                "/v1/products/list": {
+                    get: {
+                        operationId: "getV1ProductsList",
+                        parameters: [
+                            { name: "sort_direction", in: "query", required: true, schema: { type: "string", enum: ["asc", "desc"] } },
+                        ],
+                        responses: { "200": { description: "ok", content: { "application/json": { schema: { type: "object" } } } } },
+                    },
+                },
+            },
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const code = Codegen.generateModule(parseResult._0);
+
+        // Top-level promoted enum exists
+        expect(code).toMatch(/type sortDirection = \[#asc \| #desc\]/);
+        // Inline reference instead of inline poly-variant
+        expect(code).toMatch(/sort_direction:\s*sortDirection/);
+        // Old inline literal must NOT remain in the params record
+        expect(code).not.toMatch(/sort_direction:\s*\[#asc \| #desc\]/);
+    });
+
+    test('resolveEnumNames: collision with top-level component schema → qualified prefix', () => {
+        // components/schemas already has "Status" → inline status field cannot
+        // reuse the name and must be qualified.
+        const occurrences = [
+            { parentType: 'getV1OrdersListParams', fieldPath: ['status'], values: ['active', 'archived'] },
+        ];
+
+        // topLevelNames are PascalCase as they come from components/schemas
+        const names = Codegen.resolveEnumNames(occurrences, ['Status']);
+
+        const key = 'getV1OrdersListParams::status';
+        expect(names[key]).toBe('getV1OrdersListParamsStatus');
+    });
+
+    test('resolveEnumNames: same fieldName + DIFFERENT values → both qualified by parent type', () => {
+        const occurrences = [
+            { parentType: 'getV1ProductsListParams', fieldPath: ['sort_field'], values: ['ad_sales', 'roas'] },
+            { parentType: 'getV1KeywordsListParams', fieldPath: ['sort_field'], values: ['search_volume', 'difficulty'] },
+        ];
+
+        const names = Codegen.resolveEnumNames(occurrences, []);
+
+        const productsKey = 'getV1ProductsListParams::sort_field';
+        const keywordsKey = 'getV1KeywordsListParams::sort_field';
+
+        expect(names[productsKey]).toBe('getV1ProductsListParamsSortField');
+        expect(names[keywordsKey]).toBe('getV1KeywordsListParamsSortField');
+    });
+
+    test('resolveEnumNames: same fieldName + same values across endpoints → single shared name', () => {
+        const occurrences = [
+            { parentType: 'getV1ProductsListParams', fieldPath: ['sort_direction'], values: ['asc', 'desc'] },
+            { parentType: 'getV1KeywordsListParams', fieldPath: ['sort_direction'], values: ['asc', 'desc'] },
+            { parentType: 'getV1OrdersListParams',   fieldPath: ['sort_direction'], values: ['asc', 'desc'] },
+        ];
+
+        const names = Codegen.resolveEnumNames(occurrences, []);
+        const allNames = new Set(Object.values(names));
+
+        // Different parents, same field, same values → ONE shared name
+        expect(allNames.size).toBe(1);
+        expect([...allNames][0]).toBe('sortDirection');
+    });
+
+    test('resolveEnumNames: unique fieldName → camelized name', () => {
+        const occurrences = [{
+            parentType: 'getV1ProductsListParams',
+            fieldPath: ['sort_direction'],
+            values: ['asc', 'desc'],
+        }];
+
+        const names = Codegen.resolveEnumNames(occurrences, []);
+
+        // One occurrence, one entry; key is stable identity, value is name
+        const allNames = Object.values(names);
+        expect(allNames.length).toBe(1);
+        expect(allNames[0]).toBe('sortDirection');
+    });
+
+    test('collectInlineEnums tracks nested field path', () => {
+        // namedSchema: getV1XParams { filters: { granularity: [day, week, month] } }
+        const namedSchema = {
+            name: 'getV1XParams',
+            schema: {
+                _tag: 'Object',
+                _0: [{
+                    name: 'filters',
+                    type: {
+                        _tag: 'Object',
+                        _0: [{
+                            name: 'granularity',
+                            type: { _tag: 'Enum', _0: ['day', 'week', 'month'] },
+                            required: true,
+                        }],
+                    },
+                    required: true,
+                }],
+            },
+            discriminatorTag: undefined,
+            discriminatorPropertyName: undefined,
+            fieldDiscriminators: undefined,
+        };
+
+        const occurrences = Codegen.collectInlineEnums([namedSchema]);
+
+        expect(occurrences.length).toBe(1);
+        expect(occurrences[0].parentType).toBe('getV1XParams');
+        expect(occurrences[0].fieldPath).toEqual(['filters', 'granularity']);
+        expect(occurrences[0].values).toEqual(['day', 'week', 'month']);
+    });
+
+    test('collectInlineEnums finds inline enum in a simple record', () => {
+        // namedSchema: getV1ProductsListParams { sort_direction: [asc, desc] }
+        const namedSchema = {
+            name: 'getV1ProductsListParams',
+            schema: {
+                _tag: 'Object',
+                _0: [{
+                    name: 'sort_direction',
+                    type: { _tag: 'Enum', _0: ['asc', 'desc'] },
+                    required: true,
+                }],
+            },
+            discriminatorTag: undefined,
+            discriminatorPropertyName: undefined,
+            fieldDiscriminators: undefined,
+        };
+
+        const occurrences = Codegen.collectInlineEnums([namedSchema]);
+
+        expect(occurrences.length).toBe(1);
+        expect(occurrences[0].parentType).toBe('getV1ProductsListParams');
+        expect(occurrences[0].fieldPath).toEqual(['sort_direction']);
+        expect(occurrences[0].values).toEqual(['asc', 'desc']);
     });
 });
 

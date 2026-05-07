@@ -189,6 +189,16 @@ let generate = (schemas: array<OpenAPIParser.namedSchema>): result<IR.irModule, 
   // Step 1: Diagnose — collect warnings for problematic unions
   let warnings = CodegenTransforms.collectUnionWarnings(schemas)
 
+  // Step 1.5: Extract inline string enums into named top-level types.
+  // Runs BEFORE union extraction so subsequent passes see Ref(...) instead of
+  // raw Enum(...) inside Union/PolyVariant payloads.
+  let enumOccurrences = CodegenTransforms.collectInlineEnums(schemas)
+  let topLevelNames = schemas->Array.map(s => s.name)
+  let enumNames = CodegenTransforms.resolveEnumNames(enumOccurrences, topLevelNames)
+  let enumSchemas = CodegenTransforms.buildExtractedEnumSchemas(enumOccurrences, ~names=enumNames)
+  let schemasAfterEnumPromotion = CodegenTransforms.replaceInlineEnums(schemas, ~names=enumNames)
+  let schemas = Array.concat(enumSchemas, schemasAfterEnumPromotion)
+
   // Step 2: Extract — find all inline unions in each schema
   let extractedUnions = schemas->Array.flatMap(s => {
     CodegenTransforms.extractUnions(s.name, s.schema)->Array.map(extracted => {

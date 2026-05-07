@@ -60,6 +60,16 @@ let hasUnion = CodegenHelpers.hasUnion;
 
 let isPrimitiveOnlyUnion = CodegenHelpers.isPrimitiveOnlyUnion;
 
+let collectInlineEnums = CodegenTransforms.collectInlineEnums;
+
+let resolveEnumNames = CodegenTransforms.resolveEnumNames;
+
+let camelize = CodegenTransforms.camelize;
+
+let replaceInlineEnums = CodegenTransforms.replaceInlineEnums;
+
+let buildExtractedEnumSchemas = CodegenTransforms.buildExtractedEnumSchemas;
+
 let isRefPlusDictUnion = CodegenTransforms.isRefPlusDictUnion;
 
 let isPrimitivePlusDictUnion = CodegenTransforms.isPrimitivePlusDictUnion;
@@ -116,6 +126,11 @@ export {
   getTagForType,
   hasUnion,
   isPrimitiveOnlyUnion,
+  collectInlineEnums,
+  resolveEnumNames,
+  camelize,
+  replaceInlineEnums,
+  buildExtractedEnumSchemas,
   isRefPlusDictUnion,
   isPrimitivePlusDictUnion,
   getUnionName,
