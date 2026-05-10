@@ -4,7 +4,7 @@ import * as Core__Array from "@rescript/core/src/Core__Array.res.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.res.mjs";
 
 function quoteTag(tag) {
-  let needsQuoting = tag.split("").some(c => {
+  let needsQuoting = tag === "" || tag.split("").some(c => {
     let code = c.charCodeAt(0);
     return !(code >= 97.0 && code <= 122.0 || code >= 65.0 && code <= 90.0 || code >= 48.0 && code <= 57.0 || code === 95.0);
   });

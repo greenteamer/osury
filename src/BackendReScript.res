@@ -2,9 +2,9 @@
 // No decisions, no lookups, no calls to CodegenHelpers.
 // All decisions are already captured in the IR.
 
-// Quote poly variant tag if it contains non-alphanumeric characters
+// Quote poly variant tag if it's empty or contains non-alphanumeric characters
 let quoteTag = (tag: string): string => {
-  let needsQuoting = tag->String.split("")->Array.some(c => {
+  let needsQuoting = tag === "" || tag->String.split("")->Array.some(c => {
     let code = c->String.charCodeAt(0)
     // Allow: a-z, A-Z, 0-9, _
     !(

@@ -63,3 +63,4 @@ TECHNICAL_DECISIONS.md
 
 # internal
 src/__generated__
+openapi.json
