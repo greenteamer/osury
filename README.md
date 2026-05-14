@@ -6,23 +6,33 @@ Generate ReScript types with [Sury](https://github.com/DZakh/sury) schemas from 
 
 Huge thanks to the [ReScript](https://rescript-lang.org/) team for an amazing language, and special thanks to [@DZakh](https://github.com/DZakh) for the incredible [Sury](https://github.com/DZakh/sury) library that made this project possible.
 
-## Early Stage Warning
+## Project Status
 
-This project is in a very early stage of development and is tailored to my specific needs. It comes with **no guarantees** of stability, correctness, or completeness.
-
-**Suggestions and contributions are very welcome!** Feel free to open issues or submit PRs.
+Now at **v1.0.0**. The codegen is in production use against real-world OpenAPI specs
+(both Pydantic/FastAPI and Django/DRF generated). The pipeline is feature-complete
+for the OpenAPI 3.x patterns most code-first generators emit; edge cases beyond that
+are added on demand. Issues and PRs welcome.
 
 ## Features
 
-- OpenAPI 3.x → ReScript types
-- `@schema` annotations for Sury PPX validation
-- `@genType` for TypeScript interop
-- Union types extracted as proper variants with `@tag("_tag")`
-- Automatic deduplication of identical union structures
-- Generates `module S = Sury` alias (required by sury-ppx)
-- Generates helper shims for TypeScript interop (`Dict.gen.ts`, `Nullable.shim.ts`)
-- Proper JSON `null` support via `Nullable.t<T>` (maps to `T | null` in TypeScript)
-- Path response types generation from `paths.*.responses`
+- **OpenAPI 3.x → ReScript types** with full discriminated-union support
+- **`@schema`** annotations for Sury PPX runtime validation
+- **`@genType`** for TypeScript interop with type-safe literal unions
+- **Discriminated unions** via `discriminator.mapping` (OpenAPI-standard, primary)
+  with fallback to `_tag.const` (Effect-style convention)
+- **Custom discriminator property names** via `discriminator.propertyName`
+  (`@tag("type")`, `@tag("kind")`, etc., not just `_tag`)
+- **Inline enum auto-promotion** to named top-level types with field-based naming
+  and structural deduplication
+- **Path operation types** — both `Response` types from `responses[200]` and `Params`
+  types from query/path `parameters[]`
+- **JSON `null` support** via `Nullable.t<T>` (maps to `T | null` in TypeScript,
+  distinct from `option<T>` for `undefined`)
+- **Untyped/Unknown handling** via `JSON.t` with `@s.matches(S.json)` so untyped
+  fields don't poison `@schema` propagation through enclosing types
+- **Automatic deduplication** of identical union/enum structures
+- **TypeScript shims** generated alongside (`Dict.gen.ts`, `JSON.gen.ts`,
+  `Nullable.res`, `Nullable.shim.ts`)
 
 ## Installation
 
@@ -40,10 +50,14 @@ npx osury openapi.json
 
 # Generate to specific directory
 npx osury openapi.json src/API.res
-# Creates: src/API.res, src/Dict.gen.ts, src/Nullable.res, src/Nullable.shim.ts
+# Creates: src/API.res, src/Dict.gen.ts, src/JSON.gen.ts,
+#         src/Nullable.res, src/Nullable.shim.ts
 
 # With explicit output flag
 npx osury generate openapi.json -o src/Schema.res
+
+# Show help
+npx osury --help
 ```
 
 ### Full Example: OpenAPI → ReScript → TypeScript
@@ -179,14 +193,19 @@ Open [http://localhost:4173/demo/](http://localhost:4173/demo/).
 
 ### Helper Files
 
-Also generates helper files:
+Generated alongside the main `Schema.res`:
 
 **Dict.gen.ts** — TypeScript shim for dictionaries:
 ```typescript
 export type t<T> = { [key: string]: T };
 ```
 
-**Nullable.res** — ReScript nullable type:
+**JSON.gen.ts** — TypeScript shim for untyped/Unknown fields:
+```typescript
+export type t = unknown;
+```
+
+**Nullable.res** — ReScript nullable type (`option<T>` with `T | null` TS mapping):
 ```rescript
 @genType.import(("./Nullable.shim.ts", "t"))
 type t<'a> = option<'a>
@@ -203,8 +222,9 @@ export type t<T> = T | null;
 |------------|---------|
 | `@genType` | TypeScript type generation |
 | `@schema` | Sury PPX validation schema |
-| `@tag("_tag")` | Discriminated union support (Effect TS compatible) |
-| `@s.null` | Field-level JSON `null` support |
+| `@tag("_tag")` | Discriminated union tag — default Effect TS convention; overridable via `discriminator.propertyName` (e.g. `@tag("type")`) |
+| `@s.null` | Field-level JSON `null` support (for `Nullable.t<T>` fields) |
+| `@s.matches(S.json)` | Per-field synthesizer for `JSON.t` so untyped fields don't poison enclosing `@schema` |
 | `@unboxed` | Primitive-only union optimization |
 | `@as("name")` | Reserved keyword field mapping |
 
@@ -227,20 +247,71 @@ For the generated code to compile, your project needs:
 | `boolean` | `bool` |
 | `null` | `unit` |
 | `array` | `array<T>` |
-| `object` | `{ field: T }` |
+| `object` | record `{ field: T }` |
 | `$ref` | type reference |
-| `enum` | poly variant `[#A \| #B]` |
-| `const` | single-value enum (for `_tag`) |
-| `anyOf` (nullable) | `Nullable.t<T>` → `T \| null` in TS |
-| `anyOf` (union) | variant type with `@tag("_tag")` |
-| `oneOf` (discriminated) | poly variant with `_tag.const` extraction |
+| `enum` (inline) | extracted to named `type sortDirection = [#asc \| #desc]` |
+| `enum` (top-level) | poly variant `[#A \| #B]` |
+| `const` (single string) | one-element enum (used for discriminator tags) |
+| schema with no `type` | `JSON.t` (TS: `unknown`) with `@s.matches(S.json)` |
+| `anyOf: [T, null]` | `Nullable.t<T>` (TS: `T \| null`) |
+| `anyOf: [A, B, ...]` (no discriminator) | extracted variant type with structural name |
+| `oneOf` + `discriminator` | poly variant with tags from `discriminator.mapping` |
 | `allOf` | merged object type |
 | `additionalProperties` | `Dict.t<T>` |
 | `default` value | field becomes required |
+| `parameters[]` (query + path) | synthetic `<method><Path>Params` record |
+| `responses[200].schema` | `<method><Path>Response` type |
 
-## Path Responses
+## Discriminated Unions
 
-Types are also generated from path responses:
+osury resolves variant case tags through a three-level priority chain, so the
+ReScript-side tag always matches the **wire-format truth**, never the class name
+on the backend:
+
+1. **`discriminator.mapping`** — OpenAPI 3.x standard, primary source. Works with
+   any property name (`_tag`, `tag`, `type`, `kind`, …).
+2. **`_tag.const`** — fallback when no explicit mapping is declared (Effect-style
+   implicit convention).
+3. **Ref name** — last-resort default for `$ref` items with no const information.
+
+The practical effect: **class names on the backend can diverge from wire-format
+discriminator values without breaking osury**. Pydantic's natural style
+(`class MetricGridBlock` ↔ `_tag: "MetricGrid"`) works out of the box as long as
+the discriminator mapping is declared in the schema.
+
+```yaml
+Block:
+  oneOf:
+    - { $ref: "#/components/schemas/MetricGridBlock" }
+    - { $ref: "#/components/schemas/ProseBlock" }
+  discriminator:
+    propertyName: _tag
+    mapping:
+      MetricGrid: "#/components/schemas/MetricGridBlock"
+      Prose:      "#/components/schemas/ProseBlock"
+```
+
+Generates:
+
+```rescript
+@genType @tag("_tag") @schema
+type block = MetricGrid({
+  metrics: array<string>
+}) | Prose({
+  text: string
+})
+```
+
+Note the case names (`MetricGrid`, `Prose`) come from the **mapping keys**, not
+from the schema class names (`MetricGridBlock`, `ProseBlock`). Case payloads
+are inlined records — fields are copied from the referenced schema and the
+discriminator property is filtered out to avoid duplication with `@tag`.
+
+## Path Types
+
+Types are generated from both `responses` and `parameters` of each path operation.
+
+### Response types
 
 ```json
 {
@@ -263,6 +334,45 @@ Types are also generated from path responses:
 ```
 
 Generates: `type getUsersResponse = userList`
+
+### Params types
+
+Query and path parameters are folded into a synthetic object schema and pushed
+through the same parsing pipeline (so all rules — `default → required`,
+`anyOf [T, null] → Nullable.t<T>`, inline enum → named type — apply uniformly).
+
+```json
+{
+  "paths": {
+    "/products": {
+      "get": {
+        "parameters": [
+          { "in": "query", "name": "sort_field",
+            "schema": { "type": "string", "enum": ["sales", "clicks", "impressions"] } },
+          { "in": "query", "name": "limit",
+            "schema": { "type": "integer", "default": 50 } }
+        ]
+      }
+    }
+  }
+}
+```
+
+Generates:
+
+```rescript
+@genType @schema
+type sortField = [#sales | #clicks | #impressions]  // promoted from inline enum
+
+@genType @schema
+type getProductsParams = {
+  sort_field: option<sortField>,
+  limit: int,  // has default → required
+}
+```
+
+Headers and serialization details (`style`/`explode`) are intentionally excluded —
+they belong to the HTTP client layer, not the schema contract.
 
 ## License
 
