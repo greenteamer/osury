@@ -398,6 +398,115 @@ let parsePathParameters = (pathsJson: JSON.t): result<array<namedSchema>, Errors
   }
 }
 
+// Pre-scan the raw JSON document for ALL discriminator.mapping entries.
+// Returns a flat Dict: schemaName → const value declared in some mapping.
+//
+// OpenAPI's `discriminator.mapping` is the declared, standard source of truth
+// for "what const value identifies which referenced schema". Reading it here
+// makes the rewrite work uniformly for ANY discriminator property name
+// (_tag, tag, type, kind, ...) — not just _tag.const on child schemas.
+let extractAllDiscriminatorMappings = (json: JSON.t): Dict.t<string> => {
+  let result = Dict.make()
+  let rec walk = (j: JSON.t) =>
+    switch j {
+    | Object(dict) =>
+      // If this object has oneOf + discriminator.mapping, harvest the mapping.
+      switch (dict->Dict.get("oneOf"), dict->Dict.get("discriminator")) {
+      | (Some(Array(_)), Some(Object(discDict))) =>
+        switch discDict->Dict.get("mapping") {
+        | Some(Object(mapping)) =>
+          mapping
+          ->Dict.toArray
+          ->Array.forEach(((constVal, refValue)) =>
+            switch refValue {
+            | String(refPath) =>
+              let parts = refPath->String.split("/")
+              switch parts->Array.get(Array.length(parts) - 1) {
+              | Some(schemaName) => result->Dict.set(schemaName, constVal)
+              | None => ()
+              }
+            | _ => ()
+            }
+          )
+        | _ => ()
+        }
+      | _ => ()
+      }
+      // Recurse into all child values regardless.
+      dict->Dict.toArray->Array.forEach(((_, v)) => walk(v))
+    | Array(items) => items->Array.forEach(walk)
+    | _ => ()
+    }
+  walk(json)
+  result
+}
+
+// Resolve PolyVariant case tags for $ref payloads to the actual wire-truth
+// discriminator value. Priority order:
+//   1. discriminator.mapping (OpenAPI-standard source of truth, any propertyName)
+//   2. The referenced schema's _tag.const (legacy/implicit Effect-style convention)
+//   3. Ref name (current default, no change)
+//
+// Background: when Pydantic emits oneOf schemas, class names commonly differ
+// from the discriminator literal (e.g. `MetricGridBlock` class, `_tag: "MetricGrid"`).
+// Schema.parseOneOf for $ref items has no access to the referenced schema at parse
+// time, so it falls back to using the ref name as the tag. This pass corrects
+// that retroactively.
+//
+// Without this fix consumers had to keep `title == const` on the backend, or
+// sury parsing would fail at runtime because the JSON discriminator value
+// never matched the variant's case tag.
+let rec rewriteVariantTagsInType = (
+  schema: Schema.schemaType,
+  ~tagByRef: Dict.t<string>,
+): Schema.schemaType => {
+  switch schema {
+  | PolyVariant(cases) =>
+    let newCases = cases->Array.map(c => {
+      switch c.payload {
+      | Ref(refName) =>
+        switch tagByRef->Dict.get(refName) {
+        | Some(actualTag) when actualTag != c.tag => {...c, tag: actualTag}
+        | _ => c
+        }
+      | inner => {...c, payload: rewriteVariantTagsInType(inner, ~tagByRef)}
+      }
+    })
+    PolyVariant(newCases)
+  | Object(fields) =>
+    Object(
+      fields->Array.map(f => {...f, type_: rewriteVariantTagsInType(f.type_, ~tagByRef)}),
+    )
+  | Optional(inner) => Optional(rewriteVariantTagsInType(inner, ~tagByRef))
+  | Nullable(inner) => Nullable(rewriteVariantTagsInType(inner, ~tagByRef))
+  | Array(inner) => Array(rewriteVariantTagsInType(inner, ~tagByRef))
+  | Dict(inner) => Dict(rewriteVariantTagsInType(inner, ~tagByRef))
+  | Union(types) => Union(types->Array.map(t => rewriteVariantTagsInType(t, ~tagByRef)))
+  | other => other
+  }
+}
+
+let resolveRefTagsInPolyVariants = (
+  schemas: array<namedSchema>,
+  ~mappingByRef: Dict.t<string>,
+): array<namedSchema> => {
+  // Merge mapping (priority) with _tag.const (fallback) into a single lookup.
+  let tagByRef = Dict.make()
+  // Fallback first: _tag.const per schema.
+  schemas->Array.forEach(s =>
+    switch s.discriminatorTag {
+    | Some(tag) => tagByRef->Dict.set(s.name, tag)
+    | None => ()
+    }
+  )
+  // Override with explicit discriminator.mapping wherever present.
+  mappingByRef
+  ->Dict.toArray
+  ->Array.forEach(((name, constVal)) => tagByRef->Dict.set(name, constVal))
+
+  schemas->Array.map(s => {...s, schema: rewriteVariantTagsInType(s.schema, ~tagByRef)})
+}
+
 // Parse OpenAPI document: components/schemas + paths responses
 let parseDocument = (json: JSON.t): result<array<namedSchema>, Errors.errors> => {
   switch json {
@@ -420,9 +529,23 @@ let parseDocument = (json: JSON.t): result<array<namedSchema>, Errors.errors> =>
     | None => Ok([])
     }
 
+    // Harvest discriminator.mapping from the raw document — works for any
+    // discriminator propertyName, not just `_tag`.
+    let mappingByRef = extractAllDiscriminatorMappings(json)
+
     // Combine results
     switch (componentSchemas, pathSchemas, paramSchemas) {
-    | (Ok(cs), Ok(ps), Ok(qs)) => Ok(Array.concat(Array.concat(cs, ps), qs))
+    | (Ok(cs), Ok(ps), Ok(qs)) =>
+      // After all schemas are parsed, rewrite PolyVariant case tags that point
+      // to $ref payloads so they match the wire-format discriminator value.
+      // Uses discriminator.mapping (OpenAPI-standard) as the primary source,
+      // falling back to _tag.const for schemas without explicit mapping.
+      Ok(
+        resolveRefTagsInPolyVariants(
+          Array.concat(Array.concat(cs, ps), qs),
+          ~mappingByRef,
+        ),
+      )
     | (cs, ps, qs) =>
       let errs = [cs, ps, qs]->Array.filterMap(r =>
         switch r {

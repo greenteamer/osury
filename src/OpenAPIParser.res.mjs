@@ -516,6 +516,138 @@ function parsePathParameters(pathsJson) {
   };
 }
 
+function extractAllDiscriminatorMappings(json) {
+  let result = {};
+  let walk = j => {
+    if (Array.isArray(j)) {
+      j.forEach(walk);
+      return;
+    }
+    switch (typeof j) {
+      case "object" :
+        let match = j["oneOf"];
+        let match$1 = j["discriminator"];
+        if (Array.isArray(match) && typeof match$1 === "object" && match$1 !== null && !Array.isArray(match$1)) {
+          let match$2 = match$1["mapping"];
+          if (typeof match$2 === "object" && match$2 !== null && !Array.isArray(match$2)) {
+            Object.entries(match$2).forEach(param => {
+              let refValue = param[1];
+              if (typeof refValue !== "string") {
+                return;
+              }
+              let parts = refValue.split("/");
+              let schemaName = parts[parts.length - 1 | 0];
+              if (schemaName !== undefined) {
+                result[schemaName] = param[0];
+                return;
+              }
+            });
+          }
+        }
+        Object.entries(j).forEach(param => walk(param[1]));
+        return;
+      default:
+        return;
+    }
+  };
+  walk(json);
+  return result;
+}
+
+function rewriteVariantTagsInType(schema, tagByRef) {
+  if (typeof schema !== "object") {
+    return schema;
+  }
+  switch (schema._tag) {
+    case "Optional" :
+      return {
+        _tag: "Optional",
+        _0: rewriteVariantTagsInType(schema._0, tagByRef)
+      };
+    case "Nullable" :
+      return {
+        _tag: "Nullable",
+        _0: rewriteVariantTagsInType(schema._0, tagByRef)
+      };
+    case "Object" :
+      return {
+        _tag: "Object",
+        _0: schema._0.map(f => ({
+          name: f.name,
+          type: rewriteVariantTagsInType(f.type, tagByRef),
+          required: f.required
+        }))
+      };
+    case "Array" :
+      return {
+        _tag: "Array",
+        _0: rewriteVariantTagsInType(schema._0, tagByRef)
+      };
+    case "PolyVariant" :
+      let newCases = schema._0.map(c => {
+        let refName = c.payload;
+        if (typeof refName !== "object") {
+          return {
+            _tag: c._tag,
+            payload: rewriteVariantTagsInType(refName, tagByRef)
+          };
+        }
+        if (refName._tag !== "Ref") {
+          return {
+            _tag: c._tag,
+            payload: rewriteVariantTagsInType(refName, tagByRef)
+          };
+        }
+        let actualTag = tagByRef[refName._0];
+        if (actualTag !== undefined && actualTag !== c._tag) {
+          return {
+            _tag: actualTag,
+            payload: c.payload
+          };
+        } else {
+          return c;
+        }
+      });
+      return {
+        _tag: "PolyVariant",
+        _0: newCases
+      };
+    case "Dict" :
+      return {
+        _tag: "Dict",
+        _0: rewriteVariantTagsInType(schema._0, tagByRef)
+      };
+    case "Union" :
+      return {
+        _tag: "Union",
+        _0: schema._0.map(t => rewriteVariantTagsInType(t, tagByRef))
+      };
+    default:
+      return schema;
+  }
+}
+
+function resolveRefTagsInPolyVariants(schemas, mappingByRef) {
+  let tagByRef = {};
+  schemas.forEach(s => {
+    let tag = s.discriminatorTag;
+    if (tag !== undefined) {
+      tagByRef[s.name] = tag;
+      return;
+    }
+  });
+  Object.entries(mappingByRef).forEach(param => {
+    tagByRef[param[0]] = param[1];
+  });
+  return schemas.map(s => ({
+    name: s.name,
+    schema: rewriteVariantTagsInType(s.schema, tagByRef),
+    discriminatorTag: s.discriminatorTag,
+    discriminatorPropertyName: s.discriminatorPropertyName,
+    fieldDiscriminators: s.fieldDiscriminators
+  }));
+}
+
 function parseDocument(json) {
   if (typeof json === "object" && json !== null && !Array.isArray(json)) {
     let componentsJson = json["components"];
@@ -533,12 +665,13 @@ function parseDocument(json) {
         TAG: "Ok",
         _0: []
       });
+    let mappingByRef = extractAllDiscriminatorMappings(json);
     let exit = 0;
     if (componentSchemas.TAG === "Ok" && pathSchemas.TAG === "Ok") {
       if (paramSchemas.TAG === "Ok") {
         return {
           TAG: "Ok",
-          _0: componentSchemas._0.concat(pathSchemas._0).concat(paramSchemas._0)
+          _0: resolveRefTagsInPolyVariants(componentSchemas._0.concat(pathSchemas._0).concat(paramSchemas._0), mappingByRef)
         };
       }
       exit = 2;
@@ -583,6 +716,9 @@ export {
   parseComponentSchemas,
   buildParamsObjectJson,
   parsePathParameters,
+  extractAllDiscriminatorMappings,
+  rewriteVariantTagsInType,
+  resolveRefTagsInPolyVariants,
   parseDocument,
 }
 /* No side effect */

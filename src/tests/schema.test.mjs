@@ -507,6 +507,173 @@ describe('Schema Parser', () => {
         expect(cat.discriminatorPropertyName).toBeUndefined();
     });
 
+    test('OpenAPIParser: oneOf $ref variant tag resolves to referenced schema _tag const, not ref name', () => {
+        // Real-world Pydantic case: class name ≠ discriminator value.
+        // class MetricGridBlock(BaseModel):
+        //     model_config = ConfigDict(title="MetricGridBlock")
+        //     _tag: Literal["MetricGrid"] = "MetricGrid"
+        // → on the wire backend sends {_tag: "MetricGrid", ...}
+        // Bug: osury used ref name "MetricGridBlock" as variant tag,
+        // making sury parsing fail at runtime because JSON _tag doesn't match.
+        // Fix: resolve tag from the referenced schema's _tag.const.
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    MetricGridBlock: {
+                        type: "object",
+                        properties: {
+                            _tag: { type: "string", const: "MetricGrid" },
+                            data: { type: "string" }
+                        },
+                        required: ["_tag"]
+                    },
+                    ProseBlock: {
+                        type: "object",
+                        properties: {
+                            _tag: { type: "string", const: "Prose" },
+                            text: { type: "string" }
+                        },
+                        required: ["_tag"]
+                    },
+                    Block: {
+                        oneOf: [
+                            { "$ref": "#/components/schemas/MetricGridBlock" },
+                            { "$ref": "#/components/schemas/ProseBlock" }
+                        ]
+                    }
+                }
+            }
+        };
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+
+        const block = result._0.find(s => s.name === 'Block');
+        expect(block).toBeDefined();
+        expect(block.schema._tag).toBe('PolyVariant');
+
+        const cases = block.schema._0;
+        expect(cases.length).toBe(2);
+
+        // Tags MUST come from the referenced schemas' _tag const values,
+        // NOT from the ref names. This is the wire-format reality.
+        const metricCase = cases.find(c => c._tag === 'MetricGrid');
+        expect(metricCase).toBeDefined();
+        expect(metricCase.payload._tag).toBe('Ref');
+        expect(metricCase.payload._0).toBe('MetricGridBlock');
+
+        const proseCase = cases.find(c => c._tag === 'Prose');
+        expect(proseCase).toBeDefined();
+        expect(proseCase.payload._tag).toBe('Ref');
+        expect(proseCase.payload._0).toBe('ProseBlock');
+    });
+
+    test('OpenAPIParser: oneOf with custom discriminator + mapping resolves tag from mapping (not _tag.const)', () => {
+        // Real-world case: oneOf uses discriminator.propertyName="tag" (not _tag),
+        // and discriminator.mapping declares const→ref mapping explicitly.
+        // Even WITHOUT _tag.const on child schemas, mapping should be used as
+        // the source of truth — that's what OpenAPI standard says.
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    ReduceBid: {
+                        type: "object",
+                        properties: {
+                            tag: { type: "string", const: "reduce_bid" },
+                            amount: { type: "number" }
+                        },
+                        required: ["tag"]
+                    },
+                    IncreaseBid: {
+                        type: "object",
+                        properties: {
+                            tag: { type: "string", const: "increase_bid" },
+                            amount: { type: "number" }
+                        },
+                        required: ["tag"]
+                    },
+                    BidAction: {
+                        oneOf: [
+                            { "$ref": "#/components/schemas/ReduceBid" },
+                            { "$ref": "#/components/schemas/IncreaseBid" }
+                        ],
+                        discriminator: {
+                            propertyName: "tag",
+                            mapping: {
+                                reduce_bid: "#/components/schemas/ReduceBid",
+                                increase_bid: "#/components/schemas/IncreaseBid"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+
+        const bidAction = result._0.find(s => s.name === 'BidAction');
+        expect(bidAction).toBeDefined();
+        expect(bidAction.schema._tag).toBe('PolyVariant');
+
+        const cases = bidAction.schema._0;
+        // Tags MUST come from mapping (which is the OpenAPI-standard source of truth),
+        // NOT from ref names ("ReduceBid", "IncreaseBid").
+        const reduceCase = cases.find(c => c._tag === 'reduce_bid');
+        expect(reduceCase).toBeDefined();
+        expect(reduceCase.payload._0).toBe('ReduceBid');
+
+        const increaseCase = cases.find(c => c._tag === 'increase_bid');
+        expect(increaseCase).toBeDefined();
+        expect(increaseCase.payload._0).toBe('IncreaseBid');
+    });
+
+    test('OpenAPIParser: $ref oneOf variant without _tag const falls back to ref name', () => {
+        // If the referenced schema has no _tag.const (e.g. uses a different
+        // discriminator like a plain string union), the tag stays as the ref name.
+        // This preserves backward compatibility for non-_tag use cases.
+        const doc = {
+            openapi: "3.0.0",
+            components: {
+                schemas: {
+                    Plain: {
+                        type: "object",
+                        properties: { value: { type: "string" } }
+                    },
+                    Tagged: {
+                        type: "object",
+                        properties: {
+                            _tag: { type: "string", const: "TaggedTag" },
+                            data: { type: "string" }
+                        },
+                        required: ["_tag"]
+                    },
+                    Mixed: {
+                        oneOf: [
+                            { "$ref": "#/components/schemas/Plain" },
+                            { "$ref": "#/components/schemas/Tagged" }
+                        ]
+                    }
+                }
+            }
+        };
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+
+        const mixed = result._0.find(s => s.name === 'Mixed');
+        const cases = mixed.schema._0;
+
+        // Plain has no _tag.const → tag stays as ref name "Plain"
+        const plainCase = cases.find(c => c._tag === 'Plain');
+        expect(plainCase).toBeDefined();
+        expect(plainCase.payload._0).toBe('Plain');
+
+        // Tagged has _tag.const "TaggedTag" → tag updated
+        const taggedCase = cases.find(c => c._tag === 'TaggedTag');
+        expect(taggedCase).toBeDefined();
+        expect(taggedCase.payload._0).toBe('Tagged');
+    });
+
     test('parse additionalProperties (Dict)', () => {
         const input = {
             type: "object",
