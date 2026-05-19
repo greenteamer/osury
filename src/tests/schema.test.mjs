@@ -803,19 +803,81 @@ describe('Schema Parser', () => {
 
         const sortDir = fields.find(f => f.name === 'sort_direction');
         expect(sortDir).toBeDefined();
-        expect(sortDir.required).toBe(true); // has default → required (existing convention)
+        // OpenAPI `default` on a request param means "client may omit it" → optional.
+        expect(sortDir.required).toBe(false);
         expect(sortDir.type._tag).toBe('Enum');
         expect(sortDir.type._0).toEqual(['asc', 'desc']);
 
         const offset = fields.find(f => f.name === 'offset');
         expect(offset).toBeDefined();
-        expect(offset.required).toBe(true); // has default
+        expect(offset.required).toBe(false); // has default → optional
         expect(offset.type).toBe('Integer');
 
         const limit = fields.find(f => f.name === 'limit');
         expect(limit).toBeDefined();
-        expect(limit.required).toBe(true);
+        expect(limit.required).toBe(true); // required:true, no default → stays required
         expect(limit.type).toBe('Integer');
+    });
+
+    test('OpenAPIParser: path param with default stays required (path always required)', () => {
+        const doc = {
+            openapi: "3.0.0",
+            paths: {
+                "/v1/items/{id}": {
+                    get: {
+                        parameters: [
+                            {
+                                name: "id",
+                                in: "path",
+                                required: true,
+                                // a default on a path param is unusual but must not
+                                // demote it — path params are always required per spec
+                                schema: { type: "string", default: "latest" }
+                            }
+                        ],
+                        responses: {
+                            "200": { description: "ok", content: { "application/json": { schema: { type: "object" } } } }
+                        }
+                    }
+                }
+            }
+        };
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+        const params = result._0.find(s => s.name === 'GetV1ItemsParams');
+        const id = params.schema._0.find(f => f.name === 'id');
+        expect(id.required).toBe(true); // path → always required, default irrelevant
+        expect(id.type).toBe('String');
+    });
+
+    test('OpenAPIParser: query param with default AND required:true stays required (explicit required wins)', () => {
+        const doc = {
+            openapi: "3.0.0",
+            paths: {
+                "/v1/products/list": {
+                    get: {
+                        parameters: [
+                            {
+                                name: "currency",
+                                in: "query",
+                                required: true,
+                                schema: { type: "string", default: "USD" }
+                            }
+                        ],
+                        responses: {
+                            "200": { description: "ok", content: { "application/json": { schema: { type: "object" } } } }
+                        }
+                    }
+                }
+            }
+        };
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+        const params = result._0.find(s => s.name === 'GetV1ProductsListParams');
+        const currency = params.schema._0.find(f => f.name === 'currency');
+        // explicit required:true overrides — field stays required despite default
+        expect(currency.required).toBe(true);
+        expect(currency.type).toBe('String');
     });
 
     test('OpenAPIParser: optional query param without default stays optional, path param always required', () => {
@@ -1065,9 +1127,9 @@ describe('Schema Parser', () => {
         expect(code).toContain('type getV1ProductsListParams');
         // sort_direction enum is promoted to a named top-level type
         expect(code).toMatch(/type sortDirection = \[#asc \| #desc\]/);
-        // Field references the promoted enum (not inline)
-        expect(code).toMatch(/sort_direction:\s*sortDirection/);
-        // limit required int
+        // sort_direction has a default → optional → option<sortDirection>
+        expect(code).toMatch(/sort_direction:\s*option<sortDirection>/);
+        // limit required int (required:true, no default)
         expect(code).toMatch(/limit:\s*int/);
         // country: anyOf+null → Nullable.t<string> (with @s.null sury annotation)
         expect(code).toMatch(/country:\s*@s\.null Nullable\.t<string>/);

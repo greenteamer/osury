@@ -310,7 +310,23 @@ let buildParamsObjectJson = (params: array<JSON.t>): option<JSON.t> => {
       if isQueryOrPath {
         switch (p->Dict.get("name"), p->Dict.get("schema")) {
         | (Some(String(name)), Some(schema)) =>
-          properties->Dict.set(name, schema)
+          // OpenAPI `default` on a request parameter means "the client may omit
+          // it; the server fills the default" — i.e. the parameter is OPTIONAL.
+          // But Schema.parseObjectType applies a `default → required` rule that
+          // is correct only for RESPONSE schemas (where default ≈ "always
+          // present"). Strip `default` here so param optionality is governed
+          // purely by the synthetic `required[]` built below.
+          let cleanSchema = switch schema {
+          | Object(schemaDict) =>
+            JSON.Encode.object(
+              schemaDict
+              ->Dict.toArray
+              ->Array.filter(((k, _)) => k != "default")
+              ->Dict.fromArray,
+            )
+          | other => other
+          }
+          properties->Dict.set(name, cleanSchema)
           let isRequired = switch p->Dict.get("required") {
           | Some(Boolean(b)) => b
           | _ => false
