@@ -16,7 +16,7 @@
       "in-source": true
     }
   ],
-  "suffix": ".res.mjs",
+  "suffix": ".mjs",
   "dependencies": ["@rescript/core", "sury"],
   "compiler-flags": ["-open RescriptCore"],
   "ppx-flags": ["sury-ppx/bin"],

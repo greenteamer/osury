@@ -1,5 +1,5 @@
-import * as OpenAPIParser from "../src/OpenAPIParser.res.mjs";
-import * as Codegen from "../src/Codegen.res.mjs";
+import * as OpenAPIParser from "../src/OpenAPIParser.mjs";
+import * as Codegen from "../src/Codegen.mjs";
 import fs from "fs";
 import path from "path";
 

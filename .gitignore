@@ -24,6 +24,9 @@ build/
 *.js
 *.js.map
 *.d.ts
+
+# npm pack artifacts (test tarballs)
+*.tgz
 # Но не игнорировать JS-файлы в tests/, bin/, scripts/ и demo/
 !tests/**/*.js
 !bin/**/*.js

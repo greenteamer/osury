@@ -1,6 +1,6 @@
-import * as DomainConfig from '../DomainConfig.res.mjs';
-import * as DomainGen from '../DomainGen.res.mjs';
-import * as DomainBackend from '../DomainBackend.res.mjs';
+import * as DomainConfig from '../DomainConfig.mjs';
+import * as DomainGen from '../DomainGen.mjs';
+import * as DomainBackend from '../DomainBackend.mjs';
 
 describe('DomainConfig Parser', () => {
     test('parse valid config with mapper and passthrough fields', () => {

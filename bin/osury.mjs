@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import * as OpenAPIParser from "../src/OpenAPIParser.res.mjs";
-import * as Codegen from "../src/Codegen.res.mjs";
-import * as DomainConfig from "../src/DomainConfig.res.mjs";
-import * as DomainGen from "../src/DomainGen.res.mjs";
-import * as DomainBackend from "../src/DomainBackend.res.mjs";
+import * as OpenAPIParser from "../src/OpenAPIParser.mjs";
+import * as Codegen from "../src/Codegen.mjs";
+import * as DomainConfig from "../src/DomainConfig.mjs";
+import * as DomainGen from "../src/DomainGen.mjs";
+import * as DomainBackend from "../src/DomainBackend.mjs";
 import fs from "fs";
 import path from "path";
 import { createRequire } from "module";

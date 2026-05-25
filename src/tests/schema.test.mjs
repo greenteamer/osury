@@ -1,7 +1,7 @@
-import * as Schema from '../Schema.res.mjs';
-import * as Codegen from '../Codegen.res.mjs';
-import * as OpenAPIParser from '../OpenAPIParser.res.mjs';
-import * as SampleData from '../SampleData.res.mjs';
+import * as Schema from '../Schema.mjs';
+import * as Codegen from '../Codegen.mjs';
+import * as OpenAPIParser from '../OpenAPIParser.mjs';
+import * as SampleData from '../SampleData.mjs';
 
 describe('Schema Parser', () => {
     test('parse string type', () => {
