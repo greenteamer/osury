@@ -250,7 +250,13 @@ let generate = (schemas: array<OpenAPIParser.namedSchema>): result<IR.irModule, 
   let irTypes = sorted->Array.map(s => convertToIrTypeDef(s, schemasDict, tagsDict, skipSchemaSet))
 
   Ok({
-    IR.preamble: "module S = Sury",
+    // sury 11.0.0-alpha.7+ exposes `S` and `JSONSchema` as top-level public
+    // modules (namespace: false). `S.float`, `S.string`, etc. are eager
+    // `t<float>` bindings. Aliasing `module S = Sury` here would shadow that
+    // and force every call to take a `unit` argument (`Sury.float` is now
+    // `unit => t<float>`). Leave the preamble empty so sury-ppx-generated
+    // references to `S.*` resolve to sury's own `S` module.
+    IR.preamble: "",
     types: irTypes,
     warnings,
   })

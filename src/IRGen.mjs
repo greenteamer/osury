@@ -351,7 +351,7 @@ function generate(schemas) {
   return {
     TAG: "Ok",
     _0: {
-      preamble: "module S = Sury",
+      preamble: "",
       types: irTypes,
       warnings: warnings
     }

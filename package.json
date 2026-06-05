@@ -27,12 +27,12 @@
     "gentype": "^4.5.0",
     "jest": "^30.2.0",
     "rescript": "^12.1.0",
-    "sury": "^11.0.0-alpha.4",
-    "sury-ppx": "^11.0.0-alpha.2"
+    "sury": "^11.0.0-alpha.7",
+    "sury-ppx": "^11.0.0-alpha.7"
   },
   "peerDependencies": {
-    "sury": ">=11.0.0-alpha.4",
-    "sury-ppx": ">=11.0.0-alpha.2"
+    "sury": ">=11.0.0-alpha.7",
+    "sury-ppx": ">=11.0.0-alpha.7"
   },
   "peerDependenciesMeta": {
     "sury": {

@@ -1668,7 +1668,11 @@ describe('Code Generator', () => {
         expect(code).toContain('value2: option<floatOrString>');
     });
 
-    test('generateModule includes module S = Sury', () => {
+    test('generateModule emits no `module S = Sury` preamble (sury 11.0.0-alpha.7+ supplies S directly)', () => {
+        // sury 11.0.0-alpha.7 exposes `S` as a top-level public module with
+        // eager `t<T>` bindings (S.float : t<float>). An aliased
+        // `module S = Sury` would shadow it with `unit => t<T>` lazy
+        // bindings and break every sury-ppx expansion of @schema.
         const doc = {
             openapi: "3.0.0",
             components: {
@@ -1680,7 +1684,7 @@ describe('Code Generator', () => {
         const parseResult = OpenAPIParser.parseDocument(doc);
         const code = Codegen.generateModule(parseResult._0);
 
-        expect(code.startsWith('module S = Sury')).toBe(true);
+        expect(code).not.toContain('module S = Sury');
     });
 
     test('generateDictShim returns TypeScript shim', () => {
@@ -2098,8 +2102,9 @@ describe('Code Generator', () => {
         expect(code).toContain('Rectangle(');
         // Canvas should reference shape
         expect(code).toContain('shape: shape');
-        // Should include module S = Sury
-        expect(code).toContain('module S = Sury');
+        // No `module S = Sury` preamble — sury 11.0.0-alpha.7+ provides `S`
+        // as a top-level public module; aliasing would shadow it.
+        expect(code).not.toContain('module S = Sury');
         // Should have @schema on all types
         expect(code).toContain('@schema');
     });
