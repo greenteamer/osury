@@ -2,9 +2,12 @@
 
 import * as IRGen from "./IRGen.mjs";
 import * as Errors from "./Errors.mjs";
+import * as BackendRust from "./BackendRust.mjs";
+import * as BackendOCaml from "./BackendOCaml.mjs";
 import * as CodegenShims from "./CodegenShims.mjs";
 import * as CodegenTypes from "./CodegenTypes.mjs";
 import * as CodegenHelpers from "./CodegenHelpers.mjs";
+import * as BackendEffectTS from "./BackendEffectTS.mjs";
 import * as BackendReScript from "./BackendReScript.mjs";
 import * as CodegenTransforms from "./CodegenTransforms.mjs";
 
@@ -18,6 +21,63 @@ function generateModuleWithDiagnostics(schemas) {
   }
   let irModule$1 = irModule._0;
   let code = BackendReScript.print(irModule$1);
+  return {
+    TAG: "Ok",
+    _0: {
+      code: code,
+      warnings: irModule$1.warnings
+    }
+  };
+}
+
+function generateOCamlWithDiagnostics(schemas) {
+  let irModule = IRGen.generate(schemas);
+  if (irModule.TAG !== "Ok") {
+    return {
+      TAG: "Error",
+      _0: irModule._0
+    };
+  }
+  let irModule$1 = irModule._0;
+  let code = BackendOCaml.print(irModule$1);
+  return {
+    TAG: "Ok",
+    _0: {
+      code: code,
+      warnings: irModule$1.warnings
+    }
+  };
+}
+
+function generateEffectTSWithDiagnostics(schemas) {
+  let irModule = IRGen.generate(schemas);
+  if (irModule.TAG !== "Ok") {
+    return {
+      TAG: "Error",
+      _0: irModule._0
+    };
+  }
+  let irModule$1 = irModule._0;
+  let code = BackendEffectTS.print(irModule$1);
+  return {
+    TAG: "Ok",
+    _0: {
+      code: code,
+      warnings: irModule$1.warnings
+    }
+  };
+}
+
+function generateRustWithDiagnostics(schemas) {
+  let irModule = IRGen.generate(schemas);
+  if (irModule.TAG !== "Ok") {
+    return {
+      TAG: "Error",
+      _0: irModule._0
+    };
+  }
+  let irModule$1 = irModule._0;
+  let code = BackendRust.print(irModule$1);
   return {
     TAG: "Ok",
     _0: {
@@ -155,6 +215,9 @@ export {
   generateNullableShim,
   generateNullableModule,
   generateModuleWithDiagnostics,
+  generateOCamlWithDiagnostics,
+  generateEffectTSWithDiagnostics,
+  generateRustWithDiagnostics,
   generateModule,
 }
 /* No side effect */

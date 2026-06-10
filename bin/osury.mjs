@@ -84,7 +84,8 @@ function printHelp() {
   log(`    ${c.cyan("$")} osury domain ${c.dim("[options]")}`);
   blank();
   log(`  ${c.bold("Options")}`);
-  log(`    ${c.cyan("-o")}, ${c.cyan("--output")}    Output file path ${c.dim("(default: ./Generated.res)")}`);
+  log(`    ${c.cyan("-t")}, ${c.cyan("--target")}    Output language: ${c.cyan("rescript")} ${c.dim("(default)")}, ${c.cyan("ocaml")}, ${c.cyan("effect-ts")}, ${c.cyan("rust")}`);
+  log(`    ${c.cyan("-o")}, ${c.cyan("--output")}    Output file path ${c.dim("(default depends on target)")}`);
   log(`    ${c.cyan("-h")}, ${c.cyan("--help")}      Show this help`);
   log(`    ${c.cyan("-v")}, ${c.cyan("--version")}   Show version`);
   log(`    ${c.cyan("--no-color")}    Disable colored output`);
@@ -98,14 +99,24 @@ function printHelp() {
   log(`    ${c.cyan("$")} osury openapi.json`);
   log(`    ${c.cyan("$")} osury openapi.json src/API.res`);
   log(`    ${c.cyan("$")} osury generate schema.json -o src/Schema.res`);
+  log(`    ${c.cyan("$")} osury wire.schema.json --target ocaml -o core/lib/wire.ml`);
+  log(`    ${c.cyan("$")} osury wire.schema.json --target effect-ts -o src/shared/api/wire.ts`);
+  log(`    ${c.cyan("$")} osury wire.schema.json --target rust -o crates/ir/src/wire.rs`);
   log(`    ${c.cyan("$")} osury domain --config domain.config.json --api-module Api`);
   blank();
 }
 
 // ─── Arg parsing ─────────────────────────────────────────────────────────────
 
+const TARGETS = {
+  rescript: { generate: "generateModuleWithDiagnostics", defaultOutput: "./Generated.res" },
+  ocaml: { generate: "generateOCamlWithDiagnostics", defaultOutput: "./generated.ml" },
+  "effect-ts": { generate: "generateEffectTSWithDiagnostics", defaultOutput: "./generated.ts" },
+  rust: { generate: "generateRustWithDiagnostics", defaultOutput: "./generated.rs" },
+};
+
 function parseArgs(args) {
-  const options = { input: null, output: "./Generated.res" };
+  const options = { input: null, output: null, target: "rescript" };
 
   let i = 0;
   while (i < args.length) {
@@ -119,6 +130,17 @@ function parseArgs(args) {
       process.exit(0);
     } else if (arg === "--no-color") {
       // already handled above
+    } else if (arg === "-t" || arg === "--target") {
+      i++;
+      if (i >= args.length || !TARGETS[args[i]]) {
+        header();
+        err(`  ${sym.error} ${c.boldRed("Invalid or missing value for --target")}`);
+        blank();
+        err(`  Expected one of: ${Object.keys(TARGETS).map((t) => c.cyan(t)).join(", ")}`);
+        blank();
+        process.exit(1);
+      }
+      options.target = args[i];
     } else if (arg === "-o" || arg === "--output") {
       i++;
       if (i >= args.length) {
@@ -134,10 +156,14 @@ function parseArgs(args) {
       // skip command word
     } else if (!options.input) {
       options.input = arg;
-    } else if (options.output === "./Generated.res") {
+    } else if (options.output === null) {
       options.output = arg;
     }
     i++;
+  }
+
+  if (options.output === null) {
+    options.output = TARGETS[options.target].defaultOutput;
   }
 
   return options;
@@ -241,7 +267,7 @@ function formatWarning(warning) {
 
 // ─── Main generate ───────────────────────────────────────────────────────────
 
-function generate(inputPath, outputPath) {
+function generate(inputPath, outputPath, target = "rescript") {
   const start = performance.now();
 
   header();
@@ -313,7 +339,7 @@ function generate(inputPath, outputPath) {
   log(`  ${sym.success} Parsed ${c.bold(String(schemaCount))} schema${schemaCount !== 1 ? "s" : ""} from ${c.cyan(inputPath)}`);
 
   // ── Generate code ──
-  const genResult = Codegen.generateModuleWithDiagnostics(schemas);
+  const genResult = Codegen[TARGETS[target].generate](schemas);
 
   if (genResult.TAG !== "Ok") {
     const errors = genResult._0;
@@ -350,33 +376,43 @@ function generate(inputPath, outputPath) {
   }
 
   // ── Count generated types ──
-  const typeCount = (code.match(/^type\s/gm) || []).length;
+  const typeCountPatterns = {
+    rescript: /^type\s/gm,
+    ocaml: /^type\s/gm,
+    "effect-ts": /^export const\s/gm,
+    rust: /^pub (struct|enum|type)\s/gm,
+  };
+  const typeCount = (code.match(typeCountPatterns[target]) || []).length;
 
   // ── Write files ──
   fs.writeFileSync(outputPath, code);
 
-  const dictShimPath = path.join(outputDir || ".", "Dict.gen.ts");
-  fs.writeFileSync(dictShimPath, Codegen.generateDictShim());
-
-  const jsonShimPath = path.join(outputDir || ".", "JSON.gen.ts");
-  fs.writeFileSync(jsonShimPath, Codegen.generateJsonShim());
-
-  const nullableResPath = path.join(outputDir || ".", "Nullable.res");
-  fs.writeFileSync(nullableResPath, Codegen.generateNullableModule());
-
-  const nullableShimPath = path.join(outputDir || ".", "Nullable.shim.ts");
-  fs.writeFileSync(nullableShimPath, Codegen.generateNullableShim());
-
   // ── Success output ──
   blank();
-  log(`  ${sym.success} Generated ${c.bold(String(typeCount))} type${typeCount !== 1 ? "s" : ""}`);
+  log(`  ${sym.success} Generated ${c.bold(String(typeCount))} type${typeCount !== 1 ? "s" : ""} ${c.dim(`(${target})`)}`);
   blank();
   log(`  ${c.dim("Files written:")}`);
   log(`    ${sym.bullet} ${c.cyan(outputPath)} ${c.dim("(main module)")}`);
-  log(`    ${sym.bullet} ${c.cyan(dictShimPath)} ${c.dim("(TS shim)")}`);
-  log(`    ${sym.bullet} ${c.cyan(jsonShimPath)} ${c.dim("(TS shim)")}`);
-  log(`    ${sym.bullet} ${c.cyan(nullableResPath)} ${c.dim("(ReScript module)")}`);
-  log(`    ${sym.bullet} ${c.cyan(nullableShimPath)} ${c.dim("(TS shim)")}`);
+
+  // ReScript target ships TS shims for genType interop; other targets are single-file
+  if (target === "rescript") {
+    const dictShimPath = path.join(outputDir || ".", "Dict.gen.ts");
+    fs.writeFileSync(dictShimPath, Codegen.generateDictShim());
+
+    const jsonShimPath = path.join(outputDir || ".", "JSON.gen.ts");
+    fs.writeFileSync(jsonShimPath, Codegen.generateJsonShim());
+
+    const nullableResPath = path.join(outputDir || ".", "Nullable.res");
+    fs.writeFileSync(nullableResPath, Codegen.generateNullableModule());
+
+    const nullableShimPath = path.join(outputDir || ".", "Nullable.shim.ts");
+    fs.writeFileSync(nullableShimPath, Codegen.generateNullableShim());
+
+    log(`    ${sym.bullet} ${c.cyan(dictShimPath)} ${c.dim("(TS shim)")}`);
+    log(`    ${sym.bullet} ${c.cyan(jsonShimPath)} ${c.dim("(TS shim)")}`);
+    log(`    ${sym.bullet} ${c.cyan(nullableResPath)} ${c.dim("(ReScript module)")}`);
+    log(`    ${sym.bullet} ${c.cyan(nullableShimPath)} ${c.dim("(TS shim)")}`);
+  }
   blank();
   log(`  ${c.dim(`Done in ${elapsed(start)}`)}`);
   blank();
@@ -543,5 +579,5 @@ if (rawArgs[0] === "domain") {
     process.exit(1);
   }
 
-  generate(options.input, options.output);
+  generate(options.input, options.output, options.target);
 }

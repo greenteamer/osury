@@ -10,6 +10,7 @@ type annotation =
   | Unboxed
   | SNull // @s.null for Nullable fields
   | As(string) // @as("originalName") for reserved keywords
+  | ListEncoded // enum wire-encoded as single-element list: ["InProgress"]
 
 type rec irType =
   | Primitive(primitive)
@@ -30,13 +31,21 @@ and irField = {
 }
 
 and irVariantCase = {
-  tag: string, // ucFirst'd tag name
+  tag: string, // constructor name (capitalized, camelized)
+  asValue: option<string>, // wire discriminator value when it differs from tag → @as("...")
   payload: irType,
 }
 
+// Wire representation of a variant type. ReScript printing is driven by
+// annotations (Tag/Unboxed) for golden stability; repr is the semantic
+// source of truth for backends that print codecs (OCaml/Rust/Effect-TS).
+type variantRepr =
+  | InternalTag(string) // {"kind": "glow", ...} — discriminator field inside
+  | ExternalTag // {"Glow": {...}} — variant name wraps the payload
+
 type irTypeDefKind =
   | RecordDef(array<irField>)
-  | VariantDef(array<irVariantCase>)
+  | VariantDef(array<irVariantCase>, variantRepr)
   | AliasDef(irType)
 
 type irTypeDef = {

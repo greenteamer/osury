@@ -2,6 +2,20 @@
 // Uses CodegenTransforms for validation, union extraction, dedup, topo sort.
 // New: converts schemaType → irType, irField, irTypeDef
 
+// Build a variant case from a wire tag. ReScript constructors must be
+// capitalized, so when the wire value is not already a valid constructor
+// (e.g. "reduce_bid"), the constructor is camelized ("ReduceBid") and
+// @as("reduce_bid") preserves the wire contract. Tags that survive ucFirst
+// unchanged ("MetricGrid", "Type_") keep their name and need no @as.
+let mkTaggedCase = (wireTag: string, payload: IR.irType): IR.irVariantCase => {
+  if CodegenHelpers.ucFirst(wireTag) == wireTag {
+    {IR.tag: wireTag, asValue: None, payload}
+  } else {
+    let ctor = CodegenHelpers.ucFirst(CodegenTransforms.camelize(wireTag))
+    {IR.tag: ctor, asValue: Some(wireTag), payload}
+  }
+}
+
 // Convert Schema.schemaType → IR.irType (recursive)
 let rec convertType = (schema: Schema.schemaType): IR.irType => {
   switch schema {
@@ -19,16 +33,17 @@ let rec convertType = (schema: Schema.schemaType): IR.irType => {
   | Object(fields) if Array.length(fields) == 0 => JSON
   | Object(fields) => InlineRecord(fields->Array.map(convertField))
   | PolyVariant(cases) =>
+    // Inline poly variant: the #tag itself is the wire value, no @as needed
     InlineVariant(cases->Array.map(c => {
       let payload = convertType(c.payload)
-      {IR.tag: c.tag, payload}
+      {IR.tag: c.tag, asValue: None, payload}
     }))
   | Unknown => JSON
   | Union(types) =>
     InlineVariant(types->Array.map(t => {
       let tag = CodegenHelpers.getTagForType(t)
       let payload = convertType(t)
-      {IR.tag: tag, payload}
+      {IR.tag: tag, asValue: None, payload}
     }))
   }
 }
@@ -84,31 +99,45 @@ let convertToIrTypeDef = (
   switch namedSchema.schema {
   | PolyVariant(cases) =>
     // Discriminated union from oneOf
+    let isExternal = namedSchema.variantEncoding == Some(Schema.External)
     let irCases = cases->Array.map(c => {
       let payload = switch c.payload {
       | Ref(refName) =>
-        // Resolve Ref to inline record, filtering out discriminator field
-        // to avoid conflict: @tag("type") + @as("type") type_ on same runtime name
+        // Resolve Ref to inline record. For internal tagging the discriminator
+        // field is filtered out to avoid conflict: @tag("type") + @as("type")
+        // type_ on same runtime name. External wrappers carry no discriminator
+        // field inside the payload — nothing to filter.
         switch schemasDict->Dict.get(refName) {
         | Some(Object(fields)) =>
-          let filtered = fields->Array.filter(f => f.name != tagName)
+          let filtered = isExternal ? fields : fields->Array.filter(f => f.name != tagName)
           IR.InlineRecord(filtered->Array.map(convertField))
         | Some(other) => convertType(other)
         | None => IR.Named(CodegenHelpers.lcFirst(refName))
         }
       | other => convertType(other)
       }
-      {IR.tag: CodegenHelpers.ucFirst(c.tag), payload}
+      mkTaggedCase(c.tag, payload)
     })
-    // Variant types normally get @schema (they inline records, PPX-compatible),
-    // BUT skip when transitive deps reach an Unknown (JSON.t) — sury-ppx can't
-    // synthesize a schema for inlined fields whose dep types lack *Schema.
-    let baseAnnotations = [IR.GenType, IR.Tag(tagName)]
-    let annotations = if shouldSkipSchema { baseAnnotations } else { Array.concat(baseAnnotations, [IR.Schema]) }
-    {
-      IR.name: typeName,
-      annotations,
-      kind: VariantDef(irCases),
+    if isExternal {
+      // sury-ppx can only express internally-tagged variants: the type is
+      // still generated (+@genType), but @tag/@schema are skipped. The
+      // pipeline emits a module warning for this (see generate()).
+      {
+        IR.name: typeName,
+        annotations: [IR.GenType],
+        kind: VariantDef(irCases, ExternalTag),
+      }
+    } else {
+      // Variant types normally get @schema (they inline records, PPX-compatible),
+      // BUT skip when transitive deps reach an Unknown (JSON.t) — sury-ppx can't
+      // synthesize a schema for inlined fields whose dep types lack *Schema.
+      let baseAnnotations = [IR.GenType, IR.Tag(tagName)]
+      let annotations = if shouldSkipSchema { baseAnnotations } else { Array.concat(baseAnnotations, [IR.Schema]) }
+      {
+        IR.name: typeName,
+        annotations,
+        kind: VariantDef(irCases, InternalTag(tagName)),
+      }
     }
 
   | Union(types) =>
@@ -117,25 +146,23 @@ let convertToIrTypeDef = (
       let irCases = types->Array.map(t => {
         let tag = CodegenHelpers.getTagForType(t)
         let payload = convertType(t)
-        {IR.tag: tag, payload}
+        // @unboxed: no tag on the wire, constructor name is internal-only
+        {IR.tag: tag, asValue: None, payload}
       })
       let baseAnnotations = [IR.GenType, IR.Tag(tagName), IR.Unboxed]
       let annotations = if shouldSkipSchema { baseAnnotations } else { Array.concat(baseAnnotations, [IR.Schema]) }
       {
         IR.name: typeName,
         annotations,
-        kind: VariantDef(irCases),
+        kind: VariantDef(irCases, InternalTag(tagName)),
       }
     } else {
       // Mixed union with object types -> inline Refs
       let irCases = types->Array.map(t => {
         switch t {
         | Ref(name) =>
-          // Use _tag.const value if available, otherwise use schema name
-          let tag = switch tagsDict->Dict.get(name) {
-          | Some(tagValue) => CodegenHelpers.ucFirst(tagValue)
-          | None => CodegenHelpers.ucFirst(name)
-          }
+          // Wire tag: _tag.const value if available, otherwise the schema name
+          let wireTag = tagsDict->Dict.get(name)->Option.getOr(name)
           let payload = switch schemasDict->Dict.get(name) {
           | Some(Object(fields)) =>
             let filtered = fields->Array.filter(f => f.name != tagName)
@@ -143,11 +170,11 @@ let convertToIrTypeDef = (
           | Some(other) => convertType(other)
           | None => IR.Named(CodegenHelpers.lcFirst(name))
           }
-          {IR.tag: tag, payload}
+          mkTaggedCase(wireTag, payload)
         | _ =>
           let tag = CodegenHelpers.getTagForType(t)
           let payload = convertType(t)
-          {IR.tag: tag, payload}
+          {IR.tag: tag, asValue: None, payload}
         }
       })
       let baseAnnotations = [IR.GenType, IR.Tag(tagName)]
@@ -155,7 +182,7 @@ let convertToIrTypeDef = (
       {
         IR.name: typeName,
         annotations,
-        kind: VariantDef(irCases),
+        kind: VariantDef(irCases, InternalTag(tagName)),
       }
     }
 
@@ -165,7 +192,12 @@ let convertToIrTypeDef = (
     | Object(fields) if Array.length(fields) > 0 => IR.RecordDef(fields->Array.map(convertField))
     | _ => AliasDef(convertType(namedSchema.schema))
     }
-    let annotations = if shouldSkipSchema {
+    let isListEncoded = namedSchema.variantEncoding == Some(Schema.List)
+    let annotations = if isListEncoded {
+      // ["InProgress"] wire form is not expressible by sury-ppx — no @schema;
+      // codec-printing backends read ListEncoded to wrap/unwrap the list
+      [IR.GenType, IR.ListEncoded]
+    } else if shouldSkipSchema {
       [IR.GenType]
     } else {
       [IR.GenType, IR.Schema]
@@ -187,7 +219,24 @@ let generate = (schemas: array<OpenAPIParser.namedSchema>): result<IR.irModule, 
   } else {
 
   // Step 1: Diagnose — collect warnings for problematic unions
-  let warnings = CodegenTransforms.collectUnionWarnings(schemas)
+  let unionWarnings = CodegenTransforms.collectUnionWarnings(schemas)
+
+  // Externally-tagged unions and list-encoded enums get a type but no sury
+  // codec — tell the user why
+  let encodingWarnings = schemas->Array.filterMap(s =>
+    switch s.variantEncoding {
+    | Some(Schema.External) =>
+      Some(
+        `${CodegenHelpers.lcFirst(s.name)}: externally-tagged union — @schema skipped (sury-ppx supports internally-tagged only)`,
+      )
+    | Some(Schema.List) =>
+      Some(
+        `${CodegenHelpers.lcFirst(s.name)}: list-encoded enum (["A"] wire form) — @schema skipped (sury-ppx can't express it)`,
+      )
+    | _ => None
+    }
+  )
+  let warnings = Array.concat(unionWarnings, encodingWarnings)
 
   // Step 1.5: Extract inline string enums into named top-level types.
   // Runs BEFORE union extraction so subsequent passes see Ref(...) instead of
@@ -206,7 +255,7 @@ let generate = (schemas: array<OpenAPIParser.namedSchema>): result<IR.irModule, 
       | Some(dict) => dict->Dict.get(extracted.name)
       | None => None
       }
-      {OpenAPIParser.name: extracted.name, schema: extracted.schema, discriminatorTag: None, discriminatorPropertyName, fieldDiscriminators: None}
+      {OpenAPIParser.name: extracted.name, schema: extracted.schema, discriminatorTag: None, discriminatorPropertyName, fieldDiscriminators: None, variantEncoding: None}
     })
   })
 
@@ -223,7 +272,7 @@ let generate = (schemas: array<OpenAPIParser.namedSchema>): result<IR.irModule, 
 
   // Step 4: Replace — unions with refs in original schemas
   let modifiedSchemas = schemas->Array.map(s => {
-    {OpenAPIParser.name: s.name, schema: CodegenTransforms.replaceUnions(s.name, s.schema), discriminatorTag: s.discriminatorTag, discriminatorPropertyName: s.discriminatorPropertyName, fieldDiscriminators: s.fieldDiscriminators}
+    {OpenAPIParser.name: s.name, schema: CodegenTransforms.replaceUnions(s.name, s.schema), discriminatorTag: s.discriminatorTag, discriminatorPropertyName: s.discriminatorPropertyName, fieldDiscriminators: s.fieldDiscriminators, variantEncoding: s.variantEncoding}
   })
 
   // Step 5: Combine — unique unions + modified originals

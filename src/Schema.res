@@ -36,6 +36,14 @@ and schemaType =
   | Union(array<schemaType>)
   | Unknown
 
+// Wire representation of a discriminated union:
+// Internal — {"kind": "glow", ...} (discriminator field inside the object)
+// External — {"Glow": {...}} (variant name wraps the payload, serde/yojson default)
+// List — ["InProgress"] (unit variant as single-element list,
+//        ppx_deriving_yojson default for enum-like variants)
+@genType
+type variantEncoding = Internal | External | List
+
 // Helper: check if schema is null type
 let isNullType = (json: JSON.t): bool => {
   switch json {
@@ -355,6 +363,81 @@ and parseAllOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
   }
 }
 
+// Externally-tagged wire format {"Glow": {...}} is described in JSON Schema
+// as a oneOf of wrapper objects, each with exactly one required property.
+// This is the shape schemars (Rust) and similar generators emit — detection
+// is structural, no custom annotation required.
+and externalWrapperKey = (item: JSON.t): option<string> => {
+  switch item {
+  | Object(dict) =>
+    // "$ref" branches are opaque here (no document context) — not a wrapper
+    switch (dict->Dict.get("$ref"), dict->Dict.get("properties"), dict->Dict.get("required")) {
+    | (None, Some(Object(props)), Some(Array(req))) =>
+      let keys = props->Dict.keysToArray
+      let requiredKeys = req->Array.filterMap(r =>
+        switch r {
+        | String(s) => Some(s)
+        | _ => None
+        }
+      )
+      switch (keys, requiredKeys) {
+      | ([key], [reqKey]) if key == reqKey => Some(key)
+      | _ => None
+      }
+    | _ => None
+    }
+  | _ => None
+  }
+}
+
+and detectExternalTagging = (items: array<JSON.t>): bool => {
+  let keys = items->Array.filterMap(externalWrapperKey)
+  // Every branch is a wrapper and wrapper keys are pairwise distinct
+  Array.length(items) > 0 &&
+  Array.length(keys) == Array.length(items) &&
+  Dict.fromArray(keys->Array.map(k => (k, true)))->Dict.keysToArray->Array.length == Array.length(keys)
+}
+
+// Parse externally-tagged oneOf: tag = wrapper key, payload = inner schema
+and parseExternalOneOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
+  let caseResults = items->Array.map(item => {
+    switch (item, externalWrapperKey(item)) {
+    | (Object(dict), Some(key)) =>
+      let inner = switch dict->Dict.get("properties") {
+      | Some(Object(props)) => props->Dict.get(key)
+      | _ => None
+      }
+      switch inner {
+      | Some(innerJson) =>
+        switch parseSchema(innerJson) {
+        | Ok(payload) => Ok({tag: key, payload})
+        | Error(e) => Error(e)
+        }
+      | None => Error([Errors.makeError(~kind=InvalidJson("externally-tagged wrapper has no payload schema"), ())])
+      }
+    | _ => Error([Errors.makeError(~kind=InvalidJson("oneOf item is not an externally-tagged wrapper"), ())])
+    }
+  })
+
+  let errors = caseResults->Array.filterMap(r =>
+    switch r {
+    | Error(e) => Some(e)
+    | Ok(_) => None
+    }
+  )->Array.flat
+
+  if Array.length(errors) > 0 {
+    Error(errors)
+  } else {
+    Ok(PolyVariant(caseResults->Array.filterMap(r =>
+      switch r {
+      | Ok(c) => Some(c)
+      | Error(_) => None
+      }
+    )))
+  }
+}
+
 // Helper: parse oneOf (discriminated union with _tag or discriminator.propertyName)
 and parseOneOf = (items: array<JSON.t>, ~discriminatorPropertyName: option<string>=None): result<schemaType, Errors.errors> => {
   let propName = discriminatorPropertyName->Option.getOr("_tag")
@@ -494,9 +577,22 @@ and parseObject = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
         | Error(e) => Error(e)
         }
       } else {
-        // No null — regular discriminated union
+        // No null — discriminated union. Variant representation resolution:
+        // 1. x-variant-encoding override (explicit user intent)
+        // 2. discriminator keyword → internally-tagged (explicit beats structural)
+        // 3. structural wrapper-pattern detection → externally-tagged
+        // 4. default → internally-tagged (legacy parseOneOf)
         let discriminatorPropName = extractDiscriminatorPropertyName(dict)
-        parseOneOf(items, ~discriminatorPropertyName=discriminatorPropName)
+        switch dict->Dict.get("x-variant-encoding") {
+        | Some(String("external")) => parseExternalOneOf(items)
+        | Some(String("internal")) => parseOneOf(items, ~discriminatorPropertyName=discriminatorPropName)
+        | _ =>
+          if discriminatorPropName->Option.isNone && detectExternalTagging(items) {
+            parseExternalOneOf(items)
+          } else {
+            parseOneOf(items, ~discriminatorPropertyName=discriminatorPropName)
+          }
+        }
       }
     | Some(_) => Error([Errors.makeError(~kind=InvalidJson("oneOf must be an array"), ())])
     | None =>
@@ -513,6 +609,43 @@ and parseObject = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
         }
       }
     }
+  }
+}
+
+// Determine the variant encoding of a named schema's raw JSON. Mirrors the
+// resolution order of the oneOf dispatch in parseObject — keep them in sync:
+// x-variant-encoding override → discriminator keyword → structural detection.
+// None = not a union or internally-tagged (the legacy default).
+let variantEncodingOfJson = (json: JSON.t): option<variantEncoding> => {
+  switch json {
+  | Object(dict) =>
+    switch dict->Dict.get("oneOf") {
+    | Some(Array(items)) =>
+      let hasNull = items->Array.some(isNullType)
+      switch dict->Dict.get("x-variant-encoding") {
+      | Some(String("external")) => Some(External)
+      | Some(String("internal")) => Some(Internal)
+      | Some(String("list")) => Some(List)
+      | _ =>
+        if (
+          !hasNull &&
+          extractDiscriminatorPropertyName(dict)->Option.isNone &&
+          detectExternalTagging(items)
+        ) {
+          Some(External)
+        } else {
+          None
+        }
+      }
+    | _ =>
+      // List encoding on an enum: "status": ["InProgress"] — the logical type
+      // is still the enum, the wrapping list is purely a wire concern
+      switch (dict->Dict.get("enum"), dict->Dict.get("x-variant-encoding")) {
+      | (Some(Array(_)), Some(String("list"))) => Some(List)
+      | _ => None
+      }
+    }
+  | _ => None
   }
 }
 

@@ -1,0 +1,1 @@
+{"boxes":[{"id":"b1","shade":"Light","state":{"fill":0.8,"weight":null,"shown":true,"ratio":null}}],"edges":[{"from":"b1","to":"b2"}],"marks":[{"Shine":{"target":"b1","intensity":0.8}},{"Tint":{"target":"b1","level":2}},{"Bond":{"from":"b1","to":"b2","strength":0.5}},{"Stream":{"path":["b1","b2"],"intensity":0.9}}]}

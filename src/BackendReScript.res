@@ -83,7 +83,11 @@ and printRecord = (fields: array<IR.irField>): string => {
 
 and printVariantCase = (c: IR.irVariantCase): string => {
   let payloadStr = printType(c.payload)
-  `${c.tag}(${payloadStr})`
+  let asAttr = switch c.asValue {
+  | Some(wire) => `@as("${wire}") `
+  | None => ""
+  }
+  `${asAttr}${c.tag}(${payloadStr})`
 }
 
 and printVariantCases = (cases: array<IR.irVariantCase>): string => {
@@ -98,6 +102,7 @@ let printAnnotation = (ann: IR.annotation): option<string> => {
   | Tag(name) => Some(`@tag("${name}")`)
   | Unboxed => Some("@unboxed")
   | SNull | As(_) => None // field-level only, not type-level
+  | ListEncoded => None // wire-encoding metadata for codec backends, no ReScript syntax
   }
 }
 
@@ -112,7 +117,9 @@ let printTypeDef = (typeDef: IR.irTypeDef): string => {
 
   let body = switch typeDef.kind {
   | RecordDef(fields) => printRecord(fields)
-  | VariantDef(cases) =>
+  // repr is consumed by codec-printing backends; ReScript printing is
+  // annotation-driven (@tag/@unboxed), so the shape is identical either way
+  | VariantDef(cases, _) =>
     cases->Array.map(printVariantCase)->Array.join(" | ")
   | AliasDef(t) => printType(t)
   }

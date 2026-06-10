@@ -86,7 +86,9 @@ function printRecord(fields) {
 
 function printVariantCase(c) {
   let payloadStr = printType(c.payload);
-  return c.tag + `(` + payloadStr + `)`;
+  let wire = c.asValue;
+  let asAttr = wire !== undefined ? `@as("` + wire + `") ` : "";
+  return asAttr + c.tag + `(` + payloadStr + `)`;
 }
 
 function printVariantCases(cases) {
@@ -110,6 +112,7 @@ function printAnnotation(ann) {
     case "Unboxed" :
       return "@unboxed";
     case "SNull" :
+    case "ListEncoded" :
       return;
   }
 }

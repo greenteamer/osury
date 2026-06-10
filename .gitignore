@@ -66,4 +66,11 @@ TECHNICAL_DECISIONS.md
 
 # internal
 src/__generated__
+# Real production specs (proprietary, local-only — golden tests read them)
 openapi.json
+openapi-core.json
+
+# Golden snapshots are test DATA (.res), not source — never commit their
+# ReScript-compiled output if it ever gets generated
+src/tests/golden/*.mjs
+src/tests/golden/*.gen.ts

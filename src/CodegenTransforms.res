@@ -186,6 +186,7 @@ let buildExtractedEnumSchemas = (occurrences: array<enumOccurrence>, ~names: Dic
           discriminatorTag: None,
           discriminatorPropertyName: None,
           fieldDiscriminators: None,
+          variantEncoding: None,
         })
         ->ignore
       }

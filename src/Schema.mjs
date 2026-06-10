@@ -551,6 +551,125 @@ function parseAllOf(items) {
   };
 }
 
+function externalWrapperKey(item) {
+  if (typeof item !== "object" || item === null || Array.isArray(item)) {
+    return;
+  }
+  let match = item["$ref"];
+  let match$1 = item["properties"];
+  let match$2 = item["required"];
+  if (match !== undefined) {
+    return;
+  }
+  if (match$1 === undefined) {
+    return;
+  }
+  if (typeof match$1 !== "object" || match$1 === null || Array.isArray(match$1)) {
+    return;
+  }
+  if (match$2 === undefined) {
+    return;
+  }
+  if (!Array.isArray(match$2)) {
+    return;
+  }
+  let keys = Object.keys(match$1);
+  let requiredKeys = Core__Array.filterMap(match$2, r => {
+    if (typeof r === "string") {
+      return r;
+    }
+  });
+  if (keys.length !== 1) {
+    return;
+  }
+  let key = keys[0];
+  if (requiredKeys.length !== 1) {
+    return;
+  }
+  let reqKey = requiredKeys[0];
+  if (key === reqKey) {
+    return key;
+  }
+}
+
+function detectExternalTagging(items) {
+  let keys = Core__Array.filterMap(items, externalWrapperKey);
+  if (items.length > 0 && keys.length === items.length) {
+    return Object.keys(Object.fromEntries(keys.map(k => [
+      k,
+      true
+    ]))).length === keys.length;
+  } else {
+    return false;
+  }
+}
+
+function parseExternalOneOf(items) {
+  let caseResults = items.map(item => {
+    let match = externalWrapperKey(item);
+    if (typeof item === "object" && item !== null && !Array.isArray(item) && match !== undefined) {
+      let match$1 = item["properties"];
+      let inner = typeof match$1 === "object" && match$1 !== null && !Array.isArray(match$1) ? match$1[match] : undefined;
+      if (inner === undefined) {
+        return {
+          TAG: "Error",
+          _0: [Errors.makeError({
+              TAG: "InvalidJson",
+              _0: "externally-tagged wrapper has no payload schema"
+            }, undefined, undefined, undefined)]
+        };
+      }
+      let payload = parseSchema(inner);
+      if (payload.TAG === "Ok") {
+        return {
+          TAG: "Ok",
+          _0: {
+            _tag: match,
+            payload: payload._0
+          }
+        };
+      } else {
+        return {
+          TAG: "Error",
+          _0: payload._0
+        };
+      }
+    }
+    return {
+      TAG: "Error",
+      _0: [Errors.makeError({
+          TAG: "InvalidJson",
+          _0: "oneOf item is not an externally-tagged wrapper"
+        }, undefined, undefined, undefined)]
+    };
+  });
+  let errors = Core__Array.filterMap(caseResults, r => {
+    if (r.TAG === "Ok") {
+      return;
+    } else {
+      return r._0;
+    }
+  }).flat();
+  if (errors.length > 0) {
+    return {
+      TAG: "Error",
+      _0: errors
+    };
+  } else {
+    return {
+      TAG: "Ok",
+      _0: {
+        _tag: "PolyVariant",
+        _0: Core__Array.filterMap(caseResults, r => {
+          if (r.TAG === "Ok") {
+            return r._0;
+          }
+        })
+      }
+    };
+  }
+}
+
 function parseOneOf(items, discriminatorPropertyNameOpt) {
   let discriminatorPropertyName = discriminatorPropertyNameOpt !== undefined ? Primitive_option.valFromOption(discriminatorPropertyNameOpt) : undefined;
   let propName = Core__Option.getOr(discriminatorPropertyName, "_tag");
@@ -813,7 +932,27 @@ function parseObject(dict) {
           }
         }
         let discriminatorPropName$1 = extractDiscriminatorPropertyName(dict);
-        return parseOneOf(match$1, Primitive_option.some(discriminatorPropName$1));
+        let match$3 = dict["x-variant-encoding"];
+        let exit$1 = 0;
+        if (typeof match$3 === "string") {
+          switch (match$3) {
+            case "external" :
+              return parseExternalOneOf(match$1);
+            case "internal" :
+              return parseOneOf(match$1, Primitive_option.some(discriminatorPropName$1));
+            default:
+              exit$1 = 2;
+          }
+        } else {
+          exit$1 = 2;
+        }
+        if (exit$1 === 2) {
+          if (Core__Option.isNone(discriminatorPropName$1) && detectExternalTagging(match$1)) {
+            return parseExternalOneOf(match$1);
+          } else {
+            return parseOneOf(match$1, Primitive_option.some(discriminatorPropName$1));
+          }
+        }
       }
     }
     return {
@@ -824,10 +963,10 @@ function parseObject(dict) {
         }, undefined, undefined, undefined)]
     };
   }
-  let match$3 = dict["allOf"];
-  if (match$3 !== undefined) {
-    if (Array.isArray(match$3)) {
-      return parseAllOf(match$3);
+  let match$4 = dict["allOf"];
+  if (match$4 !== undefined) {
+    if (Array.isArray(match$4)) {
+      return parseAllOf(match$4);
     }
     return {
       TAG: "Error",
@@ -837,12 +976,12 @@ function parseObject(dict) {
         }, undefined, undefined, undefined)]
     };
   }
-  let match$4 = dict["anyOf"];
-  if (match$4 === undefined) {
+  let match$5 = dict["anyOf"];
+  if (match$5 === undefined) {
     return applyNullable(dict, parsePrimitiveType(dict));
   }
-  if (Array.isArray(match$4)) {
-    return parseAnyOf(match$4);
+  if (Array.isArray(match$5)) {
+    return parseAnyOf(match$5);
   }
   return {
     TAG: "Error",
@@ -851,6 +990,44 @@ function parseObject(dict) {
         _0: "anyOf must be an array"
       }, undefined, undefined, undefined)]
   };
+}
+
+function variantEncodingOfJson(json) {
+  if (typeof json !== "object" || json === null || Array.isArray(json)) {
+    return;
+  }
+  let match = json["oneOf"];
+  if (Array.isArray(match)) {
+    let hasNull = match.some(isNullType);
+    let match$1 = json["x-variant-encoding"];
+    let exit = 0;
+    if (typeof match$1 === "string") {
+      switch (match$1) {
+        case "external" :
+          return "External";
+        case "internal" :
+          return "Internal";
+        case "list" :
+          return "List";
+        default:
+          exit = 2;
+      }
+    } else {
+      exit = 2;
+    }
+    if (exit === 2) {
+      if (!hasNull && Core__Option.isNone(extractDiscriminatorPropertyName(json)) && detectExternalTagging(match)) {
+        return "External";
+      } else {
+        return;
+      }
+    }
+  }
+  let match$2 = json["enum"];
+  let match$3 = json["x-variant-encoding"];
+  if (Array.isArray(match$2) && match$3 === "list") {
+    return "List";
+  }
 }
 
 let parse = parseSchema;
@@ -869,9 +1046,13 @@ export {
   parseAnyOf,
   parseObjectType,
   parseAllOf,
+  externalWrapperKey,
+  detectExternalTagging,
+  parseExternalOneOf,
   parseOneOf,
   applyNullable,
   parseObject,
+  variantEncodingOfJson,
   parse,
 }
 /* No side effect */

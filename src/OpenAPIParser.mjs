@@ -95,7 +95,8 @@ function parsePathResponses(pathsJson) {
               schema: schemaType._0,
               discriminatorTag: undefined,
               discriminatorPropertyName: undefined,
-              fieldDiscriminators: undefined
+              fieldDiscriminators: undefined,
+              variantEncoding: Schema.variantEncodingOfJson(schemaJson)
             }
           };
         } else {
@@ -295,6 +296,58 @@ function extractDiscriminatorTag(schemaJson) {
   }
 }
 
+function parseSchemaDict(schemas) {
+  let entries = Object.entries(schemas);
+  let results = entries.map(param => {
+    let schemaJson = param[1];
+    let discriminatorTag = extractDiscriminatorTag(schemaJson);
+    let discriminatorPropertyName = extractDiscriminatorPropertyName(schemaJson);
+    let fieldDiscs = extractFieldDiscriminators(schemaJson);
+    let fieldDiscriminators = Object.entries(fieldDiscs).length > 0 ? fieldDiscs : undefined;
+    let schemaType = Schema.parse(schemaJson);
+    if (schemaType.TAG === "Ok") {
+      return {
+        TAG: "Ok",
+        _0: {
+          name: param[0],
+          schema: schemaType._0,
+          discriminatorTag: discriminatorTag,
+          discriminatorPropertyName: discriminatorPropertyName,
+          fieldDiscriminators: fieldDiscriminators,
+          variantEncoding: Schema.variantEncodingOfJson(schemaJson)
+        }
+      };
+    } else {
+      return {
+        TAG: "Error",
+        _0: schemaType._0
+      };
+    }
+  });
+  let errors = Core__Array.filterMap(results, r => {
+    if (r.TAG === "Ok") {
+      return;
+    } else {
+      return r._0;
+    }
+  }).flat();
+  if (errors.length > 0) {
+    return {
+      TAG: "Error",
+      _0: errors
+    };
+  }
+  let schemas$1 = Core__Array.filterMap(results, r => {
+    if (r.TAG === "Ok") {
+      return r._0;
+    }
+  });
+  return {
+    TAG: "Ok",
+    _0: schemas$1
+  };
+}
+
 function parseComponentSchemas(componentsJson) {
   if (typeof componentsJson === "object" && componentsJson !== null && !Array.isArray(componentsJson)) {
     let match = componentsJson["schemas"];
@@ -306,54 +359,7 @@ function parseComponentSchemas(componentsJson) {
     }
     let exit = 0;
     if (typeof match === "object" && match !== null && !Array.isArray(match)) {
-      let entries = Object.entries(match);
-      let results = entries.map(param => {
-        let schemaJson = param[1];
-        let discriminatorTag = extractDiscriminatorTag(schemaJson);
-        let discriminatorPropertyName = extractDiscriminatorPropertyName(schemaJson);
-        let fieldDiscs = extractFieldDiscriminators(schemaJson);
-        let fieldDiscriminators = Object.entries(fieldDiscs).length > 0 ? fieldDiscs : undefined;
-        let schemaType = Schema.parse(schemaJson);
-        if (schemaType.TAG === "Ok") {
-          return {
-            TAG: "Ok",
-            _0: {
-              name: param[0],
-              schema: schemaType._0,
-              discriminatorTag: discriminatorTag,
-              discriminatorPropertyName: discriminatorPropertyName,
-              fieldDiscriminators: fieldDiscriminators
-            }
-          };
-        } else {
-          return {
-            TAG: "Error",
-            _0: schemaType._0
-          };
-        }
-      });
-      let errors = Core__Array.filterMap(results, r => {
-        if (r.TAG === "Ok") {
-          return;
-        } else {
-          return r._0;
-        }
-      }).flat();
-      if (errors.length > 0) {
-        return {
-          TAG: "Error",
-          _0: errors
-        };
-      }
-      let schemas = Core__Array.filterMap(results, r => {
-        if (r.TAG === "Ok") {
-          return r._0;
-        }
-      });
-      return {
-        TAG: "Ok",
-        _0: schemas
-      };
+      return parseSchemaDict(match);
     }
     exit = 2;
     if (exit === 2) {
@@ -371,6 +377,26 @@ function parseComponentSchemas(componentsJson) {
     _0: [Errors.makeError({
         TAG: "InvalidJson",
         _0: "components must be an object"
+      }, undefined, undefined, undefined)]
+  };
+}
+
+function parseDefsSchemas(doc, key) {
+  let match = doc[key];
+  if (match === undefined) {
+    return {
+      TAG: "Ok",
+      _0: []
+    };
+  }
+  if (typeof match === "object" && match !== null && !Array.isArray(match)) {
+    return parseSchemaDict(match);
+  }
+  return {
+    TAG: "Error",
+    _0: [Errors.makeError({
+        TAG: "InvalidJson",
+        _0: key + ` must be an object`
       }, undefined, undefined, undefined)]
   };
 }
@@ -480,7 +506,8 @@ function parsePathParameters(pathsJson) {
               schema: schemaType._0,
               discriminatorTag: undefined,
               discriminatorPropertyName: undefined,
-              fieldDiscriminators: undefined
+              fieldDiscriminators: undefined,
+              variantEncoding: undefined
             }
           };
         } else {
@@ -646,7 +673,8 @@ function resolveRefTagsInPolyVariants(schemas, mappingByRef) {
     schema: rewriteVariantTagsInType(s.schema, tagByRef),
     discriminatorTag: s.discriminatorTag,
     discriminatorPropertyName: s.discriminatorPropertyName,
-    fieldDiscriminators: s.fieldDiscriminators
+    fieldDiscriminators: s.fieldDiscriminators,
+    variantEncoding: s.variantEncoding
   }));
 }
 
@@ -657,6 +685,8 @@ function parseDocument(json) {
         TAG: "Ok",
         _0: []
       });
+    let defsSchemas = parseDefsSchemas(json, "$defs");
+    let definitionsSchemas = parseDefsSchemas(json, "definitions");
     let pathsJson = json["paths"];
     let pathSchemas = pathsJson !== undefined ? parsePathResponses(pathsJson) : ({
         TAG: "Ok",
@@ -669,11 +699,17 @@ function parseDocument(json) {
       });
     let mappingByRef = extractAllDiscriminatorMappings(json);
     let exit = 0;
-    if (componentSchemas.TAG === "Ok" && pathSchemas.TAG === "Ok") {
+    if (componentSchemas.TAG === "Ok" && defsSchemas.TAG === "Ok" && definitionsSchemas.TAG === "Ok" && pathSchemas.TAG === "Ok") {
       if (paramSchemas.TAG === "Ok") {
         return {
           TAG: "Ok",
-          _0: resolveRefTagsInPolyVariants(componentSchemas._0.concat(pathSchemas._0).concat(paramSchemas._0), mappingByRef)
+          _0: resolveRefTagsInPolyVariants([
+            componentSchemas._0,
+            defsSchemas._0,
+            definitionsSchemas._0,
+            pathSchemas._0,
+            paramSchemas._0
+          ].flat(), mappingByRef)
         };
       }
       exit = 2;
@@ -683,6 +719,8 @@ function parseDocument(json) {
     if (exit === 2) {
       let errs = Core__Array.filterMap([
         componentSchemas,
+        defsSchemas,
+        definitionsSchemas,
         pathSchemas,
         paramSchemas
       ], r => {
@@ -715,7 +753,9 @@ export {
   extractFieldDiscriminators,
   extractDiscriminatorPropertyName,
   extractDiscriminatorTag,
+  parseSchemaDict,
   parseComponentSchemas,
+  parseDefsSchemas,
   buildParamsObjectJson,
   parsePathParameters,
   extractAllDiscriminatorMappings,

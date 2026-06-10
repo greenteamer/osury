@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "synthetic backend round-trip contract",
+  "description": "Neutral fixture domain exercising all four variant representations plus explicit-null and keyword-rename. Deliberately not tied to any real product; the real contract lives in the chemcore monorepo and is covered by the guarded pilot test.",
+  "$defs": {
+    "Shade": {
+      "type": "string",
+      "enum": ["Light", "Dark", "Neon", "Pastel", "Mono"]
+    },
+    "BoxState": {
+      "type": "object",
+      "properties": {
+        "fill": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+        "weight": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "shown": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+        "ratio": { "anyOf": [{ "type": "number" }, { "type": "null" }] }
+      },
+      "required": ["fill", "weight", "shown", "ratio"]
+    },
+    "Box": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "shade": { "$ref": "#/$defs/Shade" },
+        "state": { "$ref": "#/$defs/BoxState" }
+      },
+      "required": ["id", "shade", "state"]
+    },
+    "Edge": {
+      "type": "object",
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" }
+      },
+      "required": ["from", "to"]
+    },
+    "Mark": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Shine": {
+              "type": "object",
+              "properties": {
+                "target": { "type": "string" },
+                "intensity": { "type": "number" }
+              },
+              "required": ["target", "intensity"]
+            }
+          },
+          "required": ["Shine"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Tint": {
+              "type": "object",
+              "properties": {
+                "target": { "type": "string" },
+                "level": { "type": "integer" }
+              },
+              "required": ["target", "level"]
+            }
+          },
+          "required": ["Tint"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Bond": {
+              "type": "object",
+              "properties": {
+                "from": { "type": "string" },
+                "to": { "type": "string" },
+                "strength": { "type": "number" }
+              },
+              "required": ["from", "to", "strength"]
+            }
+          },
+          "required": ["Bond"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Beat": {
+              "type": "object",
+              "properties": {
+                "target": { "type": "string" },
+                "speed": { "type": "number" }
+              },
+              "required": ["target", "speed"]
+            }
+          },
+          "required": ["Beat"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Stream": {
+              "type": "object",
+              "properties": {
+                "path": { "type": "array", "items": { "type": "string" } },
+                "intensity": { "type": "number" }
+              },
+              "required": ["path", "intensity"]
+            }
+          },
+          "required": ["Stream"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Board": {
+      "type": "object",
+      "properties": {
+        "boxes": { "type": "array", "items": { "$ref": "#/$defs/Box" } },
+        "edges": { "type": "array", "items": { "$ref": "#/$defs/Edge" } },
+        "marks": { "type": "array", "items": { "$ref": "#/$defs/Mark" } }
+      },
+      "required": ["boxes", "edges", "marks"]
+    },
+    "Phase": {
+      "type": "string",
+      "enum": ["Draft", "Done"],
+      "x-variant-encoding": "list"
+    },
+    "Meta": {
+      "type": "object",
+      "properties": {
+        "level": { "type": "integer" },
+        "phase": { "$ref": "#/$defs/Phase" }
+      },
+      "required": ["level", "phase"]
+    },
+    "Gauge": {
+      "type": "object",
+      "properties": {
+        "engagement": { "type": "number" },
+        "confidence": { "type": "number" }
+      },
+      "required": ["engagement", "confidence"]
+    },
+    "Cell": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "meta": { "$ref": "#/$defs/Meta" },
+        "gauge": { "$ref": "#/$defs/Gauge" }
+      },
+      "required": ["id", "meta", "gauge"]
+    },
+    "Grid": {
+      "type": "object",
+      "properties": {
+        "cells": { "type": "array", "items": { "$ref": "#/$defs/Cell" } }
+      },
+      "required": ["cells"]
+    },
+    "IssueLoopFound": {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "const": "loop_found" },
+        "path": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["kind", "path"]
+    },
+    "IssueBrokenLink": {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "const": "broken_link" },
+        "from": { "type": "string" },
+        "to": { "type": "string" }
+      },
+      "required": ["kind", "from", "to"]
+    },
+    "Issue": {
+      "oneOf": [
+        { "$ref": "#/$defs/IssueLoopFound" },
+        { "$ref": "#/$defs/IssueBrokenLink" }
+      ],
+      "discriminator": {
+        "propertyName": "kind",
+        "mapping": {
+          "loop_found": "#/$defs/IssueLoopFound",
+          "broken_link": "#/$defs/IssueBrokenLink"
+        }
+      }
+    }
+  }
+}

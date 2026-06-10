@@ -27,3 +27,5 @@ export type schemaType =
   | { _tag: "PolyVariant"; _0: variantCase[] }
   | { _tag: "Dict"; _0: schemaType }
   | { _tag: "Union"; _0: schemaType[] };
+
+export type variantEncoding = "Internal" | "External" | "List";

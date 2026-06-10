@@ -181,7 +181,8 @@ function replaceInlineEnums(schemas, names) {
       schema: newSchema,
       discriminatorTag: s.discriminatorTag,
       discriminatorPropertyName: s.discriminatorPropertyName,
-      fieldDiscriminators: s.fieldDiscriminators
+      fieldDiscriminators: s.fieldDiscriminators,
+      variantEncoding: s.variantEncoding
     };
   });
 }
@@ -206,7 +207,8 @@ function buildExtractedEnumSchemas(occurrences, names) {
         },
         discriminatorTag: undefined,
         discriminatorPropertyName: undefined,
-        fieldDiscriminators: undefined
+        fieldDiscriminators: undefined,
+        variantEncoding: undefined
       });
       return;
     }

@@ -7,6 +7,7 @@ type namedSchema = {
   discriminatorTag: option<string>, // _tag.const value if present
   discriminatorPropertyName: option<string>, // discriminator.propertyName if present
   fieldDiscriminators: option<Dict.t<string>>, // union name → discriminator propertyName (from field-level anyOf)
+  variantEncoding: option<Schema.variantEncoding>, // External for {"Glow": {...}} wrapper unions
 }
 
 // Convert path to PascalCase name: /v1/math/ads/executive-summary → V1MathAdsExecutiveSummary
@@ -67,7 +68,7 @@ let parsePathResponses = (pathsJson: JSON.t): result<array<namedSchema>, Errors.
                       | Some(schemaJson) =>
                         let name = ucFirst(method) ++ pathToName(path) ++ "Response"
                         switch Schema.parse(schemaJson) {
-                        | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None, discriminatorPropertyName: None, fieldDiscriminators: None}))
+                        | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None, discriminatorPropertyName: None, fieldDiscriminators: None, variantEncoding: Schema.variantEncodingOfJson(schemaJson)}))
                         | Error(e) => Some(Error(e))
                         }
                       | None => None
@@ -242,50 +243,65 @@ let extractDiscriminatorTag = (schemaJson: JSON.t): option<string> => {
   }
 }
 
+// Parse a dict of named schemas (shared by components/schemas and $defs)
+let parseSchemaDict = (schemas: Dict.t<JSON.t>): result<array<namedSchema>, Errors.errors> => {
+  let entries = schemas->Dict.toArray
+  let results = entries->Array.map(((name, schemaJson)) => {
+    let discriminatorTag = extractDiscriminatorTag(schemaJson)
+    let discriminatorPropertyName = extractDiscriminatorPropertyName(schemaJson)
+    let fieldDiscs = extractFieldDiscriminators(schemaJson)
+    let fieldDiscriminators = if Dict.toArray(fieldDiscs)->Array.length > 0 {
+      Some(fieldDiscs)
+    } else {
+      None
+    }
+    switch Schema.parse(schemaJson) {
+    | Ok(schemaType) => Ok({name, schema: schemaType, discriminatorTag, discriminatorPropertyName, fieldDiscriminators, variantEncoding: Schema.variantEncodingOfJson(schemaJson)})
+    | Error(e) => Error(e)
+    }
+  })
+
+  let errors = results->Array.filterMap(r =>
+    switch r {
+    | Error(e) => Some(e)
+    | Ok(_) => None
+    }
+  )->Array.flat
+
+  if Array.length(errors) > 0 {
+    Error(errors)
+  } else {
+    let schemas = results->Array.filterMap(r =>
+      switch r {
+      | Ok(s) => Some(s)
+      | Error(_) => None
+      }
+    )
+    Ok(schemas)
+  }
+}
+
 // Parse components/schemas
 let parseComponentSchemas = (componentsJson: JSON.t): result<array<namedSchema>, Errors.errors> => {
   switch componentsJson {
   | Object(components) =>
     switch components->Dict.get("schemas") {
-    | Some(Object(schemas)) =>
-      let entries = schemas->Dict.toArray
-      let results = entries->Array.map(((name, schemaJson)) => {
-        let discriminatorTag = extractDiscriminatorTag(schemaJson)
-        let discriminatorPropertyName = extractDiscriminatorPropertyName(schemaJson)
-        let fieldDiscs = extractFieldDiscriminators(schemaJson)
-        let fieldDiscriminators = if Dict.toArray(fieldDiscs)->Array.length > 0 {
-          Some(fieldDiscs)
-        } else {
-          None
-        }
-        switch Schema.parse(schemaJson) {
-        | Ok(schemaType) => Ok({name, schema: schemaType, discriminatorTag, discriminatorPropertyName, fieldDiscriminators})
-        | Error(e) => Error(e)
-        }
-      })
-
-      let errors = results->Array.filterMap(r =>
-        switch r {
-        | Error(e) => Some(e)
-        | Ok(_) => None
-        }
-      )->Array.flat
-
-      if Array.length(errors) > 0 {
-        Error(errors)
-      } else {
-        let schemas = results->Array.filterMap(r =>
-          switch r {
-          | Ok(s) => Some(s)
-          | Error(_) => None
-          }
-        )
-        Ok(schemas)
-      }
+    | Some(Object(schemas)) => parseSchemaDict(schemas)
     | Some(_) => Error([Errors.makeError(~kind=InvalidJson("schemas must be an object"), ())])
     | None => Ok([])
     }
   | _ => Error([Errors.makeError(~kind=InvalidJson("components must be an object"), ())])
+  }
+}
+
+// Parse standalone JSON Schema bundle: named schemas in $defs (draft 2019-09+)
+// or definitions (draft-07 and earlier). Both keys may coexist with an
+// OpenAPI document — all sources are concatenated by parseDocument.
+let parseDefsSchemas = (doc: Dict.t<JSON.t>, ~key: string): result<array<namedSchema>, Errors.errors> => {
+  switch doc->Dict.get(key) {
+  | Some(Object(schemas)) => parseSchemaDict(schemas)
+  | Some(_) => Error([Errors.makeError(~kind=InvalidJson(`${key} must be an object`), ())])
+  | None => Ok([])
   }
 }
 
@@ -377,7 +393,7 @@ let parsePathParameters = (pathsJson: JSON.t): result<array<namedSchema>, Errors
                 | Some(objJson) =>
                   let name = ucFirst(method) ++ pathToName(path) ++ "Params"
                   switch Schema.parse(objJson) {
-                  | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None, discriminatorPropertyName: None, fieldDiscriminators: None}))
+                  | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None, discriminatorPropertyName: None, fieldDiscriminators: None, variantEncoding: None}))
                   | Error(e) => Some(Error(e))
                   }
                 | None => None
@@ -533,6 +549,10 @@ let parseDocument = (json: JSON.t): result<array<namedSchema>, Errors.errors> =>
     | None => Ok([])
     }
 
+    // Parse standalone JSON Schema bundles ($defs / definitions)
+    let defsSchemas = parseDefsSchemas(doc, ~key="$defs")
+    let definitionsSchemas = parseDefsSchemas(doc, ~key="definitions")
+
     // Parse path responses
     let pathSchemas = switch doc->Dict.get("paths") {
     | Some(pathsJson) => parsePathResponses(pathsJson)
@@ -550,20 +570,20 @@ let parseDocument = (json: JSON.t): result<array<namedSchema>, Errors.errors> =>
     let mappingByRef = extractAllDiscriminatorMappings(json)
 
     // Combine results
-    switch (componentSchemas, pathSchemas, paramSchemas) {
-    | (Ok(cs), Ok(ps), Ok(qs)) =>
+    switch (componentSchemas, defsSchemas, definitionsSchemas, pathSchemas, paramSchemas) {
+    | (Ok(cs), Ok(ds), Ok(defs), Ok(ps), Ok(qs)) =>
       // After all schemas are parsed, rewrite PolyVariant case tags that point
       // to $ref payloads so they match the wire-format discriminator value.
       // Uses discriminator.mapping (OpenAPI-standard) as the primary source,
       // falling back to _tag.const for schemas without explicit mapping.
       Ok(
         resolveRefTagsInPolyVariants(
-          Array.concat(Array.concat(cs, ps), qs),
+          [cs, ds, defs, ps, qs]->Array.flat,
           ~mappingByRef,
         ),
       )
-    | (cs, ps, qs) =>
-      let errs = [cs, ps, qs]->Array.filterMap(r =>
+    | (cs, ds, defs, ps, qs) =>
+      let errs = [cs, ds, defs, ps, qs]->Array.filterMap(r =>
         switch r {
         | Error(e) => Some(e)
         | Ok(_) => None

@@ -2527,4 +2527,263 @@ describe('Sample Data Generator', () => {
         // No empty records
         expect(code).not.toContain('{}');
     });
+
+    test('snake_case discriminator values get @as on variant constructors', () => {
+        // Wire contract: backend sends {"kind": "reduce_bid", ...}. ReScript
+        // constructors must be capitalized, so the runtime tag value diverges
+        // from the wire unless the constructor carries @as("reduce_bid").
+        const doc = {
+            openapi: "3.0.0",
+            info: { title: "Test", version: "1.0" },
+            paths: {},
+            components: {
+                schemas: {
+                    ReduceBid: {
+                        type: "object",
+                        properties: {
+                            kind: { type: "string", const: "reduce_bid" },
+                            amount: { type: "number" }
+                        },
+                        required: ["kind", "amount"]
+                    },
+                    IncreaseBid: {
+                        type: "object",
+                        properties: {
+                            kind: { type: "string", const: "increase_bid" },
+                            amount: { type: "number" }
+                        },
+                        required: ["kind", "amount"]
+                    },
+                    BidAction: {
+                        oneOf: [
+                            { "$ref": "#/components/schemas/ReduceBid" },
+                            { "$ref": "#/components/schemas/IncreaseBid" }
+                        ],
+                        discriminator: {
+                            propertyName: "kind",
+                            mapping: {
+                                reduce_bid: "#/components/schemas/ReduceBid",
+                                increase_bid: "#/components/schemas/IncreaseBid"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const genResult = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(genResult.TAG).toBe('Ok');
+        const code = genResult._0.code;
+
+        // Constructor is camelized PascalCase, wire value preserved via @as
+        expect(code).toContain('@as("reduce_bid") ReduceBid(');
+        expect(code).toContain('@as("increase_bid") IncreaseBid(');
+        // The broken form must be gone
+        expect(code).not.toContain('Reduce_bid(');
+    });
+
+    test('parseDocument: pure JSON Schema document with $defs', () => {
+        // Contract-first input: a standalone JSON Schema bundle (draft 2020-12),
+        // not an OpenAPI document. Named schemas live in $defs, refs use #/$defs/.
+        const doc = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$defs": {
+                Glow: {
+                    type: "object",
+                    properties: {
+                        target: { type: "string" },
+                        intensity: { type: "number" }
+                    },
+                    required: ["target", "intensity"]
+                },
+                Scene: {
+                    type: "object",
+                    properties: {
+                        effects: { type: "array", items: { "$ref": "#/$defs/Glow" } }
+                    },
+                    required: ["effects"]
+                }
+            }
+        };
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+        expect(result._0.length).toBe(2);
+
+        const glow = result._0.find(s => s.name === 'Glow');
+        expect(glow).toBeDefined();
+        expect(glow.schema._tag).toBe('Object');
+
+        const scene = result._0.find(s => s.name === 'Scene');
+        expect(scene).toBeDefined();
+        const effects = scene.schema._0.find(f => f.name === 'effects');
+        expect(effects.type._tag).toBe('Array');
+        expect(effects.type._0._tag).toBe('Ref');
+        expect(effects.type._0._0).toBe('Glow');
+    });
+
+    test('parseDocument: draft-07 JSON Schema with definitions', () => {
+        const doc = {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "definitions": {
+                Mastery: {
+                    type: "object",
+                    properties: {
+                        topics: { type: "array", items: { "$ref": "#/definitions/TopicState" } }
+                    },
+                    required: ["topics"]
+                },
+                TopicState: {
+                    type: "object",
+                    properties: { id: { type: "string" }, level: { type: "integer" } },
+                    required: ["id", "level"]
+                }
+            }
+        };
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+        expect(result._0.length).toBe(2);
+
+        const mastery = result._0.find(s => s.name === 'Mastery');
+        const topics = mastery.schema._0.find(f => f.name === 'topics');
+        expect(topics.type._0._0).toBe('TopicState');
+
+        const topicState = result._0.find(s => s.name === 'TopicState');
+        const level = topicState.schema._0.find(f => f.name === 'level');
+        expect(level.type._tag ?? level.type).toBe('Integer');
+    });
+
+    test('parse oneOf: externally-tagged wrapper pattern detected structurally', () => {
+        // serde/yojson externally-tagged wire format {"Glow": {...}} is described
+        // in JSON Schema as a oneOf of single-required-key wrapper objects.
+        // This is what schemars emits — no custom annotation needed.
+        const input = {
+            oneOf: [
+                {
+                    type: "object",
+                    properties: { Glow: { type: "object", properties: { intensity: { type: "number" } }, required: ["intensity"] } },
+                    required: ["Glow"],
+                    additionalProperties: false
+                },
+                {
+                    type: "object",
+                    properties: { Fill: { type: "object", properties: { level: { type: "integer" } }, required: ["level"] } },
+                    required: ["Fill"],
+                    additionalProperties: false
+                }
+            ]
+        };
+        const result = Schema.parse(input);
+        expect(result.TAG).toBe('Ok');
+        // Wrapper unwrapped: PolyVariant with tag = wrapper key, payload = inner schema
+        expect(result._0._tag).toBe('PolyVariant');
+        const cases = result._0._0;
+        expect(cases.length).toBe(2);
+
+        const glow = cases.find(c => c._tag === 'Glow');
+        expect(glow).toBeDefined();
+        expect(glow.payload._tag).toBe('Object');
+        expect(glow.payload._0[0].name).toBe('intensity');
+
+        const fill = cases.find(c => c._tag === 'Fill');
+        expect(fill).toBeDefined();
+        expect(fill.payload._0[0].name).toBe('level');
+    });
+
+    test('codegen: externally-tagged union gets no @tag/@schema and a warning', () => {
+        // sury-ppx can only express internally-tagged variants. Externally-tagged
+        // types still get a ReScript type (+@genType), but no @tag/@schema — and
+        // the module carries a warning so the user knows the codec is not generated.
+        const doc = {
+            "$defs": {
+                Effect: {
+                    oneOf: [
+                        {
+                            type: "object",
+                            properties: { Glow: { type: "object", properties: { intensity: { type: "number" } }, required: ["intensity"] } },
+                            required: ["Glow"],
+                            additionalProperties: false
+                        },
+                        {
+                            type: "object",
+                            properties: { Fill: { type: "object", properties: { level: { type: "integer" } }, required: ["level"] } },
+                            required: ["Fill"],
+                            additionalProperties: false
+                        }
+                    ]
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const effect = parseResult._0.find(s => s.name === 'Effect');
+        // Metadata: parser marks the schema as externally tagged
+        expect(effect.variantEncoding).toBe('External');
+
+        const genResult = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(genResult.TAG).toBe('Ok');
+        const { code, warnings } = genResult._0;
+
+        // Variant generated with constructors, but no @tag/@schema annotations:
+        // "@genType\ntype effect" proves nothing sits between them
+        expect(code).toContain('@genType\ntype effect = Glow({');
+        expect(code).toContain('| Fill({');
+
+        // The user must be told why the sury codec is missing
+        expect(warnings.some(w => w.includes('effect') && w.includes('externally-tagged'))).toBe(true);
+    });
+
+    test('x-variant-encoding: internal suppresses structural external detection', () => {
+        // The wrapper shape matches the external pattern, but the author says
+        // it is a real internally-tagged union — detection must NOT fire, the
+        // legacy parser runs and reports the missing discriminator const.
+        const input = {
+            "x-variant-encoding": "internal",
+            oneOf: [
+                {
+                    type: "object",
+                    properties: { Glow: { type: "object", properties: { intensity: { type: "number" } }, required: ["intensity"] } },
+                    required: ["Glow"]
+                },
+                {
+                    type: "object",
+                    properties: { Fill: { type: "object", properties: { level: { type: "integer" } }, required: ["level"] } },
+                    required: ["Fill"]
+                }
+            ]
+        };
+        const result = Schema.parse(input);
+        expect(result.TAG).toBe('Error');
+        expect(result._0.some(e => e.kind.TAG === 'MissingRequiredField')).toBe(true);
+    });
+
+    test('list-encoded enum: x-variant-encoding list → metadata, no @schema, warning', () => {
+        // ppx_deriving_yojson default leaks into the chemcore wire: a unit
+        // variant encodes as a single-element list — "status": ["InProgress"].
+        // The logical type stays an enum; the encoding is metadata.
+        const doc = {
+            "$defs": {
+                Status: {
+                    type: "string",
+                    enum: ["InProgress", "Mastered"],
+                    "x-variant-encoding": "list"
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const status = parseResult._0.find(s => s.name === 'Status');
+        expect(status.variantEncoding).toBe('List');
+
+        const genResult = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(genResult.TAG).toBe('Ok');
+        const { code, warnings } = genResult._0;
+
+        // Type still generated, but sury can't decode ["InProgress"] → no @schema
+        expect(code).toContain('@genType\ntype status = [#InProgress | #Mastered]');
+        expect(warnings.some(w => w.includes('status') && w.includes('list-encoded'))).toBe(true);
+    });
 });
