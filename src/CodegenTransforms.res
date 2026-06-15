@@ -438,8 +438,13 @@ let topologicalSort = (schemas: array<OpenAPIParser.namedSchema>): array<
   let deps = Dict.make()
   schemas->Array.forEach(s => {
     let refNames = getDependencies(s.schema)
-    // Only keep refs that are in our schema set
-    let validRefs = refNames->Array.filter(name => schemaMap->Dict.get(name)->Option.isSome)
+    // Keep refs that are in our schema set, EXCLUDING self-references: a
+    // self-recursive type (children: array<self>) must not block its own
+    // ordering, otherwise it (and its dependents) fall to the unordered
+    // "remaining" tail and emit before their definition. Recursion is handled
+    // separately via `type rec` + S.recursive (see recursiveTypeNames).
+    let validRefs =
+      refNames->Array.filter(name => name != s.name && schemaMap->Dict.get(name)->Option.isSome)
     deps->Dict.set(s.name, validRefs)
   })
 
@@ -510,6 +515,50 @@ let topologicalSort = (schemas: array<OpenAPIParser.namedSchema>): array<
     }
   })
 
+  result
+}
+
+// Names of types that are part of a dependency cycle (recursive). Covers
+// direct self-reference (children: array<self>) and mutual recursion (A→B→A).
+// Such types need `type rec` and a hand-written S.recursive schema — sury-ppx
+// emits an illegal `let rec ...Schema = S.object(...)` for them.
+let recursiveTypeNames = (schemas: array<OpenAPIParser.namedSchema>): Dict.t<bool> => {
+  let adj = Dict.make()
+  let inSet = Dict.make()
+  schemas->Array.forEach(s => inSet->Dict.set(s.name, true))
+  schemas->Array.forEach(s => {
+    let refs = getDependencies(s.schema)->Array.filter(n => inSet->Dict.get(n)->Option.isSome)
+    adj->Dict.set(s.name, refs)
+  })
+
+  let result = Dict.make()
+  schemas->Array.forEach(s => {
+    // DFS from s.name's successors; if we get back to s.name → it's in a cycle
+    let target = s.name
+    let visited = Dict.make()
+    let stack = []
+    adj->Dict.get(target)->Option.getOr([])->Array.forEach(n => stack->Array.push(n)->ignore)
+    let found = ref(false)
+    let rec walk = () => {
+      switch stack->Array.pop {
+      | None => ()
+      | Some(n) =>
+        if n == target {
+          found := true
+        } else if visited->Dict.get(n)->Option.isNone {
+          visited->Dict.set(n, true)
+          adj->Dict.get(n)->Option.getOr([])->Array.forEach(m => stack->Array.push(m)->ignore)
+          walk()
+        } else {
+          walk()
+        }
+      }
+    }
+    walk()
+    if found.contents {
+      result->Dict.set(target, true)
+    }
+  })
   result
 }
 

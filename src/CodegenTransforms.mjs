@@ -525,7 +525,13 @@ function topologicalSort(schemas) {
   let deps = {};
   schemas.forEach(s => {
     let refNames = getDependencies(s.schema);
-    let validRefs = refNames.filter(name => Core__Option.isSome(schemaMap[name]));
+    let validRefs = refNames.filter(name => {
+      if (name !== s.name) {
+        return Core__Option.isSome(schemaMap[name]);
+      } else {
+        return false;
+      }
+    });
     deps[s.name] = validRefs;
   });
   let outDegree = {};
@@ -581,6 +587,56 @@ function topologicalSort(schemas) {
   schemas.forEach(s => {
     if (Core__Option.isNone(visited[s.name])) {
       result.push(s);
+      return;
+    }
+  });
+  return result;
+}
+
+function recursiveTypeNames(schemas) {
+  let adj = {};
+  let inSet = {};
+  schemas.forEach(s => {
+    inSet[s.name] = true;
+  });
+  schemas.forEach(s => {
+    let refs = getDependencies(s.schema).filter(n => Core__Option.isSome(inSet[n]));
+    adj[s.name] = refs;
+  });
+  let result = {};
+  schemas.forEach(s => {
+    let target = s.name;
+    let visited = {};
+    let stack = [];
+    Core__Option.getOr(adj[target], []).forEach(n => {
+      stack.push(n);
+    });
+    let found = {
+      contents: false
+    };
+    let walk = () => {
+      while (true) {
+        let n = stack.pop();
+        if (n === undefined) {
+          return;
+        }
+        if (n === target) {
+          found.contents = true;
+          return;
+        }
+        if (Core__Option.isNone(visited[n])) {
+          visited[n] = true;
+          Core__Option.getOr(adj[n], []).forEach(m => {
+            stack.push(m);
+          });
+          continue;
+        }
+        continue;
+      };
+    };
+    walk();
+    if (found.contents) {
+      result[target] = true;
       return;
     }
   });
@@ -789,6 +845,7 @@ export {
   replaceUnionInType,
   getDependencies,
   topologicalSort,
+  recursiveTypeNames,
   buildSkipSchemaSet,
   collectUnionWarnings,
   validateUnionDiscriminators,

@@ -91,10 +91,12 @@ let convertToIrTypeDef = (
   schemasDict: Dict.t<Schema.schemaType>,
   tagsDict: Dict.t<string>,
   skipSchemaSet: Dict.t<bool>,
+  recursiveSet: Dict.t<bool>,
 ): IR.irTypeDef => {
   let typeName = CodegenHelpers.lcFirst(namedSchema.name)
   let tagName = namedSchema.discriminatorPropertyName->Option.getOr("_tag")
   let shouldSkipSchema = skipSchemaSet->Dict.get(namedSchema.name)->Option.isSome
+  let isRecursive = recursiveSet->Dict.get(namedSchema.name)->Option.isSome
 
   switch namedSchema.schema {
   | PolyVariant(cases) =>
@@ -193,7 +195,16 @@ let convertToIrTypeDef = (
     | _ => AliasDef(convertType(namedSchema.schema))
     }
     let isListEncoded = namedSchema.variantEncoding == Some(Schema.List)
-    let annotations = if isListEncoded {
+    let isRecursiveRecord = isRecursive && switch kind {
+    | IR.RecordDef(_) => true
+    | _ => false
+    }
+    let annotations = if isRecursiveRecord && !shouldSkipSchema {
+      // sury-ppx emits an illegal `let rec ...Schema = S.object(...)` for a
+      // recursive type. Drop @schema; BackendReScript prints `type rec` plus a
+      // hand-written `let nameSchema = S.recursive("Name", self => ...)`.
+      [IR.GenType, IR.Recursive(namedSchema.name)]
+    } else if isListEncoded {
       // ["InProgress"] wire form is not expressible by sury-ppx — no @schema;
       // codec-printing backends read ListEncoded to wrap/unwrap the list
       [IR.GenType, IR.ListEncoded]
@@ -292,11 +303,15 @@ let generate = (schemas: array<OpenAPIParser.namedSchema>): result<IR.irModule, 
   // Step 7: Build skip-schema set (propagates through refs)
   let skipSchemaSet = CodegenTransforms.buildSkipSchemaSet(allSchemas)
 
+  // Step 7.5: Detect recursive (cyclic) types — they need `type rec` and a
+  // hand-written S.recursive schema instead of @schema.
+  let recursiveSet = CodegenTransforms.recursiveTypeNames(allSchemas)
+
   // Step 8: Topo sort
   let sorted = CodegenTransforms.topologicalSort(allSchemas)
 
   // Step 9: Convert to IR
-  let irTypes = sorted->Array.map(s => convertToIrTypeDef(s, schemasDict, tagsDict, skipSchemaSet))
+  let irTypes = sorted->Array.map(s => convertToIrTypeDef(s, schemasDict, tagsDict, skipSchemaSet, recursiveSet))
 
   Ok({
     // sury 11.0.0-alpha.7+ exposes `S` and `JSONSchema` as top-level public

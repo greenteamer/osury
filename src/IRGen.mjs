@@ -148,10 +148,11 @@ function convertField(field) {
   };
 }
 
-function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet) {
+function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet, recursiveSet) {
   let typeName = CodegenHelpers.lcFirst(namedSchema.name);
   let tagName = Core__Option.getOr(namedSchema.discriminatorPropertyName, "_tag");
   let shouldSkipSchema = Core__Option.isSome(skipSchemaSet[namedSchema.name]);
+  let isRecursive = Core__Option.isSome(recursiveSet[namedSchema.name]);
   let cases = namedSchema.schema;
   if (typeof cases === "object") {
     switch (cases._tag) {
@@ -322,14 +323,36 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet) {
       });
   }
   let isListEncoded = Primitive_object.equal(namedSchema.variantEncoding, "List");
-  let annotations$3 = isListEncoded ? [
+  let isRecursiveRecord = false;
+  if (isRecursive) {
+    let tmp;
+    switch (kind.TAG) {
+      case "RecordDef" :
+        tmp = true;
+        break;
+      case "VariantDef" :
+      case "AliasDef" :
+        tmp = false;
+        break;
+    }
+    isRecursiveRecord = tmp;
+  }
+  let annotations$3 = isRecursiveRecord && !shouldSkipSchema ? [
       "GenType",
-      "ListEncoded"
+      {
+        TAG: "Recursive",
+        _0: namedSchema.name
+      }
     ] : (
-      shouldSkipSchema ? ["GenType"] : [
+      isListEncoded ? [
           "GenType",
-          "Schema"
-        ]
+          "ListEncoded"
+        ] : (
+          shouldSkipSchema ? ["GenType"] : [
+              "GenType",
+              "Schema"
+            ]
+        )
     );
   return {
     name: typeName,
@@ -409,8 +432,9 @@ function generate(schemas) {
     }
   });
   let skipSchemaSet = CodegenTransforms.buildSkipSchemaSet(allSchemas);
+  let recursiveSet = CodegenTransforms.recursiveTypeNames(allSchemas);
   let sorted = CodegenTransforms.topologicalSort(allSchemas);
-  let irTypes = sorted.map(s => convertToIrTypeDef(s, schemasDict, tagsDict, skipSchemaSet));
+  let irTypes = sorted.map(s => convertToIrTypeDef(s, schemasDict, tagsDict, skipSchemaSet, recursiveSet));
   return {
     TAG: "Ok",
     _0: {

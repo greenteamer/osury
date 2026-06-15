@@ -11,6 +11,7 @@ type annotation =
   | SNull // @s.null for Nullable fields
   | As(string) // @as("originalName") for reserved keywords
   | ListEncoded // enum wire-encoded as single-element list: ["InProgress"]
+  | Recursive(string) // self-referential type: `type rec` + hand-written S.recursive("<name>", ...) schema instead of @schema (sury-ppx emits an illegal `let rec ...Schema`)
 
 type rec irType =
   | Primitive(primitive)
