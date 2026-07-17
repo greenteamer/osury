@@ -727,6 +727,52 @@ describe('Schema Parser', () => {
         expect(result._0._0).toBe('Unknown');
     });
 
+    test('object with properties AND additionalProperties stays a record', () => {
+        // Pydantic ConfigDict(extra="allow") emits properties + additionalProperties:
+        // true. Collapsing that into a bare Dict silently drops every declared
+        // field — the record shape wins whenever properties are present.
+        const result = Schema.parse({
+            type: "object",
+            required: ["components"],
+            additionalProperties: true,
+            properties: {
+                value: { anyOf: [{ type: "number" }, { type: "null" }] },
+                components: { type: "object", additionalProperties: true }
+            }
+        });
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Object');
+        const fields = result._0._0;
+        expect(fields.map(f => f.name).sort()).toEqual(['components', 'value']);
+    });
+
+    test('object with properties AND additionalProperties: {} stays a record', () => {
+        const result = Schema.parse({
+            type: "object",
+            additionalProperties: {},
+            properties: {
+                value: { type: "string" }
+            }
+        });
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Object');
+        expect(result._0._0[0].name).toBe('value');
+    });
+
+    test('object with empty properties AND additionalProperties is still a Dict', () => {
+        const result = Schema.parse({
+            type: "object",
+            properties: {},
+            additionalProperties: { type: "string" }
+        });
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Dict');
+        expect(result._0._0).toBe('String');
+    });
+
     test('skip _tag field with const in object', () => {
         const input = {
             type: "object",

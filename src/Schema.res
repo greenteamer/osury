@@ -261,14 +261,20 @@ and parseAnyOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
 
 // Helper: parse object type with properties
 and parseObjectType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
-  // Check for additionalProperties first (Dict type)
+  // additionalProperties makes a Dict only for pure map objects. When declared
+  // properties are present too (Pydantic's extra="allow" emits both), the
+  // record shape wins — collapsing to Dict would silently drop every field.
+  let hasDeclaredFields = switch dict->Dict.get("properties") {
+  | Some(Object(propsDict)) => Dict.toArray(propsDict)->Array.length > 0
+  | _ => false
+  }
   switch dict->Dict.get("additionalProperties") {
-  | Some(Object(_) as valueSchema) =>
+  | Some(Object(_) as valueSchema) if !hasDeclaredFields =>
     switch parseSchema(valueSchema) {
     | Ok(valueType) => Ok(Dict(valueType))
     | Error(e) => Error(e)
     }
-  | Some(Boolean(true)) =>
+  | Some(Boolean(true)) if !hasDeclaredFields =>
     // additionalProperties: true means any value — same as the empty-schema
     // form additionalProperties: {} (both render Pydantic's dict[str, Any])
     Ok(Dict(Unknown))

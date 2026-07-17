@@ -371,38 +371,49 @@ function parseAnyOf(items) {
 }
 
 function parseObjectType(dict) {
+  let match = dict["properties"];
+  let hasDeclaredFields = typeof match === "object" && match !== null && !Array.isArray(match) ? Object.entries(match).length > 0 : false;
   let valueSchema = dict["additionalProperties"];
   let exit = 0;
   if (valueSchema !== undefined) {
     switch (typeof valueSchema) {
       case "boolean" :
         if (valueSchema) {
-          return {
-            TAG: "Ok",
-            _0: {
-              _tag: "Dict",
-              _0: "Unknown"
-            }
-          };
+          if (!hasDeclaredFields) {
+            return {
+              TAG: "Ok",
+              _0: {
+                _tag: "Dict",
+                _0: "Unknown"
+              }
+            };
+          }
+          exit = 1;
+        } else {
+          exit = 1;
         }
-        exit = 1;
         break;
       case "object" :
-        let valueType = parseSchema(valueSchema);
-        if (valueType.TAG === "Ok") {
-          return {
-            TAG: "Ok",
-            _0: {
-              _tag: "Dict",
-              _0: valueType._0
-            }
-          };
+        if (hasDeclaredFields) {
+          exit = 1;
         } else {
-          return {
-            TAG: "Error",
-            _0: valueType._0
-          };
+          let valueType = parseSchema(valueSchema);
+          if (valueType.TAG === "Ok") {
+            return {
+              TAG: "Ok",
+              _0: {
+                _tag: "Dict",
+                _0: valueType._0
+              }
+            };
+          } else {
+            return {
+              TAG: "Error",
+              _0: valueType._0
+            };
+          }
         }
+        break;
       default:
         exit = 1;
     }
@@ -410,16 +421,16 @@ function parseObjectType(dict) {
     exit = 1;
   }
   if (exit === 1) {
-    let match = dict["required"];
-    let requiredFields = match !== undefined ? (
-        Array.isArray(match) ? Core__Array.filterMap(match, item => {
+    let match$1 = dict["required"];
+    let requiredFields = match$1 !== undefined ? (
+        Array.isArray(match$1) ? Core__Array.filterMap(match$1, item => {
             if (typeof item === "string") {
               return item;
             }
           }) : []
       ) : [];
-    let match$1 = dict["properties"];
-    if (match$1 === undefined) {
+    let match$2 = dict["properties"];
+    if (match$2 === undefined) {
       return {
         TAG: "Ok",
         _0: {
@@ -429,8 +440,8 @@ function parseObjectType(dict) {
       };
     }
     let exit$1 = 0;
-    if (typeof match$1 === "object" && match$1 !== null && !Array.isArray(match$1)) {
-      let entries = Object.entries(match$1).filter(param => param[0] !== "_tag");
+    if (typeof match$2 === "object" && match$2 !== null && !Array.isArray(match$2)) {
+      let entries = Object.entries(match$2).filter(param => param[0] !== "_tag");
       let results = entries.map(param => {
         let propSchema = param[1];
         let name = param[0];
