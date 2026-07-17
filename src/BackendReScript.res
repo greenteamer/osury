@@ -2,22 +2,25 @@
 // No decisions, no lookups, no calls to CodegenHelpers.
 // All decisions are already captured in the IR.
 
-// Quote poly variant tag if it's empty or contains non-alphanumeric characters
+// Quote poly variant tag unless it's a valid ReScript identifier.
+// A per-character check is not enough: every char of "20ft" is in
+// [A-Za-z0-9_], yet a leading digit still makes #20ft a syntax error.
 let quoteTag = (tag: string): string => {
-  let needsQuoting = tag === "" || tag->String.split("")->Array.some(c => {
+  let isIdentChar = (c: string, ~allowDigit: bool) => {
     let code = c->String.charCodeAt(0)
-    // Allow: a-z, A-Z, 0-9, _
-    !(
-      (code >= 97.0 && code <= 122.0) ||
-        (code >= 65.0 && code <= 90.0) ||
-        (code >= 48.0 && code <= 57.0) ||
-        code == 95.0
-    )
-  })
-  if needsQuoting {
-    `"${tag}"`
-  } else {
+    (code >= 97.0 && code <= 122.0) ||
+    (code >= 65.0 && code <= 90.0) ||
+    code == 95.0 ||
+    (allowDigit && code >= 48.0 && code <= 57.0)
+  }
+  let isValidIdent =
+    tag !== "" &&
+    isIdentChar(tag->String.charAt(0), ~allowDigit=false) &&
+    tag->String.split("")->Array.every(c => isIdentChar(c, ~allowDigit=true))
+  if isValidIdent {
     tag
+  } else {
+    `"${tag}"`
   }
 }
 

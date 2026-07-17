@@ -4,14 +4,21 @@ import * as Core__Array from "@rescript/core/src/Core__Array.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
 
 function quoteTag(tag) {
-  let needsQuoting = tag === "" || tag.split("").some(c => {
+  let isIdentChar = (c, allowDigit) => {
     let code = c.charCodeAt(0);
-    return !(code >= 97.0 && code <= 122.0 || code >= 65.0 && code <= 90.0 || code >= 48.0 && code <= 57.0 || code === 95.0);
-  });
-  if (needsQuoting) {
-    return `"` + tag + `"`;
-  } else {
+    if (code >= 97.0 && code <= 122.0 || code >= 65.0 && code <= 90.0 || code === 95.0) {
+      return true;
+    } else if (allowDigit && code >= 48.0) {
+      return code <= 57.0;
+    } else {
+      return false;
+    }
+  };
+  let isValidIdent = tag !== "" && isIdentChar(tag.charAt(0), false) && tag.split("").every(c => isIdentChar(c, true));
+  if (isValidIdent) {
     return tag;
+  } else {
+    return `"` + tag + `"`;
   }
 }
 

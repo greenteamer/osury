@@ -80,6 +80,9 @@ function formatError(error) {
       case "MissingDiscriminator" :
         kindStr = `Missing discriminator for union "` + value._0 + `"`;
         break;
+      case "DuplicateTypeName" :
+        kindStr = `Duplicate type name "` + value._0 + `"`;
+        break;
       case "InvalidJson" :
         kindStr = `Invalid JSON: ` + value._0;
         break;

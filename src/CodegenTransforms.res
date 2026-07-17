@@ -245,15 +245,16 @@ let resolveEnumNames = (occurrences: array<enumOccurrence>, topLevelNames: array
   result
 }
 
-// Detect pattern: Union([Ref(X), Dict(String)]) - anyOf with concrete type + catch-all dict
-// This pattern lacks discriminator, so we simplify to just the concrete Ref type
+// Detect pattern: Union([Ref(X), Dict(_)]) - anyOf with concrete type + catch-all dict
+// This pattern lacks discriminator, so we simplify to just the concrete Ref type.
+// Dict(Unknown) is additionalProperties: true / {}; Dict(String) kept for compat.
 let isRefPlusDictUnion = (types: array<Schema.schemaType>): option<string> => {
   if Array.length(types) != 2 {
     None
   } else {
     let hasDict = types->Array.some(t => {
       switch t {
-      | Dict(String) => true
+      | Dict(String) | Dict(Unknown) => true
       | _ => false
       }
     })
@@ -271,7 +272,7 @@ let isRefPlusDictUnion = (types: array<Schema.schemaType>): option<string> => {
   }
 }
 
-// Detect pattern: Union([Primitive, Dict(String)]) - anyOf with primitive + catch-all dict
+// Detect pattern: Union([Primitive, Dict(_)]) - anyOf with primitive + catch-all dict
 // Returns the primitive type name if detected
 let isPrimitivePlusDictUnion = (types: array<Schema.schemaType>): option<string> => {
   if Array.length(types) != 2 {
@@ -279,7 +280,7 @@ let isPrimitivePlusDictUnion = (types: array<Schema.schemaType>): option<string>
   } else {
     let hasDict = types->Array.some(t => {
       switch t {
-      | Dict(String) => true
+      | Dict(String) | Dict(Unknown) => true
       | _ => false
       }
     })

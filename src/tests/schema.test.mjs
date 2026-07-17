@@ -686,6 +686,47 @@ describe('Schema Parser', () => {
         expect(result._0._0).toBe('String');
     });
 
+    test('anyOf [number, integer] collapses to float', () => {
+        // JSON has one number type; the wire sends 5, never {_tag: "Float", ...}.
+        // Pydantic emits this for Union[float, int] — integer ⊂ number, so the
+        // union is just a float
+        const result = Schema.parse({ anyOf: [{ type: "number" }, { type: "integer" }] });
+        expect(result.TAG).toBe('Ok');
+        expect(result._0).toBe('Number');
+    });
+
+    test('anyOf [number, integer, null] collapses to nullable float', () => {
+        const result = Schema.parse({
+            anyOf: [{ type: "number" }, { type: "integer" }, { type: "null" }]
+        });
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Nullable');
+        expect(result._0._0).toBe('Number');
+    });
+
+    test('anyOf [number, integer, string] drops the subsumed integer', () => {
+        const result = Schema.parse({
+            anyOf: [{ type: "number" }, { type: "integer" }, { type: "string" }]
+        });
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Union');
+        expect(result._0._0).toEqual(['Number', 'String']);
+    });
+
+    test('parse additionalProperties: true (Dict of any JSON)', () => {
+        // additionalProperties: true means values of ANY type (Pydantic dict[str, Any]),
+        // must behave like the empty-schema form additionalProperties: {}
+        const input = {
+            type: "object",
+            additionalProperties: true
+        };
+        const result = Schema.parse(input);
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Dict');
+        expect(result._0._0).toBe('Unknown');
+    });
+
     test('skip _tag field with const in object', () => {
         const input = {
             type: "object",
@@ -819,6 +860,137 @@ describe('Schema Parser', () => {
         expect(limit.type).toBe('Integer');
     });
 
+    test('OpenAPIParser: path template params make operation names distinct', () => {
+        // /v1/thing and /v1/thing/{thing_id} are different operations — dropping
+        // the {thing_id} segment used to collapse both into GetV1ThingResponse
+        // (last one silently won). {param} maps to _param so specs pre-rewritten
+        // with the `/_param` workaround keep byte-identical names.
+        const mkGet = (schemaRef) => ({
+            get: {
+                responses: {
+                    "200": { description: "ok", content: { "application/json": { schema: schemaRef } } }
+                }
+            }
+        });
+        const doc = {
+            openapi: "3.1.0",
+            paths: {
+                "/v1/thing": mkGet({ "$ref": "#/components/schemas/ThingList" }),
+                "/v1/thing/{thing_id}": mkGet({ "$ref": "#/components/schemas/Thing" })
+            },
+            components: {
+                schemas: {
+                    ThingList: { type: "object", required: ["total"], properties: { total: { type: "integer" } } },
+                    Thing: { type: "object", required: ["id"], properties: { id: { type: "string" } } }
+                }
+            }
+        };
+
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Ok');
+
+        const names = result._0.map(s => s.name);
+        expect(names).toContain('GetV1ThingResponse');
+        expect(names).toContain('GetV1Thing_thing_idResponse');
+    });
+
+    test('discriminator buried under anyOf[array[items]] is still detected', () => {
+        // FastAPI renders Optional[list[Union[...]]] as
+        //   anyOf: [{type: array, items: {oneOf + discriminator}}, {type: null}]
+        // — the union sits below both hard-coded probe depths (property itself,
+        // property.items). Missing it falls back to @tag("_tag") AND keeps the
+        // real discriminant as a payload field, so the schema demands both.
+        const doc = {
+            openapi: "3.1.0",
+            components: {
+                schemas: {
+                    Thing: {
+                        type: "object",
+                        required: ["filters"],
+                        properties: {
+                            filters: {
+                                anyOf: [
+                                    {
+                                        type: "array",
+                                        items: {
+                                            oneOf: [
+                                                { "$ref": "#/components/schemas/RangeFilter" },
+                                                { "$ref": "#/components/schemas/FlagFilter" }
+                                            ],
+                                            discriminator: {
+                                                propertyName: "type",
+                                                mapping: {
+                                                    range: "#/components/schemas/RangeFilter",
+                                                    flag: "#/components/schemas/FlagFilter"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    { type: "null" }
+                                ]
+                            }
+                        }
+                    },
+                    RangeFilter: {
+                        type: "object", required: ["key"],
+                        properties: {
+                            type: { type: "string", const: "range", default: "range" },
+                            key: { type: "string" },
+                            min: { type: "number" }
+                        }
+                    },
+                    FlagFilter: {
+                        type: "object", required: ["key", "value"],
+                        properties: {
+                            type: { type: "string", const: "flag", default: "flag" },
+                            key: { type: "string" },
+                            value: { type: "boolean" }
+                        }
+                    }
+                }
+            }
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const thing = parseResult._0.find(s => s.name === 'Thing');
+        expect(thing.fieldDiscriminators).toBeDefined();
+        expect(thing.fieldDiscriminators.rangeFilterOrFlagFilter).toBe('type');
+
+        const code = Codegen.generateModule(parseResult._0);
+        // wire payload is {type: "range", key: "x"} — tag on `type`, not `_tag`
+        expect(code).toMatch(/@tag\("type"\)\s*\n@schema\s*\ntype rangeFilterOrFlagFilter/);
+        // the discriminant is folded into the variant tag, not kept as a field
+        expect(code).not.toMatch(/rangeFilterOrFlagFilter[^]*?@as\("type"\) type_[^]*?\n\n/);
+    });
+
+    test('OpenAPIParser: colliding derived type names fail loudly', () => {
+        // {id} maps to _id, so a literal /_id sibling produces the same derived
+        // name — must be a structured error, not a silent last-one-wins overwrite
+        const mkGet = (schema) => ({
+            get: {
+                responses: {
+                    "200": { description: "ok", content: { "application/json": { schema } } }
+                }
+            }
+        });
+        const doc = {
+            openapi: "3.1.0",
+            paths: {
+                "/v1/thing/{id}": mkGet({ type: "string" }),
+                "/v1/thing/_id": mkGet({ type: "integer" })
+            }
+        };
+
+        const result = OpenAPIParser.parseDocument(doc);
+        expect(result.TAG).toBe('Error');
+        const err = result._0.find(e => e.kind.TAG === 'DuplicateTypeName');
+        expect(err).toBeDefined();
+        expect(err.kind._0).toBe('GetV1Thing_idResponse');
+        expect(err.hint).toBeDefined();
+    });
+
     test('OpenAPIParser: path param with default stays required (path always required)', () => {
         const doc = {
             openapi: "3.0.0",
@@ -844,7 +1016,7 @@ describe('Schema Parser', () => {
         };
         const result = OpenAPIParser.parseDocument(doc);
         expect(result.TAG).toBe('Ok');
-        const params = result._0.find(s => s.name === 'GetV1ItemsParams');
+        const params = result._0.find(s => s.name === 'GetV1Items_idParams');
         const id = params.schema._0.find(f => f.name === 'id');
         expect(id.required).toBe(true); // path → always required, default irrelevant
         expect(id.type).toBe('String');
@@ -918,7 +1090,7 @@ describe('Schema Parser', () => {
         const result = OpenAPIParser.parseDocument(doc);
         expect(result.TAG).toBe('Ok');
 
-        const params = result._0.find(s => s.name === 'GetV1ItemsParams');
+        const params = result._0.find(s => s.name === 'GetV1Items_idParams');
         expect(params).toBeDefined();
         const fields = params.schema._0;
 
@@ -1731,6 +1903,24 @@ describe('Code Generator', () => {
         expect(code).toContain('@unboxed');
         expect(code).toContain('@schema');
         expect(code).toContain('type stringOrInt = String(string) | Int(int)');
+    });
+
+    test('enum values that are not valid ReScript identifiers are quoted', () => {
+        // "20ft" passes a per-character check (every char is [A-Za-z0-9_]) but a
+        // leading digit still makes #20ft a syntax error — quote unless the whole
+        // value is a valid identifier
+        const doc = {
+            openapi: "3.1.0",
+            components: {
+                schemas: {
+                    Scheme: { type: "string", enum: ["20ft", "40hc", "plain", "No Sales"] }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        const code = Codegen.generateModule(parseResult._0);
+
+        expect(code).toContain('[#"20ft" | #"40hc" | #plain | #"No Sales"]');
     });
 
     test('mixed union (primitive + Dict) does not get @unboxed', () => {

@@ -259,10 +259,15 @@ function isRefPlusDictUnion(types) {
       return false;
     }
     let tmp = t._0;
-    if (typeof tmp !== "object") {
-      return tmp === "String";
-    } else {
+    if (typeof tmp === "object") {
       return false;
+    }
+    switch (tmp) {
+      case "String" :
+      case "Unknown" :
+        return true;
+      default:
+        return false;
     }
   });
   let refName = Core__Array.findMap(types, t => {
@@ -289,10 +294,15 @@ function isPrimitivePlusDictUnion(types) {
       return false;
     }
     let tmp = t._0;
-    if (typeof tmp !== "object") {
-      return tmp === "String";
-    } else {
+    if (typeof tmp === "object") {
       return false;
+    }
+    switch (tmp) {
+      case "String" :
+      case "Unknown" :
+        return true;
+      default:
+        return false;
     }
   });
   let primitiveName = Core__Array.findMap(types, t => {

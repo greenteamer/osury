@@ -328,35 +328,7 @@ function parseAnyOf(items) {
         }, undefined, undefined, undefined)]
     };
   }
-  if (!hasNull && nonNullItems.length >= 2) {
-    let results = nonNullItems.map(parseSchema);
-    let errors = Core__Array.filterMap(results, r => {
-      if (r.TAG === "Ok") {
-        return;
-      } else {
-        return r._0;
-      }
-    }).flat();
-    if (errors.length > 0) {
-      return {
-        TAG: "Error",
-        _0: errors
-      };
-    }
-    let types = Core__Array.filterMap(results, r => {
-      if (r.TAG === "Ok") {
-        return r._0;
-      }
-    });
-    return {
-      TAG: "Ok",
-      _0: {
-        _tag: "Union",
-        _0: types
-      }
-    };
-  }
-  if (!(hasNull && nonNullItems.length >= 2)) {
+  if (nonNullItems.length < 2) {
     return {
       TAG: "Error",
       _0: [Errors.makeError({
@@ -365,34 +337,36 @@ function parseAnyOf(items) {
         }, undefined, undefined, undefined)]
     };
   }
-  let results$1 = nonNullItems.map(parseSchema);
-  let errors$1 = Core__Array.filterMap(results$1, r => {
+  let results = nonNullItems.map(parseSchema);
+  let errors = Core__Array.filterMap(results, r => {
     if (r.TAG === "Ok") {
       return;
     } else {
       return r._0;
     }
   }).flat();
-  if (errors$1.length > 0) {
+  if (errors.length > 0) {
     return {
       TAG: "Error",
-      _0: errors$1
+      _0: errors
     };
   }
-  let types$1 = Core__Array.filterMap(results$1, r => {
+  let types = Core__Array.filterMap(results, r => {
     if (r.TAG === "Ok") {
       return r._0;
     }
   });
+  let types$1 = types.some(t => t === "Number") ? types.filter(t => t !== "Integer") : types;
+  let inner = types$1.length !== 1 ? ({
+      _tag: "Union",
+      _0: types$1
+    }) : types$1[0];
   return {
     TAG: "Ok",
-    _0: {
-      _tag: "Nullable",
-      _0: {
-        _tag: "Union",
-        _0: types$1
-      }
-    }
+    _0: hasNull ? ({
+        _tag: "Nullable",
+        _0: inner
+      }) : inner
   };
 }
 
@@ -407,7 +381,7 @@ function parseObjectType(dict) {
             TAG: "Ok",
             _0: {
               _tag: "Dict",
-              _0: "String"
+              _0: "Unknown"
             }
           };
         }

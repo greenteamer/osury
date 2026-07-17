@@ -231,6 +231,8 @@ function formatErrorKind(kind) {
       return `Ambiguous union (anyOf/oneOf cannot be distinguished)`;
     case "MissingDiscriminator":
       return `Missing discriminator for union ${c.bold(`"${kind._0}"`)}`;
+    case "DuplicateTypeName":
+      return `Duplicate type name ${c.bold(`"${kind._0}"`)}`;
     case "InvalidJson":
       return `Invalid JSON: ${kind._0}`;
     default:

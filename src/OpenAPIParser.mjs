@@ -6,11 +6,11 @@ import * as Core__Array from "@rescript/core/src/Core__Array.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
 
 function pathToName(path) {
-  return path.split("/").filter(s => {
-    if (s !== "") {
-      return !s.startsWith("{");
+  return path.split("/").filter(s => s !== "").map(s => {
+    if (s.startsWith("{") && s.endsWith("}")) {
+      return "_" + s.slice(1, s.length - 1 | 0);
     } else {
-      return false;
+      return s;
     }
   }).map(segment => segment.split("-").map(part => {
     let first = part.charAt(0).toUpperCase();
@@ -175,81 +175,42 @@ function extractDiscriminatorFromPair(items, discDict) {
 
 function extractFieldDiscriminators(schemaJson) {
   let result = {};
-  if (typeof schemaJson === "object" && schemaJson !== null && !Array.isArray(schemaJson)) {
-    let match = schemaJson["properties"];
-    if (typeof match === "object" && match !== null && !Array.isArray(match)) {
-      Object.entries(match).forEach(param => {
-        let propJson = param[1];
-        if (typeof propJson !== "object" || propJson === null || Array.isArray(propJson)) {
-          return;
-        }
-        let match = propJson["anyOf"];
-        let directItems;
+  let walk = json => {
+    if (Array.isArray(json)) {
+      json.forEach(walk);
+      return;
+    }
+    switch (typeof json) {
+      case "object" :
+        let match = json["anyOf"];
+        let items;
         let exit = 0;
         if (Array.isArray(match)) {
-          directItems = match;
+          items = match;
         } else {
           exit = 1;
         }
         if (exit === 1) {
-          let match$1 = propJson["oneOf"];
-          directItems = Array.isArray(match$1) ? match$1 : undefined;
+          let match$1 = json["oneOf"];
+          items = Array.isArray(match$1) ? match$1 : undefined;
         }
-        let match$2 = propJson["discriminator"];
-        let exit$1 = 0;
-        if (directItems !== undefined && match$2 !== undefined) {
-          if (typeof match$2 === "object" && match$2 !== null && !Array.isArray(match$2)) {
-            let match$3 = extractDiscriminatorFromPair(directItems, match$2);
-            if (match$3 !== undefined) {
-              result[match$3[0]] = match$3[1];
-              return;
-            } else {
-              return;
-            }
-          }
-          exit$1 = 1;
-        } else {
-          exit$1 = 1;
-        }
-        if (exit$1 === 1) {
-          let match$4 = propJson["items"];
-          if (match$4 === undefined) {
-            return;
-          }
-          if (typeof match$4 !== "object" || match$4 === null || Array.isArray(match$4)) {
-            return;
-          }
-          let match$5 = match$4["anyOf"];
-          let nestedItems;
-          let exit$2 = 0;
-          if (Array.isArray(match$5)) {
-            nestedItems = match$5;
-          } else {
-            exit$2 = 2;
-          }
-          if (exit$2 === 2) {
-            let match$6 = match$4["oneOf"];
-            nestedItems = Array.isArray(match$6) ? match$6 : undefined;
-          }
-          let match$7 = match$4["discriminator"];
-          if (nestedItems === undefined) {
-            return;
-          }
-          if (match$7 === undefined) {
-            return;
-          }
-          if (typeof match$7 !== "object" || match$7 === null || Array.isArray(match$7)) {
-            return;
-          }
-          let match$8 = extractDiscriminatorFromPair(nestedItems, match$7);
-          if (match$8 !== undefined) {
-            result[match$8[0]] = match$8[1];
-            return;
-          } else {
-            return;
+        let match$2 = json["discriminator"];
+        if (items !== undefined && typeof match$2 === "object" && match$2 !== null && !Array.isArray(match$2)) {
+          let match$3 = extractDiscriminatorFromPair(items, match$2);
+          if (match$3 !== undefined) {
+            result[match$3[0]] = match$3[1];
           }
         }
-      });
+        Object.entries(json).forEach(param => walk(param[1]));
+        return;
+      default:
+        return;
+    }
+  };
+  if (typeof schemaJson === "object" && schemaJson !== null && !Array.isArray(schemaJson)) {
+    let match = schemaJson["properties"];
+    if (typeof match === "object" && match !== null && !Array.isArray(match)) {
+      Object.entries(match).forEach(param => walk(param[1]));
     }
   }
   return result;
@@ -701,16 +662,36 @@ function parseDocument(json) {
     let exit = 0;
     if (componentSchemas.TAG === "Ok" && defsSchemas.TAG === "Ok" && definitionsSchemas.TAG === "Ok" && pathSchemas.TAG === "Ok") {
       if (paramSchemas.TAG === "Ok") {
-        return {
-          TAG: "Ok",
-          _0: resolveRefTagsInPolyVariants([
-            componentSchemas._0,
-            defsSchemas._0,
-            definitionsSchemas._0,
-            pathSchemas._0,
-            paramSchemas._0
-          ].flat(), mappingByRef)
-        };
+        let all = [
+          componentSchemas._0,
+          defsSchemas._0,
+          definitionsSchemas._0,
+          pathSchemas._0,
+          paramSchemas._0
+        ].flat();
+        let seen = {};
+        let duplicateErrors = Core__Array.filterMap(all, s => {
+          if (Core__Option.isSome(seen[s.name])) {
+            return Errors.makeError({
+              TAG: "DuplicateTypeName",
+              _0: s.name
+            }, undefined, "two operations or schemas derive the same type name; rename the path segment, parameter, or component so they stay distinct", undefined);
+          } else {
+            seen[s.name] = true;
+            return;
+          }
+        });
+        if (duplicateErrors.length > 0) {
+          return {
+            TAG: "Error",
+            _0: duplicateErrors
+          };
+        } else {
+          return {
+            TAG: "Ok",
+            _0: resolveRefTagsInPolyVariants(all, mappingByRef)
+          };
+        }
       }
       exit = 2;
     } else {

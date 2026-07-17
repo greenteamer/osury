@@ -11,10 +11,19 @@ type namedSchema = {
 }
 
 // Convert path to PascalCase name: /v1/math/ads/executive-summary → V1MathAdsExecutiveSummary
+// Template params are kept, not dropped — otherwise /v1/thing and /v1/thing/{thing_id}
+// collapse to the same name and one response type silently overwrites the other.
+// {thing_id} → _thing_id, matching the `/_thing_id` pre-rewrite convention so
+// specs that used that workaround keep byte-identical type names.
 let pathToName = (path: string): string => {
   path
   ->String.split("/")
-  ->Array.filter(s => s != "" && !String.startsWith(s, "{"))
+  ->Array.filter(s => s != "")
+  ->Array.map(s =>
+    String.startsWith(s, "{") && String.endsWith(s, "}")
+      ? "_" ++ s->String.slice(~start=1, ~end=String.length(s) - 1)
+      : s
+  )
   ->Array.map(segment => {
     // Convert kebab-case to PascalCase
     segment
@@ -152,54 +161,38 @@ let extractDiscriminatorFromPair = (items: array<JSON.t>, discDict: Dict.t<JSON.
 
 let extractFieldDiscriminators = (schemaJson: JSON.t): Dict.t<string> => {
   let result = Dict.make()
+  // Walk the whole property subtree: FastAPI buries discriminated unions at
+  // arbitrary depth (Optional[list[Union[...]]] → anyOf[{array, items: {oneOf
+  // + discriminator}}, null]), so probing fixed shapes misses them.
+  let rec walk = (json: JSON.t) => {
+    switch json {
+    | Object(dict) =>
+      let items = switch dict->Dict.get("anyOf") {
+      | Some(Array(items)) => Some(items)
+      | _ =>
+        switch dict->Dict.get("oneOf") {
+        | Some(Array(items)) => Some(items)
+        | _ => None
+        }
+      }
+      switch (items, dict->Dict.get("discriminator")) {
+      | (Some(items), Some(Object(discDict))) =>
+        switch extractDiscriminatorFromPair(items, discDict) {
+        | Some((unionName, propName)) => result->Dict.set(unionName, propName)
+        | None => ()
+        }
+      | _ => ()
+      }
+      dict->Dict.toArray->Array.forEach(((_, v)) => walk(v))
+    | Array(arr) => arr->Array.forEach(walk)
+    | _ => ()
+    }
+  }
   switch schemaJson {
   | Object(dict) =>
     switch dict->Dict.get("properties") {
     | Some(Object(propsDict)) =>
-      propsDict->Dict.toArray->Array.forEach(((_, propJson)) => {
-        switch propJson {
-        | Object(propDict) =>
-          // Check direct anyOf/oneOf + discriminator on property
-          let directItems = switch propDict->Dict.get("anyOf") {
-          | Some(Array(items)) => Some(items)
-          | _ =>
-            switch propDict->Dict.get("oneOf") {
-            | Some(Array(items)) => Some(items)
-            | _ => None
-            }
-          }
-          switch (directItems, propDict->Dict.get("discriminator")) {
-          | (Some(items), Some(Object(discDict))) =>
-            switch extractDiscriminatorFromPair(items, discDict) {
-            | Some((unionName, propName)) => result->Dict.set(unionName, propName)
-            | None => ()
-            }
-          | _ =>
-            // Check anyOf/oneOf + discriminator inside items (for array fields)
-            switch propDict->Dict.get("items") {
-            | Some(Object(itemsDict)) =>
-              let nestedItems = switch itemsDict->Dict.get("anyOf") {
-              | Some(Array(items)) => Some(items)
-              | _ =>
-                switch itemsDict->Dict.get("oneOf") {
-                | Some(Array(items)) => Some(items)
-                | _ => None
-                }
-              }
-              switch (nestedItems, itemsDict->Dict.get("discriminator")) {
-              | (Some(items), Some(Object(discDict))) =>
-                switch extractDiscriminatorFromPair(items, discDict) {
-                | Some((unionName, propName)) => result->Dict.set(unionName, propName)
-                | None => ()
-                }
-              | _ => ()
-              }
-            | _ => ()
-            }
-          }
-        | _ => ()
-        }
-      })
+      propsDict->Dict.toArray->Array.forEach(((_, propJson)) => walk(propJson))
     | _ => ()
     }
   | _ => ()
@@ -572,16 +565,35 @@ let parseDocument = (json: JSON.t): result<array<namedSchema>, Errors.errors> =>
     // Combine results
     switch (componentSchemas, defsSchemas, definitionsSchemas, pathSchemas, paramSchemas) {
     | (Ok(cs), Ok(ds), Ok(defs), Ok(ps), Ok(qs)) =>
-      // After all schemas are parsed, rewrite PolyVariant case tags that point
-      // to $ref payloads so they match the wire-format discriminator value.
-      // Uses discriminator.mapping (OpenAPI-standard) as the primary source,
-      // falling back to _tag.const for schemas without explicit mapping.
-      Ok(
-        resolveRefTagsInPolyVariants(
-          [cs, ds, defs, ps, qs]->Array.flat,
-          ~mappingByRef,
-        ),
-      )
+      let all = [cs, ds, defs, ps, qs]->Array.flat
+      // Downstream passes key schemas by name (topologicalSort's schemaMap),
+      // so a duplicate silently overwrites its sibling — fail loudly instead.
+      let seen = Dict.make()
+      let duplicateErrors = all->Array.filterMap(s => {
+        if seen->Dict.get(s.name)->Option.isSome {
+          Some(
+            Errors.makeError(
+              ~kind=DuplicateTypeName(s.name),
+              ~hint=Some(
+                "two operations or schemas derive the same type name; rename the path segment, parameter, or component so they stay distinct",
+              ),
+              (),
+            ),
+          )
+        } else {
+          seen->Dict.set(s.name, true)
+          None
+        }
+      })
+      if Array.length(duplicateErrors) > 0 {
+        Error(duplicateErrors)
+      } else {
+        // After all schemas are parsed, rewrite PolyVariant case tags that point
+        // to $ref payloads so they match the wire-format discriminator value.
+        // Uses discriminator.mapping (OpenAPI-standard) as the primary source,
+        // falling back to _tag.const for schemas without explicit mapping.
+        Ok(resolveRefTagsInPolyVariants(all, ~mappingByRef))
+      }
     | (cs, ds, defs, ps, qs) =>
       let errs = [cs, ds, defs, ps, qs]->Array.filterMap(r =>
         switch r {

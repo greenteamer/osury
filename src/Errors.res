@@ -15,6 +15,7 @@ type errorKind =
   | CircularReference(string)
   | AmbiguousUnion
   | MissingDiscriminator(string)
+  | DuplicateTypeName(string)
   | InvalidJson(string)
 
 type error = {
@@ -66,6 +67,7 @@ let formatError = (error: error): string => {
   | CircularReference(ref) => `Circular reference detected: "${ref}"`
   | AmbiguousUnion => "Ambiguous union (anyOf/oneOf cannot be distinguished)"
   | MissingDiscriminator(union) => `Missing discriminator for union "${union}"`
+  | DuplicateTypeName(name) => `Duplicate type name "${name}"`
   | InvalidJson(msg) => `Invalid JSON: ${msg}`
   }
 

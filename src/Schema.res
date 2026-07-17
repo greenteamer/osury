@@ -222,8 +222,9 @@ and parseAnyOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
     | Some(_) => Error([Errors.makeError(~kind=InvalidJson("anyOf item must be object"), ())])
     | None => Error([Errors.makeError(~kind=InvalidJson("anyOf with only null types"), ())])
     }
-  } else if !hasNull && Array.length(nonNullItems) >= 2 {
-    // Union type: [A, B, ...] → Union([A, B, ...])
+  } else if Array.length(nonNullItems) >= 2 {
+    // Union type: [A, B, ...] → Union([A, B, ...]), wrapped in Nullable if a
+    // null arm was present
     let results = nonNullItems->Array.map(parseSchema)
     let errors = results->Array.filterMap(r =>
       switch r {
@@ -241,28 +242,17 @@ and parseAnyOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
         | Error(_) => None
         }
       )
-      Ok(Union(types))
-    }
-  } else if hasNull && Array.length(nonNullItems) >= 2 {
-    // Union with nullable: [A, B, null] → Nullable(Union([A, B]))
-    let results = nonNullItems->Array.map(parseSchema)
-    let errors = results->Array.filterMap(r =>
-      switch r {
-      | Error(e) => Some(e)
-      | Ok(_) => None
+      // integer ⊂ number: the wire sends a bare 5 either way, so a tagged
+      // Float/Int variant could never parse. Drop the subsumed Integer arm
+      // (Pydantic emits this for Union[float, int]).
+      let types = types->Array.some(t => t == Number)
+        ? types->Array.filter(t => t != Integer)
+        : types
+      let inner = switch types {
+      | [single] => single
+      | _ => Union(types)
       }
-    )->Array.flat
-
-    if Array.length(errors) > 0 {
-      Error(errors)
-    } else {
-      let types = results->Array.filterMap(r =>
-        switch r {
-        | Ok(t) => Some(t)
-        | Error(_) => None
-        }
-      )
-      Ok(Nullable(Union(types)))
+      Ok(hasNull ? Nullable(inner) : inner)
     }
   } else {
     Error([Errors.makeError(~kind=InvalidJson("anyOf must have at least 2 items"), ())])
@@ -279,8 +269,9 @@ and parseObjectType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> 
     | Error(e) => Error(e)
     }
   | Some(Boolean(true)) =>
-    // additionalProperties: true means any value
-    Ok(Dict(String))  // Default to string, could be Any type
+    // additionalProperties: true means any value — same as the empty-schema
+    // form additionalProperties: {} (both render Pydantic's dict[str, Any])
+    Ok(Dict(Unknown))
   | _ =>
     // No additionalProperties, parse as regular object with properties
     let requiredFields = switch dict->Dict.get("required") {
