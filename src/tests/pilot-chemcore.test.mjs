@@ -10,12 +10,14 @@ import path from 'path';
 import { execSync } from 'child_process';
 import esbuild from 'esbuild';
 
-const CHEMCORE = '/Users/alex/dev/chemcore.monorepo/contracts';
+const CHEMCORE = process.env.CHEMCORE_CONTRACTS ?? '/Users/alex/dev/chemcore/contracts';
 const hasChemcore = fs.existsSync(path.join(CHEMCORE, 'wire.schema.json'));
 
 // fixture file → contract type (PascalCase; backends derive their own casing)
 const FIXTURES = [
     { file: 'request_get_scene.json', type: 'TransitionRequest' },
+    { file: 'request_get_scene_versioned.json', type: 'TransitionRequest' },
+    { file: 'response_need_structure.json', type: 'NeedStructureResponse' },
     { file: 'request_advance.json', type: 'TransitionRequest' },
     { file: 'request_validate.json', type: 'ValidateRequest' },
     { file: 'response_scene_campus.json', type: 'TransitionResponse' },
