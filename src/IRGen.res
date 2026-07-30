@@ -223,6 +223,11 @@ let convertToIrTypeDef = (
 
 // Main pipeline: array<namedSchema> → result<IR.irModule, Errors.errors>
 let generate = (schemas: array<OpenAPIParser.namedSchema>): result<IR.irModule, Errors.errors> => {
+  // Step -1: Normalize — collapse unions of string literals into merged enums.
+  // Must run BEFORE discriminator validation: literal unions have no property
+  // to key a discriminator on, and after the collapse they don't need one.
+  let schemas = CodegenTransforms.collapseLiteralUnions(schemas)
+
   // Step 0: Validate — check that all object-ref unions have discriminators
   let validationErrors = CodegenTransforms.validateUnionDiscriminators(schemas)
   if Array.length(validationErrors) > 0 {
@@ -253,6 +258,26 @@ let generate = (schemas: array<OpenAPIParser.namedSchema>): result<IR.irModule, 
   // Runs BEFORE union extraction so subsequent passes see Ref(...) instead of
   // raw Enum(...) inside Union/PolyVariant payloads.
   let enumOccurrences = CodegenTransforms.collectInlineEnums(schemas)
+  // Guard: same field path carrying different value sets (only possible inside
+  // a union/variant that survived the literal collapse) — promotion would
+  // silently drop one set, so refuse with a structured error.
+  let enumConflicts = CodegenTransforms.findConflictingEnumOccurrences(enumOccurrences)
+  if Array.length(enumConflicts) > 0 {
+    Error(
+      enumConflicts->Array.map(occ => {
+        let fieldPathStr = occ.fieldPath->Array.join("/")
+        Errors.makeError(
+          ~kind=ConflictingInlineEnums(fieldPathStr),
+          ~path=Array.concat([occ.parentType], occ.fieldPath),
+          ~hint=Some(
+            "Union arms mix string literals with structural types, and the literal arms have different value sets. Extract the literals into one named enum ($ref), or split the field into separate properties",
+          ),
+          (),
+        )
+      }),
+    )
+  } else {
+
   let topLevelNames = schemas->Array.map(s => s.name)
   let enumNames = CodegenTransforms.resolveEnumNames(enumOccurrences, topLevelNames)
   let enumSchemas = CodegenTransforms.buildExtractedEnumSchemas(enumOccurrences, ~names=enumNames)
@@ -324,5 +349,6 @@ let generate = (schemas: array<OpenAPIParser.namedSchema>): result<IR.irModule, 
     types: irTypes,
     warnings,
   })
+  }
   }
 }

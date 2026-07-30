@@ -655,6 +655,16 @@ function parseExternalOneOf(items) {
   }
 }
 
+function hasScalarOneOfItem(items) {
+  return items.some(item => {
+    if (typeof item === "object" && item !== null && !Array.isArray(item) && Core__Option.isNone(item["$ref"]) && Core__Option.isNone(item["properties"])) {
+      return !isNullType(item);
+    } else {
+      return false;
+    }
+  });
+}
+
 function parseOneOf(items, discriminatorPropertyNameOpt) {
   let discriminatorPropertyName = discriminatorPropertyNameOpt !== undefined ? Primitive_option.valFromOption(discriminatorPropertyNameOpt) : undefined;
   let propName = Core__Option.getOr(discriminatorPropertyName, "_tag");
@@ -856,6 +866,9 @@ function parseObject(dict) {
   let match$1 = dict["oneOf"];
   if (match$1 !== undefined) {
     if (Array.isArray(match$1)) {
+      if (hasScalarOneOfItem(match$1)) {
+        return parseAnyOf(match$1);
+      }
       let hasNull = match$1.some(isNullType);
       let nonNullItems = match$1.filter(item => !isNullType(item));
       if (hasNull && nonNullItems.length === 1) {
@@ -1034,6 +1047,7 @@ export {
   externalWrapperKey,
   detectExternalTagging,
   parseExternalOneOf,
+  hasScalarOneOfItem,
   parseOneOf,
   applyNullable,
   parseObject,

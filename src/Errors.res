@@ -16,6 +16,7 @@ type errorKind =
   | AmbiguousUnion
   | MissingDiscriminator(string)
   | DuplicateTypeName(string)
+  | ConflictingInlineEnums(string)
   | InvalidJson(string)
 
 type error = {
@@ -68,6 +69,8 @@ let formatError = (error: error): string => {
   | AmbiguousUnion => "Ambiguous union (anyOf/oneOf cannot be distinguished)"
   | MissingDiscriminator(union) => `Missing discriminator for union "${union}"`
   | DuplicateTypeName(name) => `Duplicate type name "${name}"`
+  | ConflictingInlineEnums(field) =>
+    `Conflicting inline enums at field "${field}" (different value sets on the same field path)`
   | InvalidJson(msg) => `Invalid JSON: ${msg}`
   }
 

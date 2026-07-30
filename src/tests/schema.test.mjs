@@ -2347,6 +2347,162 @@ describe('Code Generator', () => {
 
 });
 
+// A union whose arms are all string literals (enum/const, optionally behind
+// $ref) carries no structural information — it is exactly the union of the
+// literal sets and must collapse to a single merged poly variant.
+describe('Literal unions (anyOf/oneOf of string literals)', () => {
+    const docWithSelectedChannel = (selectedChannelSchema, extraSchemas = {}) => ({
+        openapi: "3.1.0",
+        components: {
+            schemas: {
+                ...extraSchemas,
+                Thing: {
+                    type: "object",
+                    required: ["selected_channel"],
+                    properties: { selected_channel: selectedChannelSchema }
+                }
+            }
+        }
+    });
+
+    test('anyOf of two inline const arms collapses to merged enum', () => {
+        const doc = docWithSelectedChannel({
+            anyOf: [
+                { type: "string", const: "amazon" },
+                { type: "string", const: "all" }
+            ]
+        });
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const genResult = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(genResult.TAG).toBe('Ok');
+
+        const code = genResult._0.code;
+        expect(code).toContain('type selectedChannel = [#amazon | #all]');
+        expect(code).toContain('selected_channel: selectedChannel');
+        // No bogus extracted union with duplicated constructors
+        expect(code).not.toContain('OrThingSelectedChannel');
+        expect(code).not.toContain('OrSelectedChannel');
+    });
+
+    test('anyOf of inline enum + const collapses to merged enum', () => {
+        const doc = docWithSelectedChannel({
+            anyOf: [
+                { type: "string", enum: ["amazon", "shopify"] },
+                { type: "string", const: "all" }
+            ]
+        });
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const genResult = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(genResult.TAG).toBe('Ok');
+
+        const code = genResult._0.code;
+        expect(code).toContain('type selectedChannel = [#amazon | #shopify | #all]');
+        expect(code).toContain('selected_channel: selectedChannel');
+        expect(code).not.toContain('OrThingSelectedChannel');
+    });
+
+    test('anyOf of $ref-to-enum + const collapses to merged enum', () => {
+        const doc = docWithSelectedChannel(
+            {
+                anyOf: [
+                    { "$ref": "#/components/schemas/Channel" },
+                    { type: "string", const: "all" }
+                ]
+            },
+            { Channel: { type: "string", enum: ["amazon", "shopify"] } }
+        );
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const genResult = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(genResult.TAG).toBe('Ok');
+
+        const code = genResult._0.code;
+        expect(code).toContain('type selectedChannel = [#amazon | #shopify | #all]');
+        expect(code).toContain('selected_channel: selectedChannel');
+        // The referenced named enum is still emitted on its own
+        expect(code).toContain('type channel = [#amazon | #shopify]');
+        // No impossible-discriminator error, no structural union type
+        expect(code).not.toContain('channelOrUnknown');
+    });
+
+    test('oneOf of $ref-to-enum + const collapses like anyOf', () => {
+        const doc = docWithSelectedChannel(
+            {
+                oneOf: [
+                    { "$ref": "#/components/schemas/Channel" },
+                    { type: "string", const: "all" }
+                ]
+            },
+            { Channel: { type: "string", enum: ["amazon", "shopify"] } }
+        );
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const genResult = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(genResult.TAG).toBe('Ok');
+
+        const code = genResult._0.code;
+        expect(code).toContain('type selectedChannel = [#amazon | #shopify | #all]');
+        expect(code).toContain('selected_channel: selectedChannel');
+    });
+
+    // Not collapsible (structural arm present) — but the two enum arms share
+    // one field path, so promotion would silently drop one value set and emit
+    // duplicated constructors. Must be a structured error, not corrupt output.
+    test('mixed union with two different inline enum arms is a structured error', () => {
+        const doc = docWithSelectedChannel({
+            anyOf: [
+                { type: "string", enum: ["amazon", "shopify"] },
+                { type: "object", properties: { custom: { type: "string" } } },
+                { type: "string", const: "all" }
+            ]
+        });
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const genResult = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(genResult.TAG).toBe('Error');
+        const error = genResult._0[0];
+        expect(error.kind.TAG).toBe('ConflictingInlineEnums');
+        expect(error.location.path).toEqual(['Thing', 'selected_channel']);
+        expect(error.hint).toBeTruthy();
+    });
+
+    test('anyOf of $ref-to-enum + const + null collapses inside Nullable', () => {
+        const doc = docWithSelectedChannel(
+            {
+                anyOf: [
+                    { "$ref": "#/components/schemas/Channel" },
+                    { type: "string", const: "all" },
+                    { type: "null" }
+                ]
+            },
+            { Channel: { type: "string", enum: ["amazon", "shopify"] } }
+        );
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const genResult = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(genResult.TAG).toBe('Ok');
+
+        const code = genResult._0.code;
+        expect(code).toContain('type selectedChannel = [#amazon | #shopify | #all]');
+        expect(code).toContain('@s.null');
+        expect(code).toContain('Nullable.t<selectedChannel>');
+    });
+});
+
 describe('Sample Data Generator', () => {
     test('generate primitives', () => {
         expect(SampleData.generate('String', {})).toBe('sample');

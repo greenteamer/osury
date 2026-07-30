@@ -118,19 +118,24 @@ let parse: JSON.t => schemaType  // может бросить исключени
 
 ## Правило 6. Трансформации до генерации кода
 
-Codegen.generateModule выполняет трансформации в определённом порядке. Этот порядок менять нельзя:
+Пайплайн (IRGen.generate) выполняет трансформации в определённом порядке. Этот порядок менять нельзя:
 
 ```
-1. collectUnionWarnings  — диагностика проблемных union-паттернов
-2. extractUnions         — извлечение inline Union в отдельные именованные типы
-3. deduplicate           — дедупликация по структурному имени
-4. replaceUnions         — замена inline Union на Ref(extractedName)
-5. buildSchemasDict      — словарь для inline record lookups
-6. topologicalSort       — Кahn's algorithm для порядка определений
-7. generateTypeDefWithSkipSet — генерация ReScript-кода
+0. collapseLiteralUnions       — нормализация: union из строковых литералов
+                                 (enum/const, в т.ч. за $ref) → один merged Enum
+1. validateUnionDiscriminators — ошибки для union-ов объектов без дискриминатора
+2. collectUnionWarnings        — диагностика проблемных union-паттернов
+3. enum promotion              — inline Enum → именованные top-level типы
+                                 (collect → guard на коллизии → resolve names → replace)
+4. extractUnions               — извлечение inline Union в отдельные именованные типы
+5. deduplicate                 — дедупликация по структурному имени
+6. replaceUnions               — замена inline Union на Ref(extractedName)
+7. buildSchemasDict            — словарь для inline record lookups
+8. topologicalSort             — Кahn's algorithm для порядка определений
+9. convert to IR → print       — генерация кода (BackendReScript и др.)
 ```
 
-**Почему:** Union extraction должен быть до topological sort, иначе зависимости от извлечённых типов не будут учтены. Генерация должна быть последней, потому что она только печатает — не трансформирует.
+**Почему:** Collapse должен быть до валидации — литеральный union не имеет свойства для дискриминатора и после схлопывания в нём не нуждается. Enum promotion должен быть до union extraction, чтобы последующие проходы видели Ref вместо сырых Enum внутри Union/PolyVariant. Union extraction должен быть до topological sort, иначе зависимости от извлечённых типов не будут учтены. Генерация должна быть последней, потому что она только печатает — не трансформирует.
 
 ---
 

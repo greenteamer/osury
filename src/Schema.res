@@ -435,6 +435,23 @@ and parseExternalOneOf = (items: array<JSON.t>): result<schemaType, Errors.error
   }
 }
 
+// A oneOf item that is neither a $ref nor an object schema with properties
+// (e.g. {type: "string", const: "all"} or an inline string enum) cannot carry
+// a discriminator property. A oneOf containing such an arm is semantically a
+// plain union of its arms (for scalars oneOf ≡ anyOf), not a discriminated
+// union. Null arms are excluded — they belong to the nullable pattern.
+and hasScalarOneOfItem = (items: array<JSON.t>): bool => {
+  items->Array.some(item =>
+    switch item {
+    | Object(dict) =>
+      dict->Dict.get("$ref")->Option.isNone &&
+      dict->Dict.get("properties")->Option.isNone &&
+      !isNullType(item)
+    | _ => false
+    }
+  )
+}
+
 // Helper: parse oneOf (discriminated union with _tag or discriminator.propertyName)
 and parseOneOf = (items: array<JSON.t>, ~discriminatorPropertyName: option<string>=None): result<schemaType, Errors.errors> => {
   let propName = discriminatorPropertyName->Option.getOr("_tag")
@@ -551,6 +568,10 @@ and parseObject = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
   | None =>
     // Check for oneOf (discriminated union or nullable)
     switch dict->Dict.get("oneOf") {
+    | Some(Array(items)) if hasScalarOneOfItem(items) =>
+      // Scalar arms (enum/const/primitive) can't be discriminated — union
+      // semantics; parseAnyOf also handles a null arm (nullable pattern)
+      parseAnyOf(items)
     | Some(Array(items)) =>
       // Check if oneOf contains null type — nullable pattern
       let hasNull = items->Array.some(isNullType)

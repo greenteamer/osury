@@ -92,6 +92,30 @@ let valuesCanonicalKey = (values: array<string>): string => {
   values->Array.toSorted(cmp)->Array.join("")
 }
 
+// Enum promotion is keyed by occurrenceKey: two occurrences on the same field
+// path with different value sets would silently overwrite each other (one
+// value set dropped, duplicated constructors emitted). Detect them so the
+// pipeline can refuse with a structured error instead. Returns one
+// representative occurrence per conflicting key.
+let findConflictingEnumOccurrences = (occurrences: array<enumOccurrence>): array<enumOccurrence> => {
+  let firstSeen: Dict.t<string> = Dict.make()
+  let reported: Dict.t<bool> = Dict.make()
+  let conflicts = []
+  occurrences->Array.forEach(occ => {
+    let key = occurrenceKey(occ)
+    let vKey = valuesCanonicalKey(occ.values)
+    switch firstSeen->Dict.get(key) {
+    | None => firstSeen->Dict.set(key, vKey)
+    | Some(existing) =>
+      if existing != vKey && reported->Dict.get(key)->Option.isNone {
+        reported->Dict.set(key, true)
+        conflicts->Array.push(occ)->ignore
+      }
+    }
+  })
+  conflicts
+}
+
 // Leaf field name (last segment of fieldPath).
 let leafFieldName = (occ: enumOccurrence): string =>
   switch occ.fieldPath->Array.get(Array.length(occ.fieldPath) - 1) {
@@ -243,6 +267,87 @@ let resolveEnumNames = (occurrences: array<enumOccurrence>, topLevelNames: array
     result->Dict.set(occurrenceKey(occ), name)
   })
   result
+}
+
+// ── Literal-union collapse ────────────────────────────────────────────────
+// A Union whose arms are all string-literal enums (enum/const) carries no
+// structural information — it is exactly the union of the literal sets.
+// Collapse it to a single merged Enum (dedup, order preserved): no
+// discriminator is needed or possible for scalar arms, and the merged inline
+// Enum is then promoted to a named type by the regular enum-extraction pass.
+
+let mergeLiteralValues = (valueSets: array<array<string>>): array<string> => {
+  let seen = Dict.make()
+  let result = []
+  valueSets->Array.forEach(values =>
+    values->Array.forEach(v => {
+      if seen->Dict.get(v)->Option.isNone {
+        seen->Dict.set(v, true)
+        result->Array.push(v)->ignore
+      }
+    })
+  )
+  result
+}
+
+// Resolve a union arm to its literal value set, if it is one. Ref arms are
+// chased through the top-level schemas dict (alias chains too); the visited
+// set breaks ref cycles.
+let armLiteralValues = (~schemasDict: Dict.t<Schema.schemaType>, t: Schema.schemaType): option<
+  array<string>,
+> => {
+  let rec resolve = (t: Schema.schemaType, visited: Dict.t<bool>): option<array<string>> => {
+    switch t {
+    | Enum(values) => Some(values)
+    | Ref(name) =>
+      if visited->Dict.get(name)->Option.isSome {
+        None
+      } else {
+        visited->Dict.set(name, true)
+        switch schemasDict->Dict.get(name) {
+        | Some(target) => resolve(target, visited)
+        | None => None
+        }
+      }
+    | _ => None
+    }
+  }
+  resolve(t, Dict.make())
+}
+
+let rec collapseLiteralUnionsInType = (
+  ~schemasDict: Dict.t<Schema.schemaType>,
+  schema: Schema.schemaType,
+): Schema.schemaType => {
+  switch schema {
+  | Union(types) =>
+    let arms = types->Array.map(collapseLiteralUnionsInType(~schemasDict, ...))
+    let literalSets = arms->Array.filterMap(armLiteralValues(~schemasDict, ...))
+    if Array.length(literalSets) == Array.length(arms) {
+      Enum(mergeLiteralValues(literalSets))
+    } else {
+      Union(arms)
+    }
+  | Optional(inner) => Optional(collapseLiteralUnionsInType(~schemasDict, inner))
+  | Nullable(inner) => Nullable(collapseLiteralUnionsInType(~schemasDict, inner))
+  | Array(inner) => Array(collapseLiteralUnionsInType(~schemasDict, inner))
+  | Dict(inner) => Dict(collapseLiteralUnionsInType(~schemasDict, inner))
+  | Object(fields) =>
+    Object(fields->Array.map(f => {...f, type_: collapseLiteralUnionsInType(~schemasDict, f.type_)}))
+  | PolyVariant(cases) =>
+    PolyVariant(
+      cases->Array.map(c => {...c, payload: collapseLiteralUnionsInType(~schemasDict, c.payload)}),
+    )
+  | other => other
+  }
+}
+
+let collapseLiteralUnions = (schemas: array<OpenAPIParser.namedSchema>): array<
+  OpenAPIParser.namedSchema,
+> => {
+  let schemasDict = Dict.make()
+  schemas->Array.forEach(s => schemasDict->Dict.set(s.name, s.schema))
+  schemas->Array.map(s => {...s, schema: collapseLiteralUnionsInType(~schemasDict, s.schema)})
 }
 
 // Detect pattern: Union([Ref(X), Dict(_)]) - anyOf with concrete type + catch-all dict

@@ -254,6 +254,7 @@ For the generated code to compile, your project needs:
 | `const` (single string) | one-element enum (used for discriminator tags) |
 | schema with no `type` | `JSON.t` (TS: `unknown`) with `@s.matches(S.json)` |
 | `anyOf: [T, null]` | `Nullable.t<T>` (TS: `T \| null`) |
+| `anyOf`/`oneOf` of string literals (`enum`/`const`, incl. behind `$ref`) | merged into one named poly variant `[#a \| #b \| #all]` |
 | `anyOf: [A, B, ...]` (no discriminator) | extracted variant type with structural name |
 | `oneOf` + `discriminator` | poly variant with tags from `discriminator.mapping` |
 | `allOf` | merged object type |

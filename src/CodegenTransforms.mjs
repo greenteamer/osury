@@ -82,6 +82,30 @@ function valuesCanonicalKey(values) {
   return values.toSorted(cmp).join("");
 }
 
+function findConflictingEnumOccurrences(occurrences) {
+  let firstSeen = {};
+  let reported = {};
+  let conflicts = [];
+  occurrences.forEach(occ => {
+    let key = occurrenceKey(occ);
+    let vKey = valuesCanonicalKey(occ.values);
+    let existing = firstSeen[key];
+    if (existing !== undefined) {
+      if (existing !== vKey && Core__Option.isNone(reported[key])) {
+        reported[key] = true;
+        conflicts.push(occ);
+        return;
+      } else {
+        return;
+      }
+    } else {
+      firstSeen[key] = vKey;
+      return;
+    }
+  });
+  return conflicts;
+}
+
 function leafFieldName(occ) {
   let s = occ.fieldPath[occ.fieldPath.length - 1 | 0];
   if (s !== undefined) {
@@ -245,6 +269,126 @@ function resolveEnumNames(occurrences, topLevelNames) {
     result[occurrenceKey(occ)] = name;
   });
   return result;
+}
+
+function mergeLiteralValues(valueSets) {
+  let seen = {};
+  let result = [];
+  valueSets.forEach(values => {
+    values.forEach(v => {
+      if (Core__Option.isNone(seen[v])) {
+        seen[v] = true;
+        result.push(v);
+        return;
+      }
+    });
+  });
+  return result;
+}
+
+function armLiteralValues(schemasDict, t) {
+  let _t = t;
+  let visited = {};
+  while (true) {
+    let t$1 = _t;
+    if (typeof t$1 !== "object") {
+      return;
+    }
+    switch (t$1._tag) {
+      case "Ref" :
+        let name = t$1._0;
+        if (Core__Option.isSome(visited[name])) {
+          return;
+        }
+        visited[name] = true;
+        let target = schemasDict[name];
+        if (target === undefined) {
+          return;
+        }
+        _t = target;
+        continue;
+      case "Enum" :
+        return t$1._0;
+      default:
+        return;
+    }
+  };
+}
+
+function collapseLiteralUnionsInType(schemasDict, schema) {
+  if (typeof schema !== "object") {
+    return schema;
+  }
+  switch (schema._tag) {
+    case "Optional" :
+      return {
+        _tag: "Optional",
+        _0: collapseLiteralUnionsInType(schemasDict, schema._0)
+      };
+    case "Nullable" :
+      return {
+        _tag: "Nullable",
+        _0: collapseLiteralUnionsInType(schemasDict, schema._0)
+      };
+    case "Object" :
+      return {
+        _tag: "Object",
+        _0: schema._0.map(f => ({
+          name: f.name,
+          type: collapseLiteralUnionsInType(schemasDict, f.type),
+          required: f.required
+        }))
+      };
+    case "Array" :
+      return {
+        _tag: "Array",
+        _0: collapseLiteralUnionsInType(schemasDict, schema._0)
+      };
+    case "PolyVariant" :
+      return {
+        _tag: "PolyVariant",
+        _0: schema._0.map(c => ({
+          _tag: c._tag,
+          payload: collapseLiteralUnionsInType(schemasDict, c.payload)
+        }))
+      };
+    case "Dict" :
+      return {
+        _tag: "Dict",
+        _0: collapseLiteralUnionsInType(schemasDict, schema._0)
+      };
+    case "Union" :
+      let arms = schema._0.map(extra => collapseLiteralUnionsInType(schemasDict, extra));
+      let literalSets = Core__Array.filterMap(arms, extra => armLiteralValues(schemasDict, extra));
+      if (literalSets.length === arms.length) {
+        return {
+          _tag: "Enum",
+          _0: mergeLiteralValues(literalSets)
+        };
+      } else {
+        return {
+          _tag: "Union",
+          _0: arms
+        };
+      }
+    default:
+      return schema;
+  }
+}
+
+function collapseLiteralUnions(schemas) {
+  let schemasDict = {};
+  schemas.forEach(s => {
+    schemasDict[s.name] = s.schema;
+  });
+  return schemas.map(s => ({
+    name: s.name,
+    schema: collapseLiteralUnionsInType(schemasDict, s.schema),
+    discriminatorTag: s.discriminatorTag,
+    discriminatorPropertyName: s.discriminatorPropertyName,
+    fieldDiscriminators: s.fieldDiscriminators,
+    variantEncoding: s.variantEncoding
+  }));
 }
 
 function isRefPlusDictUnion(types) {
@@ -840,11 +984,16 @@ export {
   camelize,
   occurrenceKey,
   valuesCanonicalKey,
+  findConflictingEnumOccurrences,
   leafFieldName,
   replaceEnumsInType,
   replaceInlineEnums,
   buildExtractedEnumSchemas,
   resolveEnumNames,
+  mergeLiteralValues,
+  armLiteralValues,
+  collapseLiteralUnionsInType,
+  collapseLiteralUnions,
   isRefPlusDictUnion,
   isPrimitivePlusDictUnion,
   getUnionName,
