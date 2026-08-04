@@ -13,14 +13,6 @@ function isNullType(json) {
   return match === "null";
 }
 
-function hasDefault(json) {
-  if (typeof json === "object" && json !== null && !Array.isArray(json)) {
-    return Core__Option.isSome(json["default"]);
-  } else {
-    return false;
-  }
-}
-
 function extractRefName(refPath) {
   let parts = refPath.split("/");
   return Core__Option.getOr(parts[parts.length - 1 | 0], refPath);
@@ -443,16 +435,15 @@ function parseObjectType(dict) {
     if (typeof match$2 === "object" && match$2 !== null && !Array.isArray(match$2)) {
       let entries = Object.entries(match$2).filter(param => param[0] !== "_tag");
       let results = entries.map(param => {
-        let propSchema = param[1];
         let name = param[0];
-        let propType = parseSchema(propSchema);
+        let propType = parseSchema(param[1]);
         if (propType.TAG === "Ok") {
           return {
             TAG: "Ok",
             _0: {
               name: name,
               type: propType._0,
-              required: requiredFields.includes(name) || hasDefault(propSchema)
+              required: requiredFields.includes(name)
             }
           };
         } else {
@@ -1032,7 +1023,6 @@ let parse = parseSchema;
 
 export {
   isNullType,
-  hasDefault,
   extractRefName,
   parseEnumValues,
   extractTagFromConst,

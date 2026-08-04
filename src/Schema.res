@@ -56,14 +56,6 @@ let isNullType = (json: JSON.t): bool => {
   }
 }
 
-// Helper: check if schema has default value (field is always present in response)
-let hasDefault = (json: JSON.t): bool => {
-  switch json {
-  | Object(dict) => dict->Dict.get("default")->Option.isSome
-  | _ => false
-  }
-}
-
 // Helper: extract type name from $ref path
 // "#/components/schemas/User" -> "User"
 let extractRefName = (refPath: string): string => {
@@ -301,8 +293,12 @@ and parseObjectType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> 
           Ok({
             name,
             type_: propType,
-            // Field is required if: in required[] OR has default value
-            required: requiredFields->Array.includes(name) || hasDefault(propSchema),
+            // Requiredness is governed solely by required[] (OpenAPI spec).
+            // `default` does NOT make a field required: for request schemas
+            // (partial update, pydantic exclude_unset) the field must stay
+            // omittable — a required type would force clients to send the
+            // generated default and overwrite server-side data.
+            required: requiredFields->Array.includes(name),
           })
         | Error(e) => Error(e)
         }

@@ -259,7 +259,7 @@ For the generated code to compile, your project needs:
 | `oneOf` + `discriminator` | poly variant with tags from `discriminator.mapping` |
 | `allOf` | merged object type |
 | `additionalProperties` | `Dict.t<T>` |
-| `default` value | field becomes required |
+| `default` value | ignored for requiredness — optionality follows `required[]` only |
 | `parameters[]` (query + path) | synthetic `<method><Path>Params` record |
 | `responses[200].schema` | `<method><Path>Response` type |
 

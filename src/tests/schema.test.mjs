@@ -792,19 +792,57 @@ describe('Schema Parser', () => {
         expect(fields[0].name).toBe('name');
     });
 
-    test('field with default is required', () => {
+    // Per OpenAPI, `default` does NOT make a field required — requiredness is
+    // governed solely by the `required` array. A partial-update request schema
+    // (pydantic + exclude_unset) relies on the field staying omittable: a
+    // required type would force clients to always send the field, and sending
+    // a generated default (e.g. color: "") would overwrite stored data.
+    test('field with default stays optional (not in required[])', () => {
         const input = {
             type: "object",
             properties: {
                 count: { type: "integer", default: 0 }
             }
-            // count НЕ в required[], но имеет default
+            // count НЕ в required[] — default не влияет на обязательность
         };
         const result = Schema.parse(input);
 
         expect(result.TAG).toBe('Ok');
         const field = result._0._0.find(f => f.name === 'count');
-        expect(field.required).toBe(true);
+        expect(field.required).toBe(false);
+    });
+
+    test('optional fields with default generate as option<t>, same as without default', () => {
+        const doc = {
+            openapi: "3.1.0",
+            components: {
+                schemas: {
+                    ProductionStageUpdateRequest: {
+                        type: "object",
+                        title: "ProductionStageUpdateRequest",
+                        properties: {
+                            name:     { type: "string",  title: "Name",     default: "" },
+                            position: { type: "integer", title: "Position", default: 0 },
+                            color:    { type: "string",  title: "Color",    default: "" },
+                            asins:    { type: "array", items: { type: "string" }, title: "Asins" }
+                        }
+                        // ключа required нет — все четыре поля optional
+                    }
+                }
+            }
+        };
+
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        expect(parseResult.TAG).toBe('Ok');
+
+        const genResult = Codegen.generateModuleWithDiagnostics(parseResult._0);
+        expect(genResult.TAG).toBe('Ok');
+
+        const code = genResult._0.code;
+        expect(code).toContain('name: option<string>');
+        expect(code).toContain('position: option<int>');
+        expect(code).toContain('color: option<string>');
+        expect(code).toContain('asins: option<array<string>>');
     });
 
     test('parse OpenAPI components/schemas', () => {

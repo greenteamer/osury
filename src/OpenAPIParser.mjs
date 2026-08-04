@@ -398,9 +398,7 @@ function buildParamsObjectJson(params) {
     if (match$2 === undefined) {
       return;
     }
-    let cleanSchema;
-    cleanSchema = typeof match$2 === "object" && match$2 !== null && !Array.isArray(match$2) ? Object.fromEntries(Object.entries(match$2).filter(param => param[0] !== "default")) : match$2;
-    properties[match$1] = cleanSchema;
+    properties[match$1] = match$2;
     let match$3 = param["required"];
     let isRequired = match$3 === true;
     let pathRequired = location === "path";

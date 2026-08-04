@@ -300,7 +300,7 @@ let parseDefsSchemas = (doc: Dict.t<JSON.t>, ~key: string): result<array<namedSc
 
 // Build a synthetic object schema from operation parameters
 // Filters to query+path only (headers excluded), feeds through Schema.parse
-// so default→required, anyOf→Nullable, etc. all work uniformly.
+// so anyOf→Nullable etc. all work uniformly.
 let buildParamsObjectJson = (params: array<JSON.t>): option<JSON.t> => {
   let properties = Dict.make()
   let required = []
@@ -319,23 +319,7 @@ let buildParamsObjectJson = (params: array<JSON.t>): option<JSON.t> => {
       if isQueryOrPath {
         switch (p->Dict.get("name"), p->Dict.get("schema")) {
         | (Some(String(name)), Some(schema)) =>
-          // OpenAPI `default` on a request parameter means "the client may omit
-          // it; the server fills the default" — i.e. the parameter is OPTIONAL.
-          // But Schema.parseObjectType applies a `default → required` rule that
-          // is correct only for RESPONSE schemas (where default ≈ "always
-          // present"). Strip `default` here so param optionality is governed
-          // purely by the synthetic `required[]` built below.
-          let cleanSchema = switch schema {
-          | Object(schemaDict) =>
-            JSON.Encode.object(
-              schemaDict
-              ->Dict.toArray
-              ->Array.filter(((k, _)) => k != "default")
-              ->Dict.fromArray,
-            )
-          | other => other
-          }
-          properties->Dict.set(name, cleanSchema)
+          properties->Dict.set(name, schema)
           let isRequired = switch p->Dict.get("required") {
           | Some(Boolean(b)) => b
           | _ => false
