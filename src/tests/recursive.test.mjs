@@ -1,9 +1,11 @@
 // Recursive (self-referential) types. A type whose field references itself
-// (children: array<self>) cannot go through sury-ppx — the ppx emits an illegal
-// `let rec xSchema = S.object(...)`. osury must instead:
-//   1. order it before its dependents (topo sort ignores self-loops),
-//   2. print `type rec`,
-//   3. skip @schema and hand-write `let xSchema = S.recursive("X", self => ...)`.
+// (children: array<self>) needs, on top of the usual output:
+//   1. ordering before its dependents (topo sort ignores self-loops),
+//   2. `type rec` — ReScript requires it for the self-reference.
+// The schema itself comes from sury-ppx: since 11.0.0-rc.1 `@schema` on a
+// `type rec` emits `S.recursive("name", name => ...)` on its own, so osury no
+// longer hand-writes it (it did until 2.6.0, when the ppx emitted an illegal
+// `let rec xSchema = S.object(...)`).
 import * as OpenAPIParser from '../OpenAPIParser.mjs';
 import * as Codegen from '../Codegen.mjs';
 import fs from 'fs';
@@ -41,16 +43,78 @@ const SPEC = {
     },
 };
 
-const genReScript = () => {
-    const parsed = OpenAPIParser.parseDocument(SPEC);
+// A self-recursive discriminated union: the Branch case carries an array of the
+// union itself. Needs `type rec` just like the record case does.
+const VARIANT_SPEC = {
+    "$defs": {
+        Tree: {
+            oneOf: [
+                {
+                    type: "object",
+                    properties: { _tag: { const: "Leaf" }, v: { type: "integer" } },
+                    required: ["_tag", "v"],
+                },
+                {
+                    type: "object",
+                    properties: {
+                        _tag: { const: "Branch" },
+                        kids: { type: "array", items: { "$ref": "#/$defs/Tree" } },
+                    },
+                    required: ["_tag", "kids"],
+                },
+            ],
+        },
+    },
+};
+
+const gen = (spec) => {
+    const parsed = OpenAPIParser.parseDocument(spec);
     expect(parsed.TAG).toBe('Ok');
-    const gen = Codegen.generateModuleWithDiagnostics(parsed._0);
-    expect(gen.TAG).toBe('Ok');
-    return gen._0.code;
+    const g = Codegen.generateModuleWithDiagnostics(parsed._0);
+    expect(g.TAG).toBe('Ok');
+    return g._0.code;
+};
+
+const genReScript = () => gen(SPEC);
+
+// Compile `code` with the real toolchain (ppx included) in a throwaway project,
+// then run `script` against it. Returns the script's stdout.
+const compileAndRun = (code, script) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'osury-rec-'));
+    try {
+        fs.symlinkSync(path.join(projectRoot, 'node_modules'), path.join(dir, 'node_modules'));
+        fs.writeFileSync(path.join(dir, 'rescript.json'), JSON.stringify({
+            name: 'rec-probe',
+            sources: [{ dir: 'src', subdirs: false }],
+            'package-specs': [{ module: 'esmodule', 'in-source': true }],
+            suffix: '.mjs',
+            dependencies: ['@rescript/core', 'sury'],
+            'compiler-flags': ['-open RescriptCore'],
+            'ppx-flags': ['sury-ppx/bin'],
+        }));
+        fs.mkdirSync(path.join(dir, 'src'));
+        fs.writeFileSync(path.join(dir, 'src/Gen.res'), code);
+        fs.writeFileSync(path.join(dir, 'src/Nullable.res'), Codegen.generateNullableModule());
+
+        execSync(path.join(projectRoot, 'node_modules/.bin/rescript'), { cwd: dir, stdio: 'pipe' });
+
+        fs.writeFileSync(path.join(dir, 'run.mjs'), script);
+        return execSync('node run.mjs', { cwd: dir, encoding: 'utf8' });
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
 };
 
 describe('Recursive types', () => {
-    test('generated structure: ordering, type rec, hand-written S.recursive schema', () => {
+    // Annotations printed immediately above `decl`. Clamped at 0 — a negative
+    // start would make slice() count from the end and silently return "".
+    const annotationsAbove = (code, decl) => {
+        const idx = code.indexOf(decl);
+        expect(idx).toBeGreaterThan(-1);
+        return code.slice(Math.max(0, idx - 40), idx);
+    };
+
+    test('generated structure: ordering, type rec, @schema left to the ppx', () => {
         const code = genReScript();
 
         // 1. The recursive type is defined BEFORE the type that references it
@@ -59,45 +123,21 @@ describe('Recursive types', () => {
         expect(recIdx).toBeGreaterThan(-1);
         expect(parentIdx).toBeGreaterThan(recIdx);
 
-        // 2. `type rec`, and NO @schema decorator on the recursive type
-        const recBlock = code.slice(recIdx - 40, recIdx);
-        expect(recBlock).not.toContain('@schema');
+        // 2. `type rec`, and @schema is kept — sury-ppx builds S.recursive itself
+        expect(annotationsAbove(code, 'type rec hierarchicalOption')).toContain('@schema');
 
-        // 3. Hand-written recursive schema, self-reference tied via `self`
-        expect(code).toContain('let hierarchicalOptionSchema = S.recursive("HierarchicalOption", self => S.schema(s => {');
-        expect(code).toContain('children: s.matches(S.nullable(S.array(self))),');
-        expect(code).toContain('value: s.matches(S.string),');
-        expect(code).toContain('count: s.matches(S.int),');
+        // 3. No hand-written schema value — the ppx owns it now
+        expect(code).not.toContain('S.recursive(');
+        expect(code).not.toContain('s.matches(');
 
         // 4. The dependent type keeps normal @schema and references the schema value
-        const parentBlock = code.slice(parentIdx - 40, parentIdx);
-        expect(parentBlock).toContain('@schema');
+        expect(annotationsAbove(code, 'type parent')).toContain('@schema');
     });
 
-    // The whole point of the fix is that the output COMPILES (the bug was a hard
-    // ReScript error) and the schema actually decodes a recursive tree.
+    // The whole point is that the output COMPILES (the bug was a hard ReScript
+    // error) and the ppx-built schema actually decodes a recursive tree.
     test('compiles with ReScript and the schema round-trips a nested tree', () => {
-        const code = genReScript();
-        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'osury-rec-'));
-        try {
-            // Minimal in-source ReScript project; reuse the real toolchain + deps
-            fs.symlinkSync(path.join(projectRoot, 'node_modules'), path.join(dir, 'node_modules'));
-            fs.writeFileSync(path.join(dir, 'rescript.json'), JSON.stringify({
-                name: 'rec-probe',
-                sources: [{ dir: 'src', subdirs: false }],
-                'package-specs': [{ module: 'esmodule', 'in-source': true }],
-                suffix: '.mjs',
-                dependencies: ['@rescript/core', 'sury'],
-                'compiler-flags': ['-open RescriptCore'],
-                'ppx-flags': ['sury-ppx/bin'],
-            }));
-            fs.mkdirSync(path.join(dir, 'src'));
-            fs.writeFileSync(path.join(dir, 'src/Gen.res'), code);
-            fs.writeFileSync(path.join(dir, 'src/Nullable.res'), Codegen.generateNullableModule());
-
-            execSync(path.join(projectRoot, 'node_modules/.bin/rescript'), { cwd: dir, stdio: 'pipe' });
-
-            const mod = `import * as Gen from './src/Gen.mjs';
+        const out = compileAndRun(genReScript(), `import * as Gen from './src/Gen.mjs';
 import * as S from 'sury/src/S.mjs';
 const wire = { value: 'root', label: 'Root', count: 10, children: [
   { value: 'a', label: 'A', count: 3, children: null },
@@ -106,12 +146,25 @@ const wire = { value: 'root', label: 'Root', count: 10, children: [
 const d = S.parseOrThrow(wire, Gen.hierarchicalOptionSchema);
 if (d.children[1].children[0].value !== 'b1') { console.error('BAD'); process.exit(1); }
 console.log('REC ROUNDTRIP OK');
-`;
-            fs.writeFileSync(path.join(dir, 'run.mjs'), mod);
-            const out = execSync('node run.mjs', { cwd: dir, encoding: 'utf8' });
-            expect(out).toContain('REC ROUNDTRIP OK');
-        } finally {
-            fs.rmSync(dir, { recursive: true, force: true });
-        }
+`);
+        expect(out).toContain('REC ROUNDTRIP OK');
+    }, 60000);
+
+    // Recursion is not a record-only property: a discriminated union whose case
+    // payload references the union needs `type rec` too.
+    test('recursive variant gets type rec and round-trips', () => {
+        const code = gen(VARIANT_SPEC);
+
+        expect(code).toContain('type rec tree =');
+        expect(annotationsAbove(code, 'type rec tree =')).toContain('@schema');
+
+        const out = compileAndRun(code, `import * as Gen from './src/Gen.mjs';
+import * as S from 'sury/src/S.mjs';
+const wire = { _tag: 'Branch', kids: [ { _tag: 'Leaf', v: 1 }, { _tag: 'Branch', kids: [ { _tag: 'Leaf', v: 2 } ] } ] };
+const d = S.parseOrThrow(wire, Gen.treeSchema);
+if (d.kids[1].kids[0].v !== 2) { console.error('BAD', JSON.stringify(d)); process.exit(1); }
+console.log('VARIANT REC OK');
+`);
+        expect(out).toContain('VARIANT REC OK');
     }, 60000);
 });

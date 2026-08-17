@@ -104,84 +104,35 @@ function printVariantCases(cases) {
 }
 
 function printAnnotation(ann) {
-  if (typeof ann !== "object") {
-    switch (ann) {
-      case "GenType" :
-        return "@genType";
-      case "Schema" :
-        return "@schema";
-      case "Unboxed" :
-        return "@unboxed";
-      case "SNull" :
-      case "ListEncoded" :
-        return;
+  if (typeof ann === "object") {
+    if (ann.TAG === "Tag") {
+      return `@tag("` + ann._0 + `")`;
+    } else {
+      return;
     }
-  } else {
-    switch (ann.TAG) {
-      case "Tag" :
-        return `@tag("` + ann._0 + `")`;
-      case "As" :
-      case "Recursive" :
-        return;
-    }
+  }
+  switch (ann) {
+    case "GenType" :
+      return "@genType";
+    case "Schema" :
+      return "@schema";
+    case "Unboxed" :
+      return "@unboxed";
+    case "SNull" :
+    case "ListEncoded" :
+    case "Recursive" :
+      return;
   }
 }
 
-function recursiveLabel(annotations) {
-  return Core__Array.findMap(annotations, ann => {
-    if (typeof ann !== "object" || ann.TAG !== "Recursive") {
-      return;
+function isRecursive(annotations) {
+  return annotations.some(ann => {
+    if (typeof ann !== "object") {
+      return ann === "Recursive";
     } else {
-      return ann._0;
+      return false;
     }
   });
-}
-
-function printSuryExpr(t, selfName) {
-  if (typeof t !== "object") {
-    return "S.json";
-  }
-  switch (t.TAG) {
-    case "Primitive" :
-      switch (t._0) {
-        case "PString" :
-          return "S.string";
-        case "PFloat" :
-          return "S.float";
-        case "PInt" :
-          return "S.int";
-        case "PBool" :
-          return "S.bool";
-        case "PUnit" :
-          return "S.unit";
-      }
-    case "Option" :
-      return Core__Option.map(printSuryExpr(t._0, selfName), e => `S.option(` + e + `)`);
-    case "Nullable" :
-      return Core__Option.map(printSuryExpr(t._0, selfName), e => `S.nullable(` + e + `)`);
-    case "Array" :
-      return Core__Option.map(printSuryExpr(t._0, selfName), e => `S.array(` + e + `)`);
-    case "Dict" :
-      return Core__Option.map(printSuryExpr(t._0, selfName), e => `S.dict(` + e + `)`);
-    case "Named" :
-      let name = t._0;
-      return name === selfName ? "self" : name + `Schema`;
-    case "Enum" :
-      let lits = t._0.map(v => `S.literal("` + v + `")`).join(", ");
-      return `S.union([` + lits + `])`;
-    case "InlineRecord" :
-    case "InlineVariant" :
-      return;
-  }
-}
-
-function printRecursiveSchema(name, label, fields) {
-  let fieldExprs = fields.map(f => Core__Option.map(printSuryExpr(f.type_, name), e => `    ` + f.name + `: s.matches(` + e + `),`));
-  if (fieldExprs.some(Core__Option.isNone)) {
-    return;
-  }
-  let body = Core__Array.filterMap(fieldExprs, x => x).join("\n");
-  return `let ` + name + `Schema = S.recursive("` + label + `", self => S.schema(s => {\n` + body + `\n}))`;
 }
 
 function printAnnotations(annotations) {
@@ -203,24 +154,8 @@ function printTypeDef(typeDef) {
       body = printType(fields._0);
       break;
   }
-  let label = recursiveLabel(typeDef.annotations);
-  if (label === undefined) {
-    return annotations + `\ntype ` + typeDef.name + ` = ` + body;
-  }
-  let typeDecl = annotations + `\ntype rec ` + typeDef.name + ` = ` + body;
-  let fields$1 = typeDef.kind;
-  switch (fields$1.TAG) {
-    case "RecordDef" :
-      let schema = printRecursiveSchema(typeDef.name, label, fields$1._0);
-      if (schema !== undefined) {
-        return typeDecl + `\n` + schema;
-      } else {
-        return typeDecl;
-      }
-    case "VariantDef" :
-    case "AliasDef" :
-      return typeDecl;
-  }
+  let kw = isRecursive(typeDef.annotations) ? "type rec" : "type";
+  return annotations + `\n` + kw + ` ` + typeDef.name + ` = ` + body;
 }
 
 function print(module_) {
@@ -237,9 +172,7 @@ export {
   printVariantCase,
   printVariantCases,
   printAnnotation,
-  recursiveLabel,
-  printSuryExpr,
-  printRecursiveSchema,
+  isRecursive,
   printAnnotations,
   printTypeDef,
   print,

@@ -98,7 +98,14 @@ let convertToIrTypeDef = (
   let shouldSkipSchema = skipSchemaSet->Dict.get(namedSchema.name)->Option.isSome
   let isRecursive = recursiveSet->Dict.get(namedSchema.name)->Option.isSome
 
-  switch namedSchema.schema {
+  // A self-reference needs `type rec` whatever the type's shape is. The schema
+  // itself still comes from sury-ppx — since 11.0.0-rc.1 `@schema` on a
+  // `type rec` emits S.recursive on its own.
+  let withRecursive = (def: IR.irTypeDef): IR.irTypeDef =>
+    isRecursive ? {...def, annotations: Array.concat(def.annotations, [IR.Recursive])} : def
+
+  withRecursive(
+    switch namedSchema.schema {
   | PolyVariant(cases) =>
     // Discriminated union from oneOf
     let isExternal = namedSchema.variantEncoding == Some(Schema.External)
@@ -195,16 +202,7 @@ let convertToIrTypeDef = (
     | _ => AliasDef(convertType(namedSchema.schema))
     }
     let isListEncoded = namedSchema.variantEncoding == Some(Schema.List)
-    let isRecursiveRecord = isRecursive && switch kind {
-    | IR.RecordDef(_) => true
-    | _ => false
-    }
-    let annotations = if isRecursiveRecord && !shouldSkipSchema {
-      // sury-ppx emits an illegal `let rec ...Schema = S.object(...)` for a
-      // recursive type. Drop @schema; BackendReScript prints `type rec` plus a
-      // hand-written `let nameSchema = S.recursive("Name", self => ...)`.
-      [IR.GenType, IR.Recursive(namedSchema.name)]
-    } else if isListEncoded {
+    let annotations = if isListEncoded {
       // ["InProgress"] wire form is not expressible by sury-ppx — no @schema;
       // codec-printing backends read ListEncoded to wrap/unwrap the list
       [IR.GenType, IR.ListEncoded]
@@ -218,7 +216,8 @@ let convertToIrTypeDef = (
       annotations,
       kind,
     }
-  }
+  },
+  )
 }
 
 // Main pipeline: array<namedSchema> → result<IR.irModule, Errors.errors>

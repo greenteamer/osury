@@ -155,7 +155,11 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet, r
   let shouldSkipSchema = Core__Option.isSome(skipSchemaSet[namedSchema.name]);
   let isRecursive = Core__Option.isSome(recursiveSet[namedSchema.name]);
   let cases = namedSchema.schema;
-  if (typeof cases === "object") {
+  let tmp;
+  let exit = 0;
+  if (typeof cases !== "object") {
+    exit = 1;
+  } else {
     switch (cases._tag) {
       case "PolyVariant" :
         let isExternal = Primitive_object.equal(namedSchema.variantEncoding, "External");
@@ -188,7 +192,7 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet, r
           return mkTaggedCase(c._tag, payload);
         });
         if (isExternal) {
-          return {
+          tmp = {
             name: typeName,
             annotations: ["GenType"],
             kind: {
@@ -197,27 +201,29 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet, r
               _1: "ExternalTag"
             }
           };
-        }
-        let baseAnnotations = [
-          "GenType",
-          {
-            TAG: "Tag",
-            _0: tagName
-          }
-        ];
-        let annotations = shouldSkipSchema ? baseAnnotations : baseAnnotations.concat(["Schema"]);
-        return {
-          name: typeName,
-          annotations: annotations,
-          kind: {
-            TAG: "VariantDef",
-            _0: irCases,
-            _1: {
-              TAG: "InternalTag",
+        } else {
+          let baseAnnotations = [
+            "GenType",
+            {
+              TAG: "Tag",
               _0: tagName
             }
-          }
-        };
+          ];
+          let annotations = shouldSkipSchema ? baseAnnotations : baseAnnotations.concat(["Schema"]);
+          tmp = {
+            name: typeName,
+            annotations: annotations,
+            kind: {
+              TAG: "VariantDef",
+              _0: irCases,
+              _1: {
+                TAG: "InternalTag",
+                _0: tagName
+              }
+            }
+          };
+        }
+        break;
       case "Union" :
         let types = cases._0;
         if (CodegenHelpers.isPrimitiveOnlyUnion(types)) {
@@ -239,7 +245,7 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet, r
             "Unboxed"
           ];
           let annotations$1 = shouldSkipSchema ? baseAnnotations$1 : baseAnnotations$1.concat(["Schema"]);
-          return {
+          tmp = {
             name: typeName,
             annotations: annotations$1,
             kind: {
@@ -251,115 +257,108 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet, r
               }
             }
           };
-        }
-        let irCases$2 = types.map(t => {
-          if (typeof t === "object" && t._tag === "Ref") {
-            let name = t._0;
-            let wireTag = Core__Option.getOr(tagsDict[name], name);
-            let other = schemasDict[name];
-            let payload;
-            if (other !== undefined) {
-              if (typeof other !== "object" || other._tag !== "Object") {
-                payload = convertType(other);
+        } else {
+          let irCases$2 = types.map(t => {
+            if (typeof t === "object" && t._tag === "Ref") {
+              let name = t._0;
+              let wireTag = Core__Option.getOr(tagsDict[name], name);
+              let other = schemasDict[name];
+              let payload;
+              if (other !== undefined) {
+                if (typeof other !== "object" || other._tag !== "Object") {
+                  payload = convertType(other);
+                } else {
+                  let filtered = other._0.filter(f => f.name !== tagName);
+                  payload = {
+                    TAG: "InlineRecord",
+                    _0: filtered.map(convertField)
+                  };
+                }
               } else {
-                let filtered = other._0.filter(f => f.name !== tagName);
                 payload = {
-                  TAG: "InlineRecord",
-                  _0: filtered.map(convertField)
+                  TAG: "Named",
+                  _0: CodegenHelpers.lcFirst(name)
                 };
               }
-            } else {
-              payload = {
-                TAG: "Named",
-                _0: CodegenHelpers.lcFirst(name)
-              };
+              return mkTaggedCase(wireTag, payload);
             }
-            return mkTaggedCase(wireTag, payload);
-          }
-          let tag = CodegenHelpers.getTagForType(t);
-          let payload$1 = convertType(t);
-          return {
-            tag: tag,
-            asValue: undefined,
-            payload: payload$1
-          };
-        });
-        let baseAnnotations$2 = [
-          "GenType",
-          {
-            TAG: "Tag",
-            _0: tagName
-          }
-        ];
-        let annotations$2 = shouldSkipSchema ? baseAnnotations$2 : baseAnnotations$2.concat(["Schema"]);
-        return {
-          name: typeName,
-          annotations: annotations$2,
-          kind: {
-            TAG: "VariantDef",
-            _0: irCases$2,
-            _1: {
-              TAG: "InternalTag",
+            let tag = CodegenHelpers.getTagForType(t);
+            let payload$1 = convertType(t);
+            return {
+              tag: tag,
+              asValue: undefined,
+              payload: payload$1
+            };
+          });
+          let baseAnnotations$2 = [
+            "GenType",
+            {
+              TAG: "Tag",
               _0: tagName
             }
-          }
-        };
+          ];
+          let annotations$2 = shouldSkipSchema ? baseAnnotations$2 : baseAnnotations$2.concat(["Schema"]);
+          tmp = {
+            name: typeName,
+            annotations: annotations$2,
+            kind: {
+              TAG: "VariantDef",
+              _0: irCases$2,
+              _1: {
+                TAG: "InternalTag",
+                _0: tagName
+              }
+            }
+          };
+        }
+        break;
+      default:
+        exit = 1;
     }
   }
-  let fields = namedSchema.schema;
-  let kind;
-  if (typeof fields !== "object" || fields._tag !== "Object") {
-    kind = {
-      TAG: "AliasDef",
-      _0: convertType(namedSchema.schema)
-    };
-  } else {
-    let fields$1 = fields._0;
-    kind = fields$1.length > 0 ? ({
-        TAG: "RecordDef",
-        _0: fields$1.map(convertField)
-      }) : ({
+  if (exit === 1) {
+    let fields = namedSchema.schema;
+    let kind;
+    if (typeof fields !== "object" || fields._tag !== "Object") {
+      kind = {
         TAG: "AliasDef",
         _0: convertType(namedSchema.schema)
-      });
-  }
-  let isListEncoded = Primitive_object.equal(namedSchema.variantEncoding, "List");
-  let isRecursiveRecord = false;
-  if (isRecursive) {
-    let tmp;
-    switch (kind.TAG) {
-      case "RecordDef" :
-        tmp = true;
-        break;
-      case "VariantDef" :
-      case "AliasDef" :
-        tmp = false;
-        break;
+      };
+    } else {
+      let fields$1 = fields._0;
+      kind = fields$1.length > 0 ? ({
+          TAG: "RecordDef",
+          _0: fields$1.map(convertField)
+        }) : ({
+          TAG: "AliasDef",
+          _0: convertType(namedSchema.schema)
+        });
     }
-    isRecursiveRecord = tmp;
+    let isListEncoded = Primitive_object.equal(namedSchema.variantEncoding, "List");
+    let annotations$3 = isListEncoded ? [
+        "GenType",
+        "ListEncoded"
+      ] : (
+        shouldSkipSchema ? ["GenType"] : [
+            "GenType",
+            "Schema"
+          ]
+      );
+    tmp = {
+      name: typeName,
+      annotations: annotations$3,
+      kind: kind
+    };
   }
-  let annotations$3 = isRecursiveRecord && !shouldSkipSchema ? [
-      "GenType",
-      {
-        TAG: "Recursive",
-        _0: namedSchema.name
-      }
-    ] : (
-      isListEncoded ? [
-          "GenType",
-          "ListEncoded"
-        ] : (
-          shouldSkipSchema ? ["GenType"] : [
-              "GenType",
-              "Schema"
-            ]
-        )
-    );
-  return {
-    name: typeName,
-    annotations: annotations$3,
-    kind: kind
-  };
+  if (isRecursive) {
+    return {
+      name: tmp.name,
+      annotations: tmp.annotations.concat(["Recursive"]),
+      kind: tmp.kind
+    };
+  } else {
+    return tmp;
+  }
 }
 
 function generate(schemas) {

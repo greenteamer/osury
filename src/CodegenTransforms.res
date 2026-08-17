@@ -547,8 +547,8 @@ let topologicalSort = (schemas: array<OpenAPIParser.namedSchema>): array<
     // Keep refs that are in our schema set, EXCLUDING self-references: a
     // self-recursive type (children: array<self>) must not block its own
     // ordering, otherwise it (and its dependents) fall to the unordered
-    // "remaining" tail and emit before their definition. Recursion is handled
-    // separately via `type rec` + S.recursive (see recursiveTypeNames).
+    // "remaining" tail and emit before their definition. Recursion itself is
+    // handled by `type rec` (see recursiveTypeNames).
     let validRefs =
       refNames->Array.filter(name => name != s.name && schemaMap->Dict.get(name)->Option.isSome)
     deps->Dict.set(s.name, validRefs)
@@ -626,8 +626,8 @@ let topologicalSort = (schemas: array<OpenAPIParser.namedSchema>): array<
 
 // Names of types that are part of a dependency cycle (recursive). Covers
 // direct self-reference (children: array<self>) and mutual recursion (A→B→A).
-// Such types need `type rec` and a hand-written S.recursive schema — sury-ppx
-// emits an illegal `let rec ...Schema = S.object(...)` for them.
+// Such types need `type rec`; their schema comes from sury-ppx, which emits
+// S.recursive for a `type rec` since 11.0.0-rc.1.
 let recursiveTypeNames = (schemas: array<OpenAPIParser.namedSchema>): Dict.t<bool> => {
   let adj = Dict.make()
   let inSet = Dict.make()

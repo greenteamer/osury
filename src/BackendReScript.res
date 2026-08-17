@@ -106,67 +106,17 @@ let printAnnotation = (ann: IR.annotation): option<string> => {
   | Unboxed => Some("@unboxed")
   | SNull | As(_) => None // field-level only, not type-level
   | ListEncoded => None // wire-encoding metadata for codec backends, no ReScript syntax
-  | Recursive(_) => None // drives `type rec` + a hand-written schema, not a decorator
+  | Recursive => None // drives `type rec`, not a decorator
   }
 }
 
-// The S.recursive label carried by a Recursive annotation, if present
-let recursiveLabel = (annotations: array<IR.annotation>): option<string> =>
-  annotations->Array.findMap(ann =>
+let isRecursive = (annotations: array<IR.annotation>): bool =>
+  annotations->Array.some(ann =>
     switch ann {
-    | Recursive(name) => Some(name)
-    | _ => None
+    | Recursive => true
+    | _ => false
     }
   )
-
-// Sury schema expression for a field type, mirroring sury-ppx output. Used only
-// for recursive types (sury-ppx can't generate their schema). References to the
-// type itself (~selfName) become `self` — the recursion knot tied by S.recursive.
-// Returns None if a field type has no hand-writable schema (caller then skips it).
-let rec printSuryExpr = (t: IR.irType, ~selfName: string): option<string> => {
-  switch t {
-  | Primitive(PString) => Some("S.string")
-  | Primitive(PFloat) => Some("S.float")
-  | Primitive(PInt) => Some("S.int")
-  | Primitive(PBool) => Some("S.bool")
-  | Primitive(PUnit) => Some("S.unit")
-  | Option(inner) => printSuryExpr(inner, ~selfName)->Option.map(e => `S.option(${e})`)
-  | Nullable(inner) => printSuryExpr(inner, ~selfName)->Option.map(e => `S.nullable(${e})`)
-  | Array(inner) => printSuryExpr(inner, ~selfName)->Option.map(e => `S.array(${e})`)
-  | Dict(inner) => printSuryExpr(inner, ~selfName)->Option.map(e => `S.dict(${e})`)
-  | Named(name) => Some(name == selfName ? "self" : `${name}Schema`)
-  | Enum(values) =>
-    let lits = values->Array.map(v => `S.literal("${v}")`)->Array.join(", ")
-    Some(`S.union([${lits}])`)
-  | JSON => Some("S.json")
-  // Inline records/variants don't survive osury's extraction as fields, so they
-  // shouldn't appear here; bail out rather than emit something that won't compile
-  | InlineRecord(_) | InlineVariant(_) => None
-  }
-}
-
-// Hand-written schema for a recursive record:
-//   let nameSchema = S.recursive("Label", self => S.schema(s => {
-//     field: s.matches(<expr>), ...
-//   }))
-// Returns None if any field is not hand-writable (caller emits type only).
-let printRecursiveSchema = (
-  name: string,
-  label: string,
-  fields: array<IR.irField>,
-): option<string> => {
-  let fieldExprs = fields->Array.map(f =>
-    printSuryExpr(f.type_, ~selfName=name)->Option.map(e => `    ${f.name}: s.matches(${e}),`)
-  )
-  if fieldExprs->Array.some(Option.isNone) {
-    None
-  } else {
-    let body = fieldExprs->Array.filterMap(x => x)->Array.join("\n")
-    Some(
-      `let ${name}Schema = S.recursive("${label}", self => S.schema(s => {\n${body}\n}))`,
-    )
-  }
-}
 
 let printAnnotations = (annotations: array<IR.annotation>): string => {
   annotations
@@ -186,22 +136,9 @@ let printTypeDef = (typeDef: IR.irTypeDef): string => {
   | AliasDef(t) => printType(t)
   }
 
-  switch recursiveLabel(typeDef.annotations) {
-  | Some(label) =>
-    // `type rec` for the self-reference; @schema is omitted (sury-ppx can't
-    // express it) and replaced by a hand-written S.recursive schema when the
-    // fields allow it.
-    let typeDecl = `${annotations}\ntype rec ${typeDef.name} = ${body}`
-    switch typeDef.kind {
-    | RecordDef(fields) =>
-      switch printRecursiveSchema(typeDef.name, label, fields) {
-      | Some(schema) => `${typeDecl}\n${schema}`
-      | None => typeDecl
-      }
-    | _ => typeDecl
-    }
-  | None => `${annotations}\ntype ${typeDef.name} = ${body}`
-  }
+  // ReScript requires `rec` for a self-reference; sury-ppx handles the schema.
+  let kw = isRecursive(typeDef.annotations) ? "type rec" : "type"
+  `${annotations}\n${kw} ${typeDef.name} = ${body}`
 }
 
 let print = (module_: IR.irModule): string => {

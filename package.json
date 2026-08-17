@@ -32,8 +32,8 @@
     "sury-ppx": "^11.0.0-rc.1"
   },
   "peerDependencies": {
-    "sury": ">=11.0.0-alpha.7",
-    "sury-ppx": ">=11.0.0-alpha.7"
+    "sury": ">=11.0.0-rc.1",
+    "sury-ppx": ">=11.0.0-rc.1"
   },
   "peerDependenciesMeta": {
     "sury": {
