@@ -89,7 +89,9 @@ const VALID = ${JSON.stringify(VALID)};
 
 // Valid data parses, and the values stay plain — no wrappers, no Date objects
 const ok = S.parseOrThrow(VALID, Gen.accountSchema);
-console.log('TYPES', typeof ok.id, typeof ok.created_at, typeof ok.age, Array.isArray(ok.tags));
+// One template string, not multiple args: with FORCE_COLOR set, console.log
+// would run non-strings through util.inspect and wrap \`true\` in ANSI codes.
+console.log(\`TYPES \${typeof ok.id} \${typeof ok.created_at} \${typeof ok.age} \${Array.isArray(ok.tags)}\`);
 console.log('VALUE', ok.id === VALID.id && ok.created_at === VALID.created_at ? 'preserved' : 'CHANGED');
 
 const cases = {
