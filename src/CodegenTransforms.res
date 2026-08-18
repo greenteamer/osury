@@ -420,6 +420,11 @@ let getUnionName = (types: array<Schema.schemaType>): string => {
     | Ref(name) => CodegenHelpers.lcFirst(name)
     | Dict(_) => "dict"
     | Array(_) => "array"
+    // Constraints don't change the shape, so the name follows the base type —
+    // otherwise a refined arm would land in the catch-all and read "unknown"
+    | Refined(String, _) => "string"
+    | Refined(Number, _) => "float"
+    | Refined(Integer, _) => "int"
     | _ => "unknown"
     }
   })
@@ -555,6 +560,90 @@ let rec stripRefinementsInType = (schema: Schema.schemaType): Schema.schemaType 
 let stripRefinements = (schemas: array<OpenAPIParser.namedSchema>): array<
   OpenAPIParser.namedSchema,
 > => schemas->Array.map(s => {...s, OpenAPIParser.schema: stripRefinementsInType(s.schema)})
+
+// Union arms that lower to the same ReScript type collide: the constructor name
+// comes from `getTagForType`, so `Union[str, datetime]` — which reaches the spec
+// as [{type: string}, {type: string, format: date-time}] — would emit
+// `String(string) | String(string)`, which ReScript rejects.
+//
+// Collapsing is not a loss of meaning. A union accepts a value if ANY arm does,
+// so the arm with the weakest constraints already subsumes the others: a plain
+// `string` arm next to an ISO-formatted one accepts every string either way.
+// Keeping the format would REJECT values the spec allows, so the widest arm wins
+// and refinements are dropped unless every colliding arm carries the same ones.
+// Only types whose tag FULLY determines the generated ReScript type may be
+// collapsed. `Enum(["a"])` and `Enum(["b"])` both tag as "Enum" yet carry
+// different values — merging those is collapseLiteralUnions' job, and silently
+// picking one arm here would drop the other's values. Same for Object/Union/
+// PolyVariant arms, which share a tag but not a shape.
+let isCollapsibleArm = (t: Schema.schemaType): bool => {
+  switch t {
+  | String | Number | Integer | Boolean | Null => true
+  | Refined(String, _) | Refined(Number, _) | Refined(Integer, _) => true
+  | _ => false
+  }
+}
+
+let rec dedupeUnionArms = (arms: array<Schema.schemaType>): array<Schema.schemaType> => {
+  let groups: Dict.t<array<Schema.schemaType>> = Dict.make()
+  let order = []
+  arms->Array.forEachWithIndex((arm, i) => {
+    // Non-collapsible arms get a key unique to their position, so they are
+    // never grouped with anything — including each other.
+    let key = isCollapsibleArm(arm)
+      ? CodegenHelpers.getTagForType(arm)
+      : `__keep_${i->Int.toString}`
+    switch groups->Dict.get(key) {
+    | Some(existing) => existing->Array.push(arm)->ignore
+    | None =>
+      groups->Dict.set(key, [arm])
+      order->Array.push(key)->ignore
+    }
+  })
+
+  order->Array.filterMap(key =>
+    switch groups->Dict.get(key) {
+    | None => None
+    | Some([single]) => Some(single)
+    | Some(collided) =>
+      // Identical arms (a spec listing the same type twice) keep their form;
+      // otherwise fall back to the unconstrained base type.
+      let first = collided->Array.get(0)
+      let allSame = collided->Array.every(a => Some(a) == first)
+      switch first {
+      | Some(f) => Some(allSame ? f : stripRefinementsInType(f))
+      | None => None
+      }
+    }
+  )
+}
+
+// Apply arm de-duplication everywhere a Union can appear.
+and dedupeUnionsInType = (schema: Schema.schemaType): Schema.schemaType => {
+  switch schema {
+  | Union(types) =>
+    switch dedupeUnionArms(types->Array.map(dedupeUnionsInType)) {
+    // A union of one is not a union — emit the type itself, so `str | datetime`
+    // becomes a plain `string` instead of a single-constructor variant.
+    | [single] => single
+    | deduped => Union(deduped)
+    }
+  | Optional(inner) => Optional(dedupeUnionsInType(inner))
+  | Nullable(inner) => Nullable(dedupeUnionsInType(inner))
+  | Array(inner) => Array(dedupeUnionsInType(inner))
+  | Dict(inner) => Dict(dedupeUnionsInType(inner))
+  | Refined(inner, refs) => Refined(dedupeUnionsInType(inner), refs)
+  | Object(fields) =>
+    Object(fields->Array.map(f => {...f, Schema.type_: dedupeUnionsInType(f.type_)}))
+  | PolyVariant(cases) =>
+    PolyVariant(cases->Array.map(c => {...c, Schema.payload: dedupeUnionsInType(c.payload)}))
+  | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => schema
+  }
+}
+
+let dedupeUnions = (schemas: array<OpenAPIParser.namedSchema>): array<
+  OpenAPIParser.namedSchema,
+> => schemas->Array.map(s => {...s, OpenAPIParser.schema: dedupeUnionsInType(s.schema)})
 
 // Topological sort using Kahn's algorithm
 // Types with no dependencies come first, then types that depend on them

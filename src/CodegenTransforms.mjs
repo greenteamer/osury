@@ -496,6 +496,21 @@ function getUnionName(types) {
           return CodegenHelpers.lcFirst(t._0);
         case "Dict" :
           return "dict";
+        case "Refined" :
+          let tmp = t._0;
+          if (typeof tmp === "object") {
+            return "unknown";
+          }
+          switch (tmp) {
+            case "String" :
+              return "string";
+            case "Number" :
+              return "float";
+            case "Integer" :
+              return "int";
+            default:
+              return "unknown";
+          }
         default:
           return "unknown";
       }
@@ -734,6 +749,140 @@ function stripRefinements(schemas) {
   return schemas.map(s => ({
     name: s.name,
     schema: stripRefinementsInType(s.schema),
+    discriminatorTag: s.discriminatorTag,
+    discriminatorPropertyName: s.discriminatorPropertyName,
+    fieldDiscriminators: s.fieldDiscriminators,
+    variantEncoding: s.variantEncoding
+  }));
+}
+
+function isCollapsibleArm(t) {
+  if (typeof t !== "object") {
+    switch (t) {
+      case "String" :
+      case "Number" :
+      case "Integer" :
+      case "Boolean" :
+      case "Null" :
+        return true;
+      default:
+        return false;
+    }
+  } else {
+    if (t._tag !== "Refined") {
+      return false;
+    }
+    let tmp = t._0;
+    if (typeof tmp === "object") {
+      return false;
+    }
+    switch (tmp) {
+      case "String" :
+      case "Number" :
+      case "Integer" :
+        return true;
+      default:
+        return false;
+    }
+  }
+}
+
+function dedupeUnionArms(arms) {
+  let groups = {};
+  let order = [];
+  arms.forEach((arm, i) => {
+    let key = isCollapsibleArm(arm) ? CodegenHelpers.getTagForType(arm) : `__keep_` + i.toString();
+    let existing = groups[key];
+    if (existing !== undefined) {
+      existing.push(arm);
+    } else {
+      groups[key] = [arm];
+      order.push(key);
+    }
+  });
+  return Core__Array.filterMap(order, key => {
+    let collided = groups[key];
+    if (collided === undefined) {
+      return;
+    }
+    if (collided.length === 1) {
+      return collided[0];
+    }
+    let first = collided[0];
+    let allSame = collided.every(a => Primitive_object.equal(a, first));
+    if (first !== undefined) {
+      return allSame ? first : stripRefinementsInType(first);
+    }
+  });
+}
+
+function dedupeUnionsInType(schema) {
+  if (typeof schema !== "object") {
+    return schema;
+  }
+  switch (schema._tag) {
+    case "Optional" :
+      return {
+        _tag: "Optional",
+        _0: dedupeUnionsInType(schema._0)
+      };
+    case "Nullable" :
+      return {
+        _tag: "Nullable",
+        _0: dedupeUnionsInType(schema._0)
+      };
+    case "Object" :
+      return {
+        _tag: "Object",
+        _0: schema._0.map(f => ({
+          name: f.name,
+          type: dedupeUnionsInType(f.type),
+          required: f.required
+        }))
+      };
+    case "Array" :
+      return {
+        _tag: "Array",
+        _0: dedupeUnionsInType(schema._0)
+      };
+    case "PolyVariant" :
+      return {
+        _tag: "PolyVariant",
+        _0: schema._0.map(c => ({
+          _tag: c._tag,
+          payload: dedupeUnionsInType(c.payload)
+        }))
+      };
+    case "Dict" :
+      return {
+        _tag: "Dict",
+        _0: dedupeUnionsInType(schema._0)
+      };
+    case "Union" :
+      let deduped = dedupeUnionArms(schema._0.map(dedupeUnionsInType));
+      if (deduped.length !== 1) {
+        return {
+          _tag: "Union",
+          _0: deduped
+        };
+      } else {
+        return deduped[0];
+      }
+    case "Refined" :
+      return {
+        _tag: "Refined",
+        _0: dedupeUnionsInType(schema._0),
+        _1: schema._1
+      };
+    default:
+      return schema;
+  }
+}
+
+function dedupeUnions(schemas) {
+  return schemas.map(s => ({
+    name: s.name,
+    schema: dedupeUnionsInType(s.schema),
     discriminatorTag: s.discriminatorTag,
     discriminatorPropertyName: s.discriminatorPropertyName,
     fieldDiscriminators: s.fieldDiscriminators,
@@ -1075,6 +1224,10 @@ export {
   getDependencies,
   stripRefinementsInType,
   stripRefinements,
+  isCollapsibleArm,
+  dedupeUnionArms,
+  dedupeUnionsInType,
+  dedupeUnions,
   topologicalSort,
   recursiveTypeNames,
   buildSkipSchemaSet,

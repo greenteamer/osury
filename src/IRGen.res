@@ -234,6 +234,11 @@ let generate = (
   // them makes generated code reject data it used to accept, so it is opt-in.
   let schemas = refinements ? schemas : CodegenTransforms.stripRefinements(schemas)
 
+  // Step -1a: Normalize — collapse union arms that lower to the same ReScript
+  // type. Must precede validation and extraction: a union left with a single
+  // arm is not a union at all and needs no discriminator.
+  let schemas = CodegenTransforms.dedupeUnions(schemas)
+
   // Step -1: Normalize — collapse unions of string literals into merged enums.
   // Must run BEFORE discriminator validation: literal unions have no property
   // to key a discriminator on, and after the collapse they don't need one.

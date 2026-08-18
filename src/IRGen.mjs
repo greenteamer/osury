@@ -370,16 +370,17 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet, r
 function generate(schemas, refinementsOpt, param) {
   let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
   let schemas$1 = refinements ? schemas : CodegenTransforms.stripRefinements(schemas);
-  let schemas$2 = CodegenTransforms.collapseLiteralUnions(schemas$1);
-  let validationErrors = CodegenTransforms.validateUnionDiscriminators(schemas$2);
+  let schemas$2 = CodegenTransforms.dedupeUnions(schemas$1);
+  let schemas$3 = CodegenTransforms.collapseLiteralUnions(schemas$2);
+  let validationErrors = CodegenTransforms.validateUnionDiscriminators(schemas$3);
   if (validationErrors.length > 0) {
     return {
       TAG: "Error",
       _0: validationErrors
     };
   }
-  let unionWarnings = CodegenTransforms.collectUnionWarnings(schemas$2);
-  let encodingWarnings = Core__Array.filterMap(schemas$2, s => {
+  let unionWarnings = CodegenTransforms.collectUnionWarnings(schemas$3);
+  let encodingWarnings = Core__Array.filterMap(schemas$3, s => {
     let match = s.variantEncoding;
     if (match === undefined) {
       return;
@@ -394,7 +395,7 @@ function generate(schemas, refinementsOpt, param) {
     }
   });
   let warnings = unionWarnings.concat(encodingWarnings);
-  let enumOccurrences = CodegenTransforms.collectInlineEnums(schemas$2);
+  let enumOccurrences = CodegenTransforms.collectInlineEnums(schemas$3);
   let enumConflicts = CodegenTransforms.findConflictingEnumOccurrences(enumOccurrences);
   if (enumConflicts.length > 0) {
     return {
@@ -408,12 +409,12 @@ function generate(schemas, refinementsOpt, param) {
       })
     };
   }
-  let topLevelNames = schemas$2.map(s => s.name);
+  let topLevelNames = schemas$3.map(s => s.name);
   let enumNames = CodegenTransforms.resolveEnumNames(enumOccurrences, topLevelNames);
   let enumSchemas = CodegenTransforms.buildExtractedEnumSchemas(enumOccurrences, enumNames);
-  let schemasAfterEnumPromotion = CodegenTransforms.replaceInlineEnums(schemas$2, enumNames);
-  let schemas$3 = enumSchemas.concat(schemasAfterEnumPromotion);
-  let extractedUnions = schemas$3.flatMap(s => CodegenTransforms.extractUnions(s.name, s.schema).map(extracted => {
+  let schemasAfterEnumPromotion = CodegenTransforms.replaceInlineEnums(schemas$3, enumNames);
+  let schemas$4 = enumSchemas.concat(schemasAfterEnumPromotion);
+  let extractedUnions = schemas$4.flatMap(s => CodegenTransforms.extractUnions(s.name, s.schema).map(extracted => {
     let dict = s.fieldDiscriminators;
     let discriminatorPropertyName = dict !== undefined ? dict[extracted.name] : undefined;
     return {
@@ -434,7 +435,7 @@ function generate(schemas, refinementsOpt, param) {
       return true;
     }
   });
-  let modifiedSchemas = schemas$3.map(s => ({
+  let modifiedSchemas = schemas$4.map(s => ({
     name: s.name,
     schema: CodegenTransforms.replaceUnions(s.name, s.schema),
     discriminatorTag: s.discriminatorTag,

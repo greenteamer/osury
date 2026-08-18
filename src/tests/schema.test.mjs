@@ -3301,3 +3301,51 @@ describe('Refinements', () => {
         expect(code).toContain('tags: array<@s.with(S.minLength(_, 1)) string>');
     });
 });
+
+// Union arms that lower to the SAME ReScript type produce the same constructor
+// name, and ReScript rejects duplicate constructors. Such arms must collapse.
+// The canonical case is pydantic's `Union[str, datetime]`, which reaches the
+// spec as [{type: string}, {type: string, format: date-time}].
+describe('Union arms collapsing to one ReScript type', () => {
+    const genUnion = (arms, refinements = false) => {
+        const spec = {
+            $defs: {
+                Holder: {
+                    type: "object",
+                    properties: { field: { anyOf: arms } },
+                    required: ["field"],
+                },
+            },
+        };
+        const parsed = OpenAPIParser.parseDocument(spec);
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, refinements, undefined);
+        expect(g.TAG).toBe('Ok');
+        return g._0.code;
+    };
+
+    test('str | datetime collapses to a plain string, not a duplicate constructor', () => {
+        const code = genUnion([{ type: "string" }, { type: "string", format: "date-time" }]);
+
+        // Both arms are `string`, so there is no union left to build
+        expect(code).toContain('field: string');
+        expect(code).not.toContain('String(string) | String(string)');
+        expect(code).not.toContain('stringOrString');
+    });
+
+    test('collapsing drops the format — the wider arm wins', () => {
+        // `str | datetime` accepts any string: constraining it to ISO would
+        // reject values the spec allows.
+        const code = genUnion([{ type: "string" }, { type: "string", format: "date-time" }], true);
+
+        expect(code).toContain('field: string');
+        expect(code).not.toContain('S.isoDateTime');
+    });
+
+    test('arms of genuinely different types still form a union', () => {
+        const code = genUnion([{ type: "string" }, { type: "integer" }]);
+
+        expect(code).toContain('String(string)');
+        expect(code).toContain('Int(int)');
+    });
+});
