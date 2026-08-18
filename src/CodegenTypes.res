@@ -21,6 +21,9 @@ let rec generateType = (schema: Schema.schemaType): string => {
   | PolyVariant(cases) => generatePolyVariant(cases)
   | Union(types) => generateUnion(types)
   | Unknown => "JSON.t"
+  // Constraints narrow values, never the shape — the type is the base type.
+  // The checks themselves ride along in the IR and are printed as attributes.
+  | Refined(inner, _) => generateType(inner)
   }
 }
 

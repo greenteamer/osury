@@ -85,6 +85,8 @@ let rec printType = (t: IR.irType): string => {
   // anonymous OCaml types — passed through as raw JSON (see codec fallback)
   | Enum(_) => "string"
   | InlineRecord(_) | InlineVariant(_) | JSON => "Yojson.Safe.t"
+  // OCaml has no refinement layer here — the base type carries the shape
+  | Refined(inner, _) => printType(inner)
   }
 }
 
@@ -132,6 +134,7 @@ let rec encExpr = (t: IR.irType, v: string): string => {
   | Named(name) => `${typeName(name)}_to_yojson ${v}`
   | Enum(_) => `\`String ${v}`
   | InlineRecord(_) | InlineVariant(_) | JSON => v
+  | Refined(inner, _) => encExpr(inner, v)
   }
 }
 
@@ -171,6 +174,8 @@ let rec decExpr = (t: IR.irType, j: string): string => {
   | Named(name) => `${typeName(name)}_of_yojson ${j}`
   | Enum(_) => `Oj.string_ ${j}`
   | InlineRecord(_) | InlineVariant(_) | JSON => `Ok ${j}`
+  // Constraints are not validated by the OCaml codec — decode the base type
+  | Refined(inner, _) => decExpr(inner, j)
   }
 }
 

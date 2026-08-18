@@ -39,6 +39,7 @@ let rec convertType = (schema: Schema.schemaType): IR.irType => {
       {IR.tag: c.tag, asValue: None, payload}
     }))
   | Unknown => JSON
+  | Refined(inner, refs) => Refined(convertType(inner), refs)
   | Union(types) =>
     InlineVariant(types->Array.map(t => {
       let tag = CodegenHelpers.getTagForType(t)
@@ -221,7 +222,18 @@ let convertToIrTypeDef = (
 }
 
 // Main pipeline: array<namedSchema> → result<IR.irModule, Errors.errors>
-let generate = (schemas: array<OpenAPIParser.namedSchema>): result<IR.irModule, Errors.errors> => {
+// `refinements` trails `schemas` (and is closed by unit) so the JS-facing
+// signature stays (schemas, refinements) — callers that pass only schemas keep
+// working, which the CLI and scripts rely on.
+let generate = (
+  schemas: array<OpenAPIParser.namedSchema>,
+  ~refinements: bool=false,
+  (),
+): result<IR.irModule, Errors.errors> => {
+  // Step -2: Drop value constraints unless the caller asked for them. Printing
+  // them makes generated code reject data it used to accept, so it is opt-in.
+  let schemas = refinements ? schemas : CodegenTransforms.stripRefinements(schemas)
+
   // Step -1: Normalize — collapse unions of string literals into merged enums.
   // Must run BEFORE discriminator validation: literal unions have no property
   // to key a discriminator on, and after the collapse they don't need one.

@@ -73,6 +73,8 @@ let rec getTagForType = (t: Schema.schemaType): string => {
   | PolyVariant(_) => "Variant"
   | Union(_) => "Union"
   | Unknown => "Unknown"
+  // Constraints don't change the shape, so the tag stays that of the base type
+  | Refined(inner, _) => getTagForType(inner)
   }
 }
 
@@ -86,6 +88,7 @@ let rec hasUnion = (schema: Schema.schemaType): bool => {
   | Dict(inner) => hasUnion(inner)
   | Object(fields) => fields->Array.some(f => hasUnion(f.type_))
   | PolyVariant(cases) => cases->Array.some(c => hasUnion(c.payload))
+  | Refined(inner, _) => hasUnion(inner)
   }
 }
 
@@ -100,6 +103,7 @@ let rec hasUnknown = (schema: Schema.schemaType): bool => {
   | Dict(inner) => hasUnknown(inner)
   | Object(fields) => fields->Array.some(f => hasUnknown(f.type_))
   | PolyVariant(cases) => cases->Array.some(c => hasUnknown(c.payload))
+  | Refined(inner, _) => hasUnknown(inner)
   }
 }
 

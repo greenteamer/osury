@@ -57,8 +57,12 @@ type generateResult = {
 
 // Generate full module with diagnostics (warnings returned, not printed)
 // Pipeline: IRGen (SchemaAST → IR) → BackendReScript (IR → code)
-let generateModuleWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): result<generateResult, Errors.errors> => {
-  switch IRGen.generate(schemas) {
+let generateModuleWithDiagnostics = (
+  schemas: array<OpenAPIParser.namedSchema>,
+  ~refinements: bool=false,
+  (),
+): result<generateResult, Errors.errors> => {
+  switch IRGen.generate(schemas, ~refinements, ()) {
   | Ok(irModule) =>
     let code = BackendReScript.print(irModule)
     Ok({code, warnings: irModule.warnings})
@@ -69,7 +73,7 @@ let generateModuleWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>):
 // Generate OCaml module: types + yojson codecs (no ppx)
 // Pipeline: IRGen (SchemaAST → IR) → BackendOCaml (IR → code)
 let generateOCamlWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): result<generateResult, Errors.errors> => {
-  switch IRGen.generate(schemas) {
+  switch IRGen.generate(schemas, ()) {
   | Ok(irModule) =>
     let code = BackendOCaml.print(irModule)
     Ok({code, warnings: irModule.warnings})
@@ -80,7 +84,7 @@ let generateOCamlWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): 
 // Generate TypeScript module: TS types + Effect Schema v4
 // Pipeline: IRGen (SchemaAST → IR) → BackendEffectTS (IR → code)
 let generateEffectTSWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): result<generateResult, Errors.errors> => {
-  switch IRGen.generate(schemas) {
+  switch IRGen.generate(schemas, ()) {
   | Ok(irModule) =>
     let code = BackendEffectTS.print(irModule)
     Ok({code, warnings: irModule.warnings})
@@ -91,7 +95,7 @@ let generateEffectTSWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>
 // Generate Rust module: serde structs/enums
 // Pipeline: IRGen (SchemaAST → IR) → BackendRust (IR → code)
 let generateRustWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): result<generateResult, Errors.errors> => {
-  switch IRGen.generate(schemas) {
+  switch IRGen.generate(schemas, ()) {
   | Ok(irModule) =>
     let code = BackendRust.print(irModule)
     Ok({code, warnings: irModule.warnings})
@@ -102,7 +106,7 @@ let generateRustWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): r
 // Generate full module (backward-compatible wrapper)
 // Prints warnings to console and returns code string
 let generateModule = (schemas: array<OpenAPIParser.namedSchema>): string => {
-  switch generateModuleWithDiagnostics(schemas) {
+  switch generateModuleWithDiagnostics(schemas, ()) {
   | Ok(result) =>
     result.warnings->Array.forEach(w => Console.log(w))
     result.code

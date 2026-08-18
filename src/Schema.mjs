@@ -3,6 +3,7 @@
 import * as Errors from "./Errors.mjs";
 import * as Core__Array from "@rescript/core/src/Core__Array.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
+import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js";
 import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
 
 function isNullType(json) {
@@ -68,6 +69,137 @@ function extractDiscriminatorPropertyName(dict) {
   let match$1 = match["propertyName"];
   if (typeof match$1 === "string") {
     return match$1;
+  }
+}
+
+function parseFormat(name) {
+  switch (name) {
+    case "date" :
+      return "IsoDate";
+    case "date-time" :
+      return "IsoDateTime";
+    case "duration" :
+      return "Duration";
+    case "email" :
+      return "Email";
+    case "hostname" :
+      return "Hostname";
+    case "ipv4" :
+      return "Ipv4";
+    case "ipv6" :
+      return "Ipv6";
+    case "time" :
+      return "IsoTime";
+    case "uri" :
+    case "url" :
+      return "Uri";
+    case "uuid" :
+      return "Uuid";
+    default:
+      return;
+  }
+}
+
+function getInt(dict, key) {
+  let match = dict[key];
+  if (typeof match === "number") {
+    return match | 0;
+  }
+}
+
+function getFloat(dict, key) {
+  let match = dict[key];
+  if (typeof match === "number") {
+    return match;
+  }
+}
+
+function collectStringRefinements(dict) {
+  let refs = [];
+  let match = dict["format"];
+  if (typeof match === "string") {
+    let f = parseFormat(match);
+    if (f !== undefined) {
+      refs.push({
+        _tag: "Format",
+        _0: f
+      });
+    }
+  }
+  Core__Option.forEach(getInt(dict, "minLength"), n => {
+    refs.push({
+      _tag: "MinLength",
+      _0: n
+    });
+  });
+  Core__Option.forEach(getInt(dict, "maxLength"), n => {
+    refs.push({
+      _tag: "MaxLength",
+      _0: n
+    });
+  });
+  let match$1 = dict["pattern"];
+  if (typeof match$1 === "string") {
+    refs.push({
+      _tag: "Pattern",
+      _0: match$1
+    });
+  }
+  return refs;
+}
+
+function collectNumberRefinements(dict) {
+  let refs = [];
+  let exclusiveMinIsFlag = Primitive_object.equal(dict["exclusiveMinimum"], true);
+  let exclusiveMaxIsFlag = Primitive_object.equal(dict["exclusiveMaximum"], true);
+  Core__Option.forEach(getFloat(dict, "minimum"), n => {
+    refs.push(exclusiveMinIsFlag ? ({
+        _tag: "Gt",
+        _0: n
+      }) : ({
+        _tag: "Gte",
+        _0: n
+      }));
+  });
+  Core__Option.forEach(getFloat(dict, "maximum"), n => {
+    refs.push(exclusiveMaxIsFlag ? ({
+        _tag: "Lt",
+        _0: n
+      }) : ({
+        _tag: "Lte",
+        _0: n
+      }));
+  });
+  Core__Option.forEach(getFloat(dict, "exclusiveMinimum"), n => {
+    refs.push({
+      _tag: "Gt",
+      _0: n
+    });
+  });
+  Core__Option.forEach(getFloat(dict, "exclusiveMaximum"), n => {
+    refs.push({
+      _tag: "Lt",
+      _0: n
+    });
+  });
+  Core__Option.forEach(getFloat(dict, "multipleOf"), n => {
+    refs.push({
+      _tag: "MultipleOf",
+      _0: n
+    });
+  });
+  return refs;
+}
+
+function refine(base, refs) {
+  if (refs.length === 0) {
+    return base;
+  } else {
+    return {
+      _tag: "Refined",
+      _0: base,
+      _1: refs
+    };
   }
 }
 
@@ -157,7 +289,7 @@ function parsePrimitiveType(dict) {
           case "integer" :
             return {
               TAG: "Ok",
-              _0: "Integer"
+              _0: refine("Integer", collectNumberRefinements(dict))
             };
           case "null" :
             return {
@@ -167,7 +299,7 @@ function parsePrimitiveType(dict) {
           case "number" :
             return {
               TAG: "Ok",
-              _0: "Number"
+              _0: refine("Number", collectNumberRefinements(dict))
             };
           case "object" :
             return parseObjectType(dict);
@@ -193,7 +325,7 @@ function parsePrimitiveType(dict) {
               if (match$2 === undefined) {
                 return {
                   TAG: "Ok",
-                  _0: "String"
+                  _0: refine("String", collectStringRefinements(dict))
                 };
               }
               let exit$1 = 0;
@@ -1028,6 +1160,12 @@ export {
   extractTagFromConst,
   extractTagFromProperty,
   extractDiscriminatorPropertyName,
+  parseFormat,
+  getInt,
+  getFloat,
+  collectStringRefinements,
+  collectNumberRefinements,
+  refine,
   parseSchema,
   parsePrimitiveType,
   parseArrayType,

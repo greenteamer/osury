@@ -107,44 +107,50 @@ function isNullableType(schema) {
   }
 }
 
-function getTagForType(t) {
-  if (typeof t !== "object") {
-    switch (t) {
-      case "String" :
-        return "String";
-      case "Number" :
-        return "Float";
-      case "Integer" :
-        return "Int";
-      case "Boolean" :
-        return "Bool";
-      case "Null" :
-        return "Null";
-      case "Unknown" :
-        return "Unknown";
+function getTagForType(_t) {
+  while (true) {
+    let t = _t;
+    if (typeof t !== "object") {
+      switch (t) {
+        case "String" :
+          return "String";
+        case "Number" :
+          return "Float";
+        case "Integer" :
+          return "Int";
+        case "Boolean" :
+          return "Bool";
+        case "Null" :
+          return "Null";
+        case "Unknown" :
+          return "Unknown";
+      }
+    } else {
+      switch (t._tag) {
+        case "Optional" :
+          return `Option` + getTagForType(t._0);
+        case "Nullable" :
+          return `Null` + getTagForType(t._0);
+        case "Object" :
+          return "Object";
+        case "Array" :
+          return `Array` + getTagForType(t._0);
+        case "Ref" :
+          return ucFirst(t._0);
+        case "Enum" :
+          return "Enum";
+        case "PolyVariant" :
+          return "Variant";
+        case "Dict" :
+          return "Dict";
+        case "Union" :
+          return "Union";
+        case "Refined" :
+          _t = t._0;
+          continue;
+      }
     }
-  } else {
-    switch (t._tag) {
-      case "Optional" :
-        return `Option` + getTagForType(t._0);
-      case "Nullable" :
-        return `Null` + getTagForType(t._0);
-      case "Object" :
-        return "Object";
-      case "Array" :
-        return `Array` + getTagForType(t._0);
-      case "Ref" :
-        return ucFirst(t._0);
-      case "Enum" :
-        return "Enum";
-      case "PolyVariant" :
-        return "Variant";
-      case "Dict" :
-        return "Dict";
-      case "Union" :
-        return "Union";
-    }
-  }
+  };
 }
 
 function hasUnion(_schema) {
@@ -158,14 +164,15 @@ function hasUnion(_schema) {
         return schema._0.some(f => hasUnion(f.type));
       case "PolyVariant" :
         return schema._0.some(c => hasUnion(c.payload));
+      case "Union" :
+        return true;
       case "Optional" :
       case "Nullable" :
       case "Array" :
       case "Dict" :
+      case "Refined" :
         _schema = schema._0;
         continue;
-      case "Union" :
-        return true;
       default:
         return false;
     }
@@ -187,6 +194,7 @@ function hasUnknown(_schema) {
       case "Nullable" :
       case "Array" :
       case "Dict" :
+      case "Refined" :
         _schema = schema._0;
         continue;
       default:

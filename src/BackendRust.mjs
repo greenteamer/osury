@@ -108,39 +108,45 @@ function wireTag(c) {
   return Core__Option.getOr(c.asValue, c.tag);
 }
 
-function printType(t) {
-  if (typeof t !== "object") {
-    return "serde_json::Value";
-  }
-  switch (t.TAG) {
-    case "Primitive" :
-      switch (t._0) {
-        case "PString" :
-          return "String";
-        case "PFloat" :
-          return "f64";
-        case "PInt" :
-          return "i64";
-        case "PBool" :
-          return "bool";
-        case "PUnit" :
-          return "()";
-      }
-    case "Option" :
-    case "Nullable" :
-      break;
-    case "Array" :
-      return `Vec<` + printType(t._0) + `>`;
-    case "Dict" :
-      return `std::collections::HashMap<String, ` + printType(t._0) + `>`;
-    case "Named" :
-      return CodegenHelpers.ucFirst(t._0);
-    case "Enum" :
-      return "String";
-    default:
+function printType(_t) {
+  while (true) {
+    let t = _t;
+    if (typeof t !== "object") {
       return "serde_json::Value";
-  }
-  return `Option<` + printType(t._0) + `>`;
+    }
+    switch (t.TAG) {
+      case "Primitive" :
+        switch (t._0) {
+          case "PString" :
+            return "String";
+          case "PFloat" :
+            return "f64";
+          case "PInt" :
+            return "i64";
+          case "PBool" :
+            return "bool";
+          case "PUnit" :
+            return "()";
+        }
+      case "Option" :
+      case "Nullable" :
+        break;
+      case "Array" :
+        return `Vec<` + printType(t._0) + `>`;
+      case "Dict" :
+        return `std::collections::HashMap<String, ` + printType(t._0) + `>`;
+      case "Named" :
+        return CodegenHelpers.ucFirst(t._0);
+      case "Enum" :
+        return "String";
+      case "Refined" :
+        _t = t._0;
+        continue;
+      default:
+        return "serde_json::Value";
+    }
+    return `Option<` + printType(t._0) + `>`;
+  };
 }
 
 function printField(f, indent) {

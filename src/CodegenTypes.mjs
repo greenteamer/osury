@@ -3,45 +3,51 @@
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
 import * as CodegenHelpers from "./CodegenHelpers.mjs";
 
-function generateType(schema) {
-  if (typeof schema !== "object") {
-    switch (schema) {
-      case "String" :
-        return "string";
-      case "Number" :
-        return "float";
-      case "Integer" :
-        return "int";
-      case "Boolean" :
-        return "bool";
-      case "Null" :
-        return "unit";
-      case "Unknown" :
-        return "JSON.t";
+function generateType(_schema) {
+  while (true) {
+    let schema = _schema;
+    if (typeof schema !== "object") {
+      switch (schema) {
+        case "String" :
+          return "string";
+        case "Number" :
+          return "float";
+        case "Integer" :
+          return "int";
+        case "Boolean" :
+          return "bool";
+        case "Null" :
+          return "unit";
+        case "Unknown" :
+          return "JSON.t";
+      }
+    } else {
+      switch (schema._tag) {
+        case "Optional" :
+          return `option<` + generateType(schema._0) + `>`;
+        case "Nullable" :
+          return `Nullable.t<` + generateType(schema._0) + `>`;
+        case "Object" :
+          return generateRecord(schema._0);
+        case "Array" :
+          return `array<` + generateType(schema._0) + `>`;
+        case "Ref" :
+          return CodegenHelpers.lcFirst(schema._0);
+        case "Enum" :
+          let variants = schema._0.map(v => `#` + v).join(" | ");
+          return `[` + variants + `]`;
+        case "PolyVariant" :
+          return generatePolyVariant(schema._0);
+        case "Dict" :
+          return `Dict.t<` + generateType(schema._0) + `>`;
+        case "Union" :
+          return generateUnion(schema._0);
+        case "Refined" :
+          _schema = schema._0;
+          continue;
+      }
     }
-  } else {
-    switch (schema._tag) {
-      case "Optional" :
-        return `option<` + generateType(schema._0) + `>`;
-      case "Nullable" :
-        return `Nullable.t<` + generateType(schema._0) + `>`;
-      case "Object" :
-        return generateRecord(schema._0);
-      case "Array" :
-        return `array<` + generateType(schema._0) + `>`;
-      case "Ref" :
-        return CodegenHelpers.lcFirst(schema._0);
-      case "Enum" :
-        let variants = schema._0.map(v => `#` + v).join(" | ");
-        return `[` + variants + `]`;
-      case "PolyVariant" :
-        return generatePolyVariant(schema._0);
-      case "Dict" :
-        return `Dict.t<` + generateType(schema._0) + `>`;
-      case "Union" :
-        return generateUnion(schema._0);
-    }
-  }
+  };
 }
 
 function generateRecord(fields) {

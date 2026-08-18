@@ -59,6 +59,9 @@ let rec schemaExpr = (t: IR.irType, ~indent: string): string => {
   | Enum(values) => `Schema.Literals([${values->Array.map(v => `'${v}'`)->Array.join(", ")}])`
   | InlineRecord(fields) => structExpr(fields, ~indent)
   | InlineVariant(_) | JSON => "Schema.Unknown"
+  // Effect has its own filters (Schema.minLength, ...) but osury does not map
+  // them yet — the base schema keeps the shape, checks are simply absent
+  | Refined(inner, _) => schemaExpr(inner, ~indent)
   }
 }
 

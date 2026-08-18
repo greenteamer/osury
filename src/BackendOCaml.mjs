@@ -110,39 +110,45 @@ function enumConstructor(value) {
   }
 }
 
-function printType(t) {
-  if (typeof t !== "object") {
-    return "Yojson.Safe.t";
-  }
-  switch (t.TAG) {
-    case "Primitive" :
-      switch (t._0) {
-        case "PString" :
-          return "string";
-        case "PFloat" :
-          return "float";
-        case "PInt" :
-          return "int";
-        case "PBool" :
-          return "bool";
-        case "PUnit" :
-          return "unit";
-      }
-    case "Option" :
-    case "Nullable" :
-      break;
-    case "Array" :
-      return printType(t._0) + ` list`;
-    case "Dict" :
-      return `(string * ` + printType(t._0) + `) list`;
-    case "Named" :
-      return escapeKeyword(toSnake(t._0));
-    case "Enum" :
-      return "string";
-    default:
+function printType(_t) {
+  while (true) {
+    let t = _t;
+    if (typeof t !== "object") {
       return "Yojson.Safe.t";
-  }
-  return printType(t._0) + ` option`;
+    }
+    switch (t.TAG) {
+      case "Primitive" :
+        switch (t._0) {
+          case "PString" :
+            return "string";
+          case "PFloat" :
+            return "float";
+          case "PInt" :
+            return "int";
+          case "PBool" :
+            return "bool";
+          case "PUnit" :
+            return "unit";
+        }
+      case "Option" :
+      case "Nullable" :
+        break;
+      case "Array" :
+        return printType(t._0) + ` list`;
+      case "Dict" :
+        return `(string * ` + printType(t._0) + `) list`;
+      case "Named" :
+        return escapeKeyword(toSnake(t._0));
+      case "Enum" :
+        return "string";
+      case "Refined" :
+        _t = t._0;
+        continue;
+      default:
+        return "Yojson.Safe.t";
+    }
+    return printType(t._0) + ` option`;
+  };
 }
 
 function printRecordFields(fields) {
@@ -187,39 +193,45 @@ function printTypeDecl(typeDef) {
   }
 }
 
-function encExpr(t, v) {
-  if (typeof t !== "object") {
-    return v;
-  }
-  switch (t.TAG) {
-    case "Primitive" :
-      switch (t._0) {
-        case "PString" :
-          return `\`String ` + v;
-        case "PFloat" :
-          return `\`Float ` + v;
-        case "PInt" :
-          return `\`Int ` + v;
-        case "PBool" :
-          return `\`Bool ` + v;
-        case "PUnit" :
-          return `\`Null`;
-      }
-    case "Option" :
-    case "Nullable" :
-      break;
-    case "Array" :
-      return `\`List (List.map (fun x -> ` + encExpr(t._0, "x") + `) ` + v + `)`;
-    case "Dict" :
-      return `\`Assoc (List.map (fun (k, x) -> (k, ` + encExpr(t._0, "x") + `)) ` + v + `)`;
-    case "Named" :
-      return escapeKeyword(toSnake(t._0)) + `_to_yojson ` + v;
-    case "Enum" :
-      return `\`String ` + v;
-    default:
+function encExpr(_t, v) {
+  while (true) {
+    let t = _t;
+    if (typeof t !== "object") {
       return v;
-  }
-  return `(match ` + v + ` with Some x -> ` + encExpr(t._0, "x") + ` | None -> \`Null)`;
+    }
+    switch (t.TAG) {
+      case "Primitive" :
+        switch (t._0) {
+          case "PString" :
+            return `\`String ` + v;
+          case "PFloat" :
+            return `\`Float ` + v;
+          case "PInt" :
+            return `\`Int ` + v;
+          case "PBool" :
+            return `\`Bool ` + v;
+          case "PUnit" :
+            return `\`Null`;
+        }
+      case "Option" :
+      case "Nullable" :
+        break;
+      case "Array" :
+        return `\`List (List.map (fun x -> ` + encExpr(t._0, "x") + `) ` + v + `)`;
+      case "Dict" :
+        return `\`Assoc (List.map (fun (k, x) -> (k, ` + encExpr(t._0, "x") + `)) ` + v + `)`;
+      case "Named" :
+        return escapeKeyword(toSnake(t._0)) + `_to_yojson ` + v;
+      case "Enum" :
+        return `\`String ` + v;
+      case "Refined" :
+        _t = t._0;
+        continue;
+      default:
+        return v;
+    }
+    return `(match ` + v + ` with Some x -> ` + encExpr(t._0, "x") + ` | None -> \`Null)`;
+  };
 }
 
 function encField(f, prefix) {
@@ -239,39 +251,45 @@ function encFieldEntries(fields, prefix, indent) {
   return `(List.concat\n` + indent + `[\n` + entries + `\n` + indent + `])`;
 }
 
-function decExpr(t, j) {
-  if (typeof t !== "object") {
-    return `Ok ` + j;
-  }
-  switch (t.TAG) {
-    case "Primitive" :
-      switch (t._0) {
-        case "PString" :
-          return `Oj.string_ ` + j;
-        case "PFloat" :
-          return `Oj.float_ ` + j;
-        case "PInt" :
-          return `Oj.int_ ` + j;
-        case "PBool" :
-          return `Oj.bool_ ` + j;
-        case "PUnit" :
-          return `Oj.unit_ ` + j;
-      }
-    case "Option" :
-    case "Nullable" :
-      break;
-    case "Array" :
-      return `Oj.list_ (fun j -> ` + decExpr(t._0, "j") + `) ` + j;
-    case "Dict" :
-      return `Oj.dict_ (fun j -> ` + decExpr(t._0, "j") + `) ` + j;
-    case "Named" :
-      return escapeKeyword(toSnake(t._0)) + `_of_yojson ` + j;
-    case "Enum" :
-      return `Oj.string_ ` + j;
-    default:
+function decExpr(_t, j) {
+  while (true) {
+    let t = _t;
+    if (typeof t !== "object") {
       return `Ok ` + j;
-  }
-  return `Oj.nullable_ (fun j -> ` + decExpr(t._0, "j") + `) ` + j;
+    }
+    switch (t.TAG) {
+      case "Primitive" :
+        switch (t._0) {
+          case "PString" :
+            return `Oj.string_ ` + j;
+          case "PFloat" :
+            return `Oj.float_ ` + j;
+          case "PInt" :
+            return `Oj.int_ ` + j;
+          case "PBool" :
+            return `Oj.bool_ ` + j;
+          case "PUnit" :
+            return `Oj.unit_ ` + j;
+        }
+      case "Option" :
+      case "Nullable" :
+        break;
+      case "Array" :
+        return `Oj.list_ (fun j -> ` + decExpr(t._0, "j") + `) ` + j;
+      case "Dict" :
+        return `Oj.dict_ (fun j -> ` + decExpr(t._0, "j") + `) ` + j;
+      case "Named" :
+        return escapeKeyword(toSnake(t._0)) + `_of_yojson ` + j;
+      case "Enum" :
+        return `Oj.string_ ` + j;
+      case "Refined" :
+        _t = t._0;
+        continue;
+      default:
+        return `Ok ` + j;
+    }
+    return `Oj.nullable_ (fun j -> ` + decExpr(t._0, "j") + `) ` + j;
+  };
 }
 
 function decFieldBinding(f, j) {

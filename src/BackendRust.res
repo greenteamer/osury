@@ -70,6 +70,8 @@ let rec printType = (t: IR.irType): string => {
   // Inline enums/records/variants in field position fall back to raw JSON
   | Enum(_) => "String"
   | InlineRecord(_) | InlineVariant(_) | JSON => "serde_json::Value"
+  // serde validates shape, not values — the base type is the whole story here
+  | Refined(inner, _) => printType(inner)
   }
 }
 

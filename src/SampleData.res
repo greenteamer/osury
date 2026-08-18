@@ -91,6 +91,48 @@ let rec generate = (schema: Schema.schemaType, schemasDict: schemasDict): JSON.t
 
   // Unknown — any JSON value
   | Unknown => JSON.Encode.null
+
+  // Refined — the sample must satisfy its own constraints, otherwise the
+  // generated example fails the very schema it illustrates. A format pins the
+  // whole value; bounds only nudge the base sample into range.
+  | Refined(inner, refs) => refineSample(generate(inner, schemasDict), refs)
+  }
+}
+
+and refineSample = (base: JSON.t, refs: array<Schema.refinement>): JSON.t => {
+  let formatSample = refs->Array.findMap(r =>
+    switch r {
+    | Format(Uuid) => Some("123e4567-e89b-12d3-a456-426614174000")
+    | Format(Email) => Some("user@example.com")
+    | Format(Uri) => Some("https://example.com")
+    | Format(IsoDate) => Some("2026-01-15")
+    | Format(IsoDateTime) => Some("2026-01-15T10:30:00.000Z")
+    | Format(IsoTime) => Some("10:30:00")
+    | Format(Duration) => Some("P1D")
+    | Format(Ipv4) => Some("192.0.2.1")
+    | Format(Ipv6) => Some("2001:db8::1")
+    | Format(Hostname) => Some("example.com")
+    | _ => None
+    }
+  )
+  switch formatSample {
+  | Some(v) => JSON.Encode.string(v)
+  | None =>
+    // No format: clamp the base sample so bounds hold. Only the keywords that
+    // can invalidate the default samples ("sample", 3.14, 42) are applied.
+    refs->Array.reduce(base, (acc, r) =>
+      switch (r, acc) {
+      | (MinLength(n), JSON.String(str)) if String.length(str) < n =>
+        JSON.Encode.string(str ++ String.repeat("x", n - String.length(str)))
+      | (MaxLength(n), JSON.String(str)) if String.length(str) > n =>
+        JSON.Encode.string(str->String.slice(~start=0, ~end=n))
+      | (Gte(n), JSON.Number(v)) if v < n => JSON.Encode.float(n)
+      | (Gt(n), JSON.Number(v)) if v <= n => JSON.Encode.float(n +. 1.0)
+      | (Lte(n), JSON.Number(v)) if v > n => JSON.Encode.float(n)
+      | (Lt(n), JSON.Number(v)) if v >= n => JSON.Encode.float(n -. 1.0)
+      | _ => acc
+      }
+    )
   }
 }
 

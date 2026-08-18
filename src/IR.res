@@ -25,6 +25,9 @@ type rec irType =
   | InlineRecord(array<irField>) // for variant case payloads
   | InlineVariant(array<irVariantCase>) // for poly variant types used inline
   | JSON // any value (OpenAPI schema without type)
+  // Value constraints carried alongside the base type. Backends that can print
+  // them do; the rest print the base type and lose nothing but the checks.
+  | Refined(irType, array<Schema.refinement>)
 
 and irField = {
   name: string, // final name ("type_" if reserved)

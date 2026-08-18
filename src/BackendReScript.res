@@ -34,6 +34,51 @@ let printPrimitive = (p: IR.primitive): string => {
   }
 }
 
+// ReScript float literals need a decimal point: `0` is an int, `0.` is a float.
+let floatLit = (f: float): string => {
+  let str = Float.toString(f)
+  str->String.includes(".") || str->String.includes("e") ? str : str ++ "."
+}
+
+// A regex literal for S.pattern. Only `/` needs escaping — it would otherwise
+// close the literal early.
+let reLit = (pattern: string): string =>
+  `%re("/${pattern->String.replaceRegExp(/\//g, "\\/")}/")`
+
+// Sury schema for a `format`. These REPLACE the base schema (S.uuid instead of
+// S.string) rather than wrapping it, hence @s.matches and not @s.with.
+let formatSchema = (f: Schema.stringFormat): string => {
+  switch f {
+  | Uuid => "S.uuid"
+  | Email => "S.email"
+  | Uri => "S.uri"
+  | IsoDate => "S.isoDate"
+  | IsoDateTime => "S.isoDateTime"
+  | IsoTime => "S.isoTime"
+  | Duration => "S.duration"
+  | Ipv4 => "S.ipv4"
+  | Ipv6 => "S.ipv6"
+  | Hostname => "S.hostname"
+  }
+}
+
+// Attribute for one refinement. `isInt` picks the literal flavour for bounds:
+// S.gte is (t<'value>, 'value), so an int schema needs an int argument.
+let refinementAttr = (r: Schema.refinement, ~isInt: bool): string => {
+  let num = (f: float) => isInt ? Int.fromFloat(f)->Int.toString : floatLit(f)
+  switch r {
+  | Format(f) => `@s.matches(${formatSchema(f)})`
+  | MinLength(n) => `@s.with(S.minLength(_, ${n->Int.toString}))`
+  | MaxLength(n) => `@s.with(S.maxLength(_, ${n->Int.toString}))`
+  | Pattern(p) => `@s.with(S.pattern(_, ${reLit(p)}))`
+  | Gte(n) => `@s.with(S.gte(_, ${num(n)}))`
+  | Lte(n) => `@s.with(S.lte(_, ${num(n)}))`
+  | Gt(n) => `@s.with(S.gt(_, ${num(n)}))`
+  | Lt(n) => `@s.with(S.lt(_, ${num(n)}))`
+  | MultipleOf(n) => `@s.with(S.multipleOf(_, ${num(n)}))`
+  }
+}
+
 let rec printType = (t: IR.irType): string => {
   switch t {
   | Primitive(p) => printPrimitive(p)
@@ -51,6 +96,15 @@ let rec printType = (t: IR.irType): string => {
   // letting any enclosing record/variant still get @schema instead of being
   // poisoned by an Unknown leaf.
   | JSON => "@s.matches(S.json) JSON.t"
+  // Attributes sit in front of the base type: `@s.matches(S.uuid) string`.
+  // The type itself is untouched — only the sury schema gains checks.
+  | Refined(inner, refs) =>
+    let isInt = switch inner {
+    | Primitive(PInt) => true
+    | _ => false
+    }
+    let attrs = refs->Array.map(r => refinementAttr(r, ~isInt))->Array.join(" ")
+    `${attrs} ${printType(inner)}`
   }
 }
 

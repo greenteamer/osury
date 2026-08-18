@@ -60,41 +60,47 @@ function wireTag(c) {
   return Core__Option.getOr(c.asValue, c.tag);
 }
 
-function schemaExpr(t, indent) {
-  if (typeof t !== "object") {
-    return "Schema.Unknown";
-  }
-  switch (t.TAG) {
-    case "Primitive" :
-      switch (t._0) {
-        case "PString" :
-          return "Schema.String";
-        case "PFloat" :
-          return "Schema.Number";
-        case "PInt" :
-          return "Schema.Int";
-        case "PBool" :
-          return "Schema.Boolean";
-        case "PUnit" :
-          return "Schema.Null";
-      }
-    case "Option" :
-      return `Schema.optionalKey(Schema.NullOr(` + schemaExpr(t._0, indent) + `))`;
-    case "Nullable" :
-      return `Schema.NullOr(` + schemaExpr(t._0, indent) + `)`;
-    case "Array" :
-      return `Schema.Array(` + schemaExpr(t._0, indent) + `)`;
-    case "Dict" :
-      return `Schema.Record(Schema.String, ` + schemaExpr(t._0, indent) + `)`;
-    case "Named" :
-      return tsName(t._0);
-    case "Enum" :
-      return `Schema.Literals([` + t._0.map(v => `'` + v + `'`).join(", ") + `])`;
-    case "InlineRecord" :
-      return structExpr(t._0, indent);
-    case "InlineVariant" :
+function schemaExpr(_t, indent) {
+  while (true) {
+    let t = _t;
+    if (typeof t !== "object") {
       return "Schema.Unknown";
-  }
+    }
+    switch (t.TAG) {
+      case "Primitive" :
+        switch (t._0) {
+          case "PString" :
+            return "Schema.String";
+          case "PFloat" :
+            return "Schema.Number";
+          case "PInt" :
+            return "Schema.Int";
+          case "PBool" :
+            return "Schema.Boolean";
+          case "PUnit" :
+            return "Schema.Null";
+        }
+      case "Option" :
+        return `Schema.optionalKey(Schema.NullOr(` + schemaExpr(t._0, indent) + `))`;
+      case "Nullable" :
+        return `Schema.NullOr(` + schemaExpr(t._0, indent) + `)`;
+      case "Array" :
+        return `Schema.Array(` + schemaExpr(t._0, indent) + `)`;
+      case "Dict" :
+        return `Schema.Record(Schema.String, ` + schemaExpr(t._0, indent) + `)`;
+      case "Named" :
+        return tsName(t._0);
+      case "Enum" :
+        return `Schema.Literals([` + t._0.map(v => `'` + v + `'`).join(", ") + `])`;
+      case "InlineRecord" :
+        return structExpr(t._0, indent);
+      case "InlineVariant" :
+        return "Schema.Unknown";
+      case "Refined" :
+        _t = t._0;
+        continue;
+    }
+  };
 }
 
 function structFields(fields, indent) {

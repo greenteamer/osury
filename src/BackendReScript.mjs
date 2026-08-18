@@ -37,6 +37,74 @@ function printPrimitive(p) {
   }
 }
 
+function floatLit(f) {
+  let str = f.toString();
+  if (str.includes(".") || str.includes("e")) {
+    return str;
+  } else {
+    return str + ".";
+  }
+}
+
+function reLit(pattern) {
+  return `%re("/` + pattern.replace(/\//g, "\\/") + `/")`;
+}
+
+function formatSchema(f) {
+  switch (f) {
+    case "Uuid" :
+      return "S.uuid";
+    case "Email" :
+      return "S.email";
+    case "Uri" :
+      return "S.uri";
+    case "IsoDate" :
+      return "S.isoDate";
+    case "IsoDateTime" :
+      return "S.isoDateTime";
+    case "IsoTime" :
+      return "S.isoTime";
+    case "Duration" :
+      return "S.duration";
+    case "Ipv4" :
+      return "S.ipv4";
+    case "Ipv6" :
+      return "S.ipv6";
+    case "Hostname" :
+      return "S.hostname";
+  }
+}
+
+function refinementAttr(r, isInt) {
+  let num = f => {
+    if (isInt) {
+      return (f | 0).toString();
+    } else {
+      return floatLit(f);
+    }
+  };
+  switch (r._tag) {
+    case "Format" :
+      return `@s.matches(` + formatSchema(r._0) + `)`;
+    case "MinLength" :
+      return `@s.with(S.minLength(_, ` + r._0.toString() + `))`;
+    case "MaxLength" :
+      return `@s.with(S.maxLength(_, ` + r._0.toString() + `))`;
+    case "Pattern" :
+      return `@s.with(S.pattern(_, ` + reLit(r._0) + `))`;
+    case "Gte" :
+      return `@s.with(S.gte(_, ` + num(r._0) + `))`;
+    case "Lte" :
+      return `@s.with(S.lte(_, ` + num(r._0) + `))`;
+    case "Gt" :
+      return `@s.with(S.gt(_, ` + num(r._0) + `))`;
+    case "Lt" :
+      return `@s.with(S.lt(_, ` + num(r._0) + `))`;
+    case "MultipleOf" :
+      return `@s.with(S.multipleOf(_, ` + num(r._0) + `))`;
+  }
+}
+
 function printType(t) {
   if (typeof t !== "object") {
     return "@s.matches(S.json) JSON.t";
@@ -61,6 +129,12 @@ function printType(t) {
       return printRecord(t._0);
     case "InlineVariant" :
       return printVariantCases(t._0);
+    case "Refined" :
+      let inner = t._0;
+      let isInt;
+      isInt = typeof inner !== "object" || inner.TAG !== "Primitive" ? false : inner._0 === "PInt";
+      let attrs = t._1.map(r => refinementAttr(r, isInt)).join(" ");
+      return attrs + ` ` + printType(inner);
   }
 }
 
@@ -166,6 +240,10 @@ function print(module_) {
 export {
   quoteTag,
   printPrimitive,
+  floatLit,
+  reLit,
+  formatSchema,
+  refinementAttr,
   printType,
   printField,
   printRecord,

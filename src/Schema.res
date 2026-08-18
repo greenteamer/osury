@@ -35,6 +35,40 @@ and schemaType =
   | Dict(schemaType)
   | Union(array<schemaType>)
   | Unknown
+  // Value constraints from OpenAPI validation keywords. Wraps the type it
+  // constrains — the SHAPE is unchanged, only the set of accepted values
+  // narrows, so every consumer may look straight through it.
+  | Refined(schemaType, array<refinement>)
+
+// A JSON Schema `format` osury can express as a sury schema. Formats without a
+// sury counterpart (binary, int64, ...) are dropped at parse time rather than
+// carried around as strings — see parseFormat.
+@genType
+@tag("_tag")
+and stringFormat =
+  | Uuid
+  | Email
+  | Uri
+  | IsoDate
+  | IsoDateTime
+  | IsoTime
+  | Duration
+  | Ipv4
+  | Ipv6
+  | Hostname
+
+@genType
+@tag("_tag")
+and refinement =
+  | Format(stringFormat) // replaces the base schema: S.uuid, S.email, ...
+  | MinLength(int)
+  | MaxLength(int)
+  | Pattern(string)
+  | Gte(float)
+  | Lte(float)
+  | Gt(float)
+  | Lt(float)
+  | MultipleOf(float)
 
 // Wire representation of a discriminated union:
 // Internal — {"kind": "glow", ...} (discriminator field inside the object)
@@ -115,6 +149,82 @@ let extractDiscriminatorPropertyName = (dict: Dict.t<JSON.t>): option<string> =>
 }
 
 // Forward declaration for recursive parsing
+// JSON Schema `format` → sury counterpart. None for formats sury has no schema
+// for (binary, int64, password, ...) — they are dropped, not carried as strings,
+// so the backends never have to guess what to print.
+let parseFormat = (name: string): option<stringFormat> => {
+  switch name {
+  | "uuid" => Some(Uuid)
+  | "email" => Some(Email)
+  | "uri" | "url" => Some(Uri)
+  | "date" => Some(IsoDate)
+  | "date-time" => Some(IsoDateTime)
+  | "time" => Some(IsoTime)
+  | "duration" => Some(Duration)
+  | "ipv4" => Some(Ipv4)
+  | "ipv6" => Some(Ipv6)
+  | "hostname" => Some(Hostname)
+  | _ => None
+  }
+}
+
+let getInt = (dict: Dict.t<JSON.t>, key: string): option<int> =>
+  switch dict->Dict.get(key) {
+  | Some(Number(n)) => Some(Int.fromFloat(n))
+  | _ => None
+  }
+
+let getFloat = (dict: Dict.t<JSON.t>, key: string): option<float> =>
+  switch dict->Dict.get(key) {
+  | Some(Number(n)) => Some(n)
+  | _ => None
+  }
+
+// Validation keywords that apply to strings. `format` comes first so a backend
+// printing them in order gets the base-schema replacement before the wrappers.
+let collectStringRefinements = (dict: Dict.t<JSON.t>): array<refinement> => {
+  let refs = []
+  switch dict->Dict.get("format") {
+  | Some(String(name)) =>
+    switch parseFormat(name) {
+    | Some(f) => refs->Array.push(Format(f))
+    | None => ()
+    }
+  | _ => ()
+  }
+  getInt(dict, "minLength")->Option.forEach(n => refs->Array.push(MinLength(n)))
+  getInt(dict, "maxLength")->Option.forEach(n => refs->Array.push(MaxLength(n)))
+  switch dict->Dict.get("pattern") {
+  | Some(String(p)) => refs->Array.push(Pattern(p))
+  | _ => ()
+  }
+  refs
+}
+
+// Validation keywords that apply to numbers and integers. OpenAPI 3.1 spells
+// the strict bounds as numbers (exclusiveMinimum: 0); the 3.0 boolean form
+// (minimum + exclusiveMinimum: true) is handled alongside it.
+let collectNumberRefinements = (dict: Dict.t<JSON.t>): array<refinement> => {
+  let refs = []
+  let exclusiveMinIsFlag = dict->Dict.get("exclusiveMinimum") == Some(JSON.Boolean(true))
+  let exclusiveMaxIsFlag = dict->Dict.get("exclusiveMaximum") == Some(JSON.Boolean(true))
+  getFloat(dict, "minimum")->Option.forEach(n =>
+    refs->Array.push(exclusiveMinIsFlag ? Gt(n) : Gte(n))
+  )
+  getFloat(dict, "maximum")->Option.forEach(n =>
+    refs->Array.push(exclusiveMaxIsFlag ? Lt(n) : Lte(n))
+  )
+  getFloat(dict, "exclusiveMinimum")->Option.forEach(n => refs->Array.push(Gt(n)))
+  getFloat(dict, "exclusiveMaximum")->Option.forEach(n => refs->Array.push(Lt(n)))
+  getFloat(dict, "multipleOf")->Option.forEach(n => refs->Array.push(MultipleOf(n)))
+  refs
+}
+
+// Wrap only when there is something to say — an empty Refined would make every
+// consumer pay for a node that constrains nothing.
+let refine = (base: schemaType, refs: array<refinement>): schemaType =>
+  Array.length(refs) == 0 ? base : Refined(base, refs)
+
 let rec parseSchema = (json: JSON.t): result<schemaType, Errors.errors> => {
   switch json {
   | Object(dict) => parseObject(dict)
@@ -138,11 +248,13 @@ and parsePrimitiveType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.error
         | None => Error([Errors.makeError(~kind=InvalidJson("enum values must be strings"), ())])
         }
       | Some(_) => Error([Errors.makeError(~kind=InvalidJson("enum must be an array"), ())])
-      | None => Ok(String)
+      // Constraints apply to a free-form string only: an enum or const already
+      // pins the value down, and refining a literal set says nothing extra.
+      | None => Ok(refine(String, collectStringRefinements(dict)))
       }
     }
-  | Some(String("number")) => Ok(Number)
-  | Some(String("integer")) => Ok(Integer)
+  | Some(String("number")) => Ok(refine(Number, collectNumberRefinements(dict)))
+  | Some(String("integer")) => Ok(refine(Integer, collectNumberRefinements(dict)))
   | Some(String("boolean")) => Ok(Boolean)
   | Some(String("null")) => Ok(Null)
   | Some(String("object")) => parseObjectType(dict)

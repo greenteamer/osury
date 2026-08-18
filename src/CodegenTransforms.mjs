@@ -659,16 +659,86 @@ function getDependencies(_schema) {
         return [];
       case "PolyVariant" :
         return schema._0.flatMap(c => getDependencies(c.payload));
+      case "Union" :
+        return schema._0.flatMap(getDependencies);
       case "Optional" :
       case "Nullable" :
       case "Array" :
       case "Dict" :
+      case "Refined" :
         _schema = schema._0;
         continue;
-      case "Union" :
-        return schema._0.flatMap(getDependencies);
     }
   };
+}
+
+function stripRefinementsInType(_schema) {
+  while (true) {
+    let schema = _schema;
+    if (typeof schema !== "object") {
+      return schema;
+    }
+    switch (schema._tag) {
+      case "Optional" :
+        return {
+          _tag: "Optional",
+          _0: stripRefinementsInType(schema._0)
+        };
+      case "Nullable" :
+        return {
+          _tag: "Nullable",
+          _0: stripRefinementsInType(schema._0)
+        };
+      case "Object" :
+        return {
+          _tag: "Object",
+          _0: schema._0.map(f => ({
+            name: f.name,
+            type: stripRefinementsInType(f.type),
+            required: f.required
+          }))
+        };
+      case "Array" :
+        return {
+          _tag: "Array",
+          _0: stripRefinementsInType(schema._0)
+        };
+      case "PolyVariant" :
+        return {
+          _tag: "PolyVariant",
+          _0: schema._0.map(c => ({
+            _tag: c._tag,
+            payload: stripRefinementsInType(c.payload)
+          }))
+        };
+      case "Dict" :
+        return {
+          _tag: "Dict",
+          _0: stripRefinementsInType(schema._0)
+        };
+      case "Union" :
+        return {
+          _tag: "Union",
+          _0: schema._0.map(stripRefinementsInType)
+        };
+      case "Refined" :
+        _schema = schema._0;
+        continue;
+      default:
+        return schema;
+    }
+  };
+}
+
+function stripRefinements(schemas) {
+  return schemas.map(s => ({
+    name: s.name,
+    schema: stripRefinementsInType(s.schema),
+    discriminatorTag: s.discriminatorTag,
+    discriminatorPropertyName: s.discriminatorPropertyName,
+    fieldDiscriminators: s.fieldDiscriminators,
+    variantEncoding: s.variantEncoding
+  }));
 }
 
 function topologicalSort(schemas) {
@@ -1003,6 +1073,8 @@ export {
   replaceUnions,
   replaceUnionInType,
   getDependencies,
+  stripRefinementsInType,
+  stripRefinements,
   topologicalSort,
   recursiveTypeNames,
   buildSkipSchemaSet,

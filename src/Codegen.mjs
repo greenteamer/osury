@@ -11,8 +11,9 @@ import * as BackendEffectTS from "./BackendEffectTS.mjs";
 import * as BackendReScript from "./BackendReScript.mjs";
 import * as CodegenTransforms from "./CodegenTransforms.mjs";
 
-function generateModuleWithDiagnostics(schemas) {
-  let irModule = IRGen.generate(schemas);
+function generateModuleWithDiagnostics(schemas, refinementsOpt, param) {
+  let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
+  let irModule = IRGen.generate(schemas, refinements, undefined);
   if (irModule.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -31,7 +32,7 @@ function generateModuleWithDiagnostics(schemas) {
 }
 
 function generateOCamlWithDiagnostics(schemas) {
-  let irModule = IRGen.generate(schemas);
+  let irModule = IRGen.generate(schemas, undefined, undefined);
   if (irModule.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -50,7 +51,7 @@ function generateOCamlWithDiagnostics(schemas) {
 }
 
 function generateEffectTSWithDiagnostics(schemas) {
-  let irModule = IRGen.generate(schemas);
+  let irModule = IRGen.generate(schemas, undefined, undefined);
   if (irModule.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -69,7 +70,7 @@ function generateEffectTSWithDiagnostics(schemas) {
 }
 
 function generateRustWithDiagnostics(schemas) {
-  let irModule = IRGen.generate(schemas);
+  let irModule = IRGen.generate(schemas, undefined, undefined);
   if (irModule.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -88,7 +89,7 @@ function generateRustWithDiagnostics(schemas) {
 }
 
 function generateModule(schemas) {
-  let result = generateModuleWithDiagnostics(schemas);
+  let result = generateModuleWithDiagnostics(schemas, undefined, undefined);
   if (result.TAG === "Ok") {
     let result$1 = result._0;
     result$1.warnings.forEach(w => {

@@ -933,15 +933,19 @@ describe('Schema Parser', () => {
         expect(sortDir.type._tag).toBe('Enum');
         expect(sortDir.type._0).toEqual(['asc', 'desc']);
 
+        // `minimum`/`maximum` in the spec are parsed into the AST, so the base
+        // type sits inside a Refined wrapper (see the Refinements describe).
+        const baseType = (t) => (t?._tag === 'Refined' ? t._0 : t);
+
         const offset = fields.find(f => f.name === 'offset');
         expect(offset).toBeDefined();
         expect(offset.required).toBe(false); // has default → optional
-        expect(offset.type).toBe('Integer');
+        expect(baseType(offset.type)).toBe('Integer');
 
         const limit = fields.find(f => f.name === 'limit');
         expect(limit).toBeDefined();
         expect(limit.required).toBe(true); // required:true, no default → stays required
-        expect(limit.type).toBe('Integer');
+        expect(baseType(limit.type)).toBe('Integer');
     });
 
     test('OpenAPIParser: path template params make operation names distinct', () => {
@@ -3215,5 +3219,85 @@ describe('Sample Data Generator', () => {
         // Type still generated, but sury can't decode ["InProgress"] → no @schema
         expect(code).toContain('@genType\ntype status = [#InProgress | #Mastered]');
         expect(warnings.some(w => w.includes('status') && w.includes('list-encoded'))).toBe(true);
+    });
+});
+
+// Refinements: OpenAPI validation keywords (format, minLength, minimum, ...).
+// They constrain VALUES, not shape — the ReScript type is unchanged, only the
+// sury schema gains a check. Parsed into the AST always; printed only when the
+// caller asks for them (CLI --refinements).
+describe('Refinements', () => {
+    test('parse string format → Refined(String, [Format(Uuid)])', () => {
+        const result = Schema.parse({ type: "string", format: "uuid" });
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Refined');
+        expect(result._0._0).toBe('String');
+        expect(result._0._1).toHaveLength(1);
+        expect(result._0._1[0]._tag).toBe('Format');
+        expect(result._0._1[0]._0).toBe('Uuid');
+    });
+
+    test('unknown format is ignored — no Refined wrapper', () => {
+        const result = Schema.parse({ type: "string", format: "binary" });
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0).toBe('String');
+    });
+
+    const SPEC = {
+        $defs: {
+            Account: {
+                type: "object",
+                properties: {
+                    id: { type: "string", format: "uuid" },
+                    email: { type: "string", format: "email" },
+                    created_at: { type: "string", format: "date-time" },
+                    handle: { type: "string", minLength: 3, maxLength: 20, pattern: "^[a-z]+$" },
+                    age: { type: "integer", minimum: 0, maximum: 130 },
+                    ratio: { type: "number", minimum: 0, exclusiveMaximum: 1 },
+                    tags: { type: "array", items: { type: "string", minLength: 1 } },
+                },
+                required: ["id", "email", "created_at", "handle", "age", "ratio", "tags"],
+            },
+        },
+    };
+
+    const genWith = (refinements) => {
+        const parsed = OpenAPIParser.parseDocument(SPEC);
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, refinements, undefined);
+        expect(g.TAG).toBe('Ok');
+        return g._0.code;
+    };
+
+    test('generation is unchanged unless refinements are requested', () => {
+        const code = genWith(false);
+
+        expect(code).toContain('id: string');
+        expect(code).toContain('age: int');
+        expect(code).not.toContain('@s.matches(S.uuid)');
+        expect(code).not.toContain('@s.with(');
+    });
+
+    test('with refinements: formats replace the schema, bounds wrap it', () => {
+        const code = genWith(true);
+
+        // format → @s.matches, the ReScript type stays what it was
+        expect(code).toContain('id: @s.matches(S.uuid) string');
+        expect(code).toContain('email: @s.matches(S.email) string');
+        expect(code).toContain('created_at: @s.matches(S.isoDateTime) string');
+
+        // string bounds and pattern wrap the base schema
+        expect(code).toContain(
+            'handle: @s.with(S.minLength(_, 3)) @s.with(S.maxLength(_, 20)) @s.with(S.pattern(_, %re("/^[a-z]+$/"))) string'
+        );
+
+        // int bounds get int literals, float bounds get float literals
+        expect(code).toContain('age: @s.with(S.gte(_, 0)) @s.with(S.lte(_, 130)) int');
+        expect(code).toContain('ratio: @s.with(S.gte(_, 0.)) @s.with(S.lt(_, 1.)) float');
+
+        // constraints reach inside containers
+        expect(code).toContain('tags: array<@s.with(S.minLength(_, 1)) string>');
     });
 });

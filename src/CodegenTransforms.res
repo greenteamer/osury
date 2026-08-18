@@ -528,8 +528,33 @@ let rec getDependencies = (schema: Schema.schemaType): array<string> => {
   | Object(fields) => fields->Array.flatMap(f => getDependencies(f.type_))
   | PolyVariant(cases) => cases->Array.flatMap(c => getDependencies(c.payload))
   | Union(types) => types->Array.flatMap(getDependencies)
+  | Refined(inner, _) => getDependencies(inner)
   }
 }
+
+// Drop every Refined wrapper, leaving the base types. Refinements are parsed
+// into the AST unconditionally (the AST describes the spec, not the request),
+// but printing them changes what generated code ACCEPTS at runtime — so callers
+// opt in, and this strips them back out when they don't.
+let rec stripRefinementsInType = (schema: Schema.schemaType): Schema.schemaType => {
+  switch schema {
+  | Refined(inner, _) => stripRefinementsInType(inner)
+  | Optional(inner) => Optional(stripRefinementsInType(inner))
+  | Nullable(inner) => Nullable(stripRefinementsInType(inner))
+  | Array(inner) => Array(stripRefinementsInType(inner))
+  | Dict(inner) => Dict(stripRefinementsInType(inner))
+  | Object(fields) =>
+    Object(fields->Array.map(f => {...f, Schema.type_: stripRefinementsInType(f.type_)}))
+  | PolyVariant(cases) =>
+    PolyVariant(cases->Array.map(c => {...c, Schema.payload: stripRefinementsInType(c.payload)}))
+  | Union(types) => Union(types->Array.map(stripRefinementsInType))
+  | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => schema
+  }
+}
+
+let stripRefinements = (schemas: array<OpenAPIParser.namedSchema>): array<
+  OpenAPIParser.namedSchema,
+> => schemas->Array.map(s => {...s, OpenAPIParser.schema: stripRefinementsInType(s.schema)})
 
 // Topological sort using Kahn's algorithm
 // Types with no dependencies come first, then types that depend on them

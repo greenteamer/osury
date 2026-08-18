@@ -25,7 +25,7 @@ OpenAPI JSON → Schema.parse → SchemaAST → Codegen.generateModule → ReScr
 
 Тип `Schema.schemaType` определяет всё, что компилятор умеет обрабатывать. Новая OpenAPI-конструкция поддерживается тогда и только тогда, когда она выражена в `schemaType`.
 
-Текущие варианты (15):
+Текущие варианты (16):
 ```
 String | Number | Integer | Boolean | Null
 | Optional(schemaType) | Nullable(schemaType)
@@ -34,7 +34,13 @@ String | Number | Integer | Boolean | Null
 | PolyVariant(array<variantCase>)
 | Dict(schemaType) | Union(array<schemaType>)
 | Unknown
+| Refined(schemaType, array<refinement>)
 ```
+
+`Refined` — прозрачная обёртка: она сужает множество допустимых ЗНАЧЕНИЙ, но не
+меняет форму типа. Поэтому подавляющее большинство потребителей обрабатывает её
+рекурсией на базовый тип (`| Refined(inner, _) => f(inner)`), а не отдельной
+логикой. См. Правило 14.
 
 **При добавлении нового варианта** — обязательно обновить всех потребителей (см. Правило 3).
 
@@ -48,6 +54,10 @@ String | Number | Integer | Boolean | Null
 
 **Schema.res** (парсинг):
 - Возвращает `schemaType` — нужно добавить парсинг нового варианта
+
+**SampleData.res** (примеры данных):
+- `generate` — пример должен удовлетворять собственным ограничениям, иначе
+  сгенерированный пример не проходит схему, которую иллюстрирует
 
 **CodegenHelpers.res** (утилиты):
 - `isOptionalType` — проверка на Optional/Nullable обёртку
@@ -121,6 +131,8 @@ let parse: JSON.t => schemaType  // может бросить исключени
 Пайплайн (IRGen.generate) выполняет трансформации в определённом порядке. Этот порядок менять нельзя:
 
 ```
+-1. stripRefinements           — снятие Refined, когда refinements не запрошены
+                                 (Правило 14); при ~refinements=true шаг пропускается
 0. collapseLiteralUnions       — нормализация: union из строковых литералов
                                  (enum/const, в т.ч. за $ref) → один merged Enum
 1. validateUnionDiscriminators — ошибки для union-ов объектов без дискриминатора
@@ -212,6 +224,31 @@ CLI (`bin/osury.mjs`) генерирует не только основной `.
 - `Nullable.shim.ts` — TypeScript-маппинг `t<T> = T | null`
 
 **Нельзя** генерировать `.res` файл без shim-ов, если в схеме используются Dict или Nullable типы.
+
+---
+
+## Правило 14. Refinements опциональны на выходе, обязательны в AST
+
+`Refined` появляется в AST **всегда**, когда спека содержит validation keywords
+(`format`, `minLength`, `maximum`, `pattern`, ...). AST описывает спеку, а не
+запрос пользователя.
+
+Но печать этих проверок меняет то, что сгенерированный код **принимает в
+рантайме**: данные, раньше проходившие парсинг, начнут падать. Поэтому вывод
+opt-in: `IRGen.generate(schemas, ~refinements=true, ())` (CLI: `--refinements`).
+Без флага `CodegenTransforms.stripRefinements` снимает обёртки первым шагом
+пайплайна, и выход байт-в-байт совпадает с выходом без поддержки refinements.
+
+**Нельзя** делать печать refinements поведением по умолчанию без явного решения
+владельца контракта — это молчаливое ужесточение проверок у всех потребителей.
+
+Соответствие sury:
+- `format` → `@s.matches(S.uuid)` — **заменяет** базовую схему (не оборачивает)
+- остальные → `@s.with(S.minLength(_, 3))` — оборачивают, применяются по порядку
+- границы для `Integer` печатаются int-литералом, для `Number` — float-литералом
+  (`S.gte: (t<'value>, 'value)` требует значение того же типа)
+
+---
 
 ---
 
