@@ -289,10 +289,16 @@ and parsePrimitiveType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.error
     }
   | Some(_) => Error([Errors.makeError(~kind=InvalidJson("type must be a string or array"), ())])
   | None =>
-    // No type field: check if properties exist (implicit object) or treat as unknown/any
-    switch dict->Dict.get("properties") {
-    | Some(_) => parseObjectType(dict)
-    | None => Ok(Unknown)
+    // No `type` field. JSON Schema lets the value speak for itself: `const`
+    // implies the type, and `properties` implies an object. Only when nothing
+    // is stated does the schema mean "any value".
+    switch dict->Dict.get("const") {
+    | Some(String(constValue)) => Ok(Enum([constValue]))
+    | _ =>
+      switch dict->Dict.get("properties") {
+      | Some(_) => parseObjectType(dict)
+      | None => Ok(Unknown)
+      }
     }
   }
 }

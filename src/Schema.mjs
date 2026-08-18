@@ -377,8 +377,18 @@ function parsePrimitiveType(dict) {
         }, undefined, undefined, undefined)]
     };
   }
-  let match$3 = dict["properties"];
-  if (match$3 !== undefined) {
+  let match$3 = dict["const"];
+  if (typeof match$3 === "string") {
+    return {
+      TAG: "Ok",
+      _0: {
+        _tag: "Enum",
+        _0: [match$3]
+      }
+    };
+  }
+  let match$4 = dict["properties"];
+  if (match$4 !== undefined) {
     return parseObjectType(dict);
   } else {
     return {

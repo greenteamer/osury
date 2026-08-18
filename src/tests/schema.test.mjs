@@ -3349,3 +3349,43 @@ describe('Union arms collapsing to one ReScript type', () => {
         expect(code).toContain('Int(int)');
     });
 });
+
+// JSON Schema allows `const` without `type` — the value implies it. Treating
+// such a node as Unknown loses a literal that osury can otherwise express, and
+// makes the enclosing record fall back to JSON.t.
+describe('const without type', () => {
+    test('bare string const parses as a single-value enum', () => {
+        const result = Schema.parse({ const: "lost_sales" });
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Enum');
+        expect(result._0._0).toEqual(['lost_sales']);
+    });
+
+    test('const alongside an explicit type still works', () => {
+        const result = Schema.parse({ type: "string", const: "Metric" });
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('Enum');
+        expect(result._0._0).toEqual(['Metric']);
+    });
+
+    test('a field with a bare const generates a poly variant, not JSON.t', () => {
+        const spec = {
+            $defs: {
+                Metric: {
+                    type: "object",
+                    properties: { metricKey: { const: "lost_sales" }, value: { type: "number" } },
+                    required: ["metricKey", "value"],
+                },
+            },
+        };
+        const parsed = OpenAPIParser.parseDocument(spec);
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+        expect(g.TAG).toBe('Ok');
+
+        expect(g._0.code).not.toContain('metricKey: @s.matches(S.json) JSON.t');
+        expect(g._0.code).toContain('#lost_sales');
+    });
+});
