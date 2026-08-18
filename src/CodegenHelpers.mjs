@@ -203,6 +203,72 @@ function hasUnknown(_schema) {
   };
 }
 
+function runtimeShapeOf(_t, resolve, _depthOpt) {
+  while (true) {
+    let depthOpt = _depthOpt;
+    let t = _t;
+    let depth = depthOpt !== undefined ? depthOpt : 0;
+    if (typeof t !== "object") {
+      switch (t) {
+        case "String" :
+          return "SString";
+        case "Number" :
+        case "Integer" :
+          return "SNumber";
+        case "Boolean" :
+          return "SBoolean";
+        case "Null" :
+          return "SNull";
+        default:
+          return "SOpaque";
+      }
+    } else {
+      switch (t._tag) {
+        case "Array" :
+          return "SArray";
+        case "Ref" :
+          if (depth > 8) {
+            return "SOpaque";
+          }
+          let target = resolve(t._0);
+          if (target === undefined) {
+            return "SOpaque";
+          }
+          _depthOpt = depth + 1 | 0;
+          _t = target;
+          continue;
+        case "Enum" :
+          return "SString";
+        case "Object" :
+        case "Dict" :
+          return "SObject";
+        case "Refined" :
+          _depthOpt = depth;
+          _t = t._0;
+          continue;
+        default:
+          return "SOpaque";
+      }
+    }
+  };
+}
+
+function isShapeDistinctUnion(types, resolve) {
+  let shapes = types.map(t => runtimeShapeOf(t, resolve, undefined));
+  if (shapes.some(sh => sh === "SOpaque")) {
+    return false;
+  }
+  let seen = [];
+  return shapes.every(sh => {
+    if (seen.includes(sh)) {
+      return false;
+    } else {
+      seen.push(sh);
+      return true;
+    }
+  });
+}
+
 function isPrimitiveOnlyUnion(types) {
   let allPrimitive = types.every(t => {
     if (typeof t === "object") {
@@ -236,6 +302,8 @@ export {
   getTagForType,
   hasUnion,
   hasUnknown,
+  runtimeShapeOf,
+  isShapeDistinctUnion,
   isPrimitiveOnlyUnion,
 }
 /* No side effect */

@@ -233,7 +233,8 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet, r
         break;
       case "Union" :
         let types = cases._0;
-        if (CodegenHelpers.isPrimitiveOnlyUnion(types)) {
+        let resolve = name => schemasDict[name];
+        if (CodegenHelpers.isPrimitiveOnlyUnion(types) || CodegenHelpers.isShapeDistinctUnion(types, resolve)) {
           let irCases$1 = types.map(t => {
             let tag = CodegenHelpers.getTagForType(t);
             let payload = convertType(t);

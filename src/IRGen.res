@@ -149,8 +149,14 @@ let convertToIrTypeDef = (
     }
 
   | Union(types) =>
-    if CodegenHelpers.isPrimitiveOnlyUnion(types) {
-      // Primitive-only union -> @unboxed
+    // @unboxed works whenever the arms have distinct runtime shapes: ReScript
+    // and sury then pick the arm by shape, with no tag on the wire.
+    let resolve = name => schemasDict->Dict.get(name)
+    if (
+      CodegenHelpers.isPrimitiveOnlyUnion(types) ||
+      CodegenHelpers.isShapeDistinctUnion(types, ~resolve)
+    ) {
+      // Shape-distinguished union -> @unboxed
       let irCases = types->Array.map(t => {
         let tag = CodegenHelpers.getTagForType(t)
         let payload = convertType(t)

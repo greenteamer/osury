@@ -2011,7 +2011,7 @@ describe('Code Generator', () => {
         expect(code).toContain('[#"20ft" | #"40hc" | #plain | #"No Sales"]');
     });
 
-    test('mixed union (primitive + Dict) does not get @unboxed', () => {
+    test('mixed union (primitive + Dict) lowers to @unboxed — the shapes differ', () => {
         const doc = {
             openapi: "3.0.0",
             components: {
@@ -2026,11 +2026,15 @@ describe('Code Generator', () => {
             }
         };
         const parseResult = OpenAPIParser.parseDocument(doc);
-        const code = Codegen.generateModule(parseResult._0);
+        const gen = Codegen.generateModuleWithDiagnostics(parseResult._0, false, undefined);
+        const { code, warnings } = gen._0;
 
-        // floatOrDict should NOT have @unboxed
-        const floatOrDictMatch = code.match(/@unboxed\s*\n@schema\s*\ntype floatOrDict/);
-        expect(floatOrDictMatch).toBeNull();
+        // A number and an object are distinguishable at runtime, so the arm is
+        // picked by shape. The tagged form this used to emit could not parse
+        // either arm — hence the "@tag may not work at runtime" warning, now gone.
+        expect(code).toMatch(/@unboxed\s*\n@schema\s*\ntype floatOrDict/);
+        expect(code).toContain('Float(float) | Dict(Dict.t<string>)');
+        expect(warnings.some((w) => w.includes('may not work at runtime'))).toBe(false);
     });
 
     test('ref-only union uses inline records', () => {
@@ -3433,5 +3437,81 @@ describe('Non-distinct discriminator values', () => {
         // names the constructor that repeats and the type it repeats in
         expect(JSON.stringify(error.kind)).toContain('Metric');
         expect(error.hint).toBeTruthy();
+    });
+});
+
+// A union needs a discriminator only when its arms are indistinguishable at
+// runtime. An object arm next to a scalar arm is not: ReScript's untagged
+// variants and sury both pick the arm by shape. Requiring a tag there forces
+// callers to erase the union to opaque JSON.
+describe('Shape-distinct unions need no discriminator', () => {
+    const SPEC = {
+        $defs: {
+            AdMetricValue: {
+                type: "object",
+                properties: {
+                    aggregate: { type: "number" },
+                    by_ad_channel: { type: "object", additionalProperties: { type: "number" } },
+                },
+                required: ["aggregate"],
+            },
+            Metrics: {
+                type: "object",
+                properties: {
+                    metrics: {
+                        type: "object",
+                        additionalProperties: {
+                            anyOf: [
+                                { $ref: "#/$defs/AdMetricValue" },
+                                { type: "number" },
+                                { type: "null" },
+                            ],
+                        },
+                    },
+                },
+                required: ["metrics"],
+            },
+        },
+    };
+
+    const gen = () => {
+        const parsed = OpenAPIParser.parseDocument(SPEC);
+        expect(parsed.TAG).toBe('Ok');
+        return Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+    };
+
+    test('object-vs-scalar union generates instead of erroring', () => {
+        const g = gen();
+        expect(g.TAG).toBe('Ok');
+    });
+
+    test('it lowers to an @unboxed variant carrying both arms', () => {
+        const code = gen()._0.code;
+
+        expect(code).toContain('@unboxed');
+        expect(code).toContain('AdMetricValue(adMetricValue)');
+        expect(code).toContain('Float(float)');
+    });
+
+    test('two object arms are still ambiguous and still require a tag', () => {
+        const ambiguous = {
+            $defs: {
+                A: { type: "object", properties: { x: { type: "number" } }, required: ["x"] },
+                B: { type: "object", properties: { y: { type: "number" } }, required: ["y"] },
+                Holder: {
+                    type: "object",
+                    properties: {
+                        field: { anyOf: [{ $ref: "#/$defs/A" }, { $ref: "#/$defs/B" }] },
+                    },
+                    required: ["field"],
+                },
+            },
+        };
+        const parsed = OpenAPIParser.parseDocument(ambiguous);
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+
+        expect(g.TAG).toBe('Error');
+        expect(g._0[0].kind.TAG).toBe('MissingDiscriminator');
     });
 });

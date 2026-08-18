@@ -110,6 +110,65 @@ let rec hasUnknown = (schema: Schema.schemaType): bool => {
 // Check if Union contains only primitive cases (can safely use @unboxed)
 // Primitives: Number, String, Integer, Boolean
 // Non-primitives: Ref (object), Dict (object), Object, Array
+// How a value of this type looks to JavaScript at runtime. Two union arms can
+// live in an untagged (@unboxed) variant only when their shapes differ — that
+// is what lets ReScript and sury pick the arm without a discriminator field.
+// `Opaque` means "cannot be told apart", so any union containing one needs a tag.
+type runtimeShape = SString | SNumber | SBoolean | SNull | SArray | SObject | SOpaque
+
+let rec runtimeShapeOf = (
+  t: Schema.schemaType,
+  ~resolve: string => option<Schema.schemaType>,
+  ~depth: int=0,
+): runtimeShape => {
+  switch t {
+  | String => SString
+  // An enum lowers to a poly variant, which is a plain string on the wire
+  | Enum(_) => SString
+  // int and float are both a JS number — indistinguishable, as @unboxed already knew
+  | Number | Integer => SNumber
+  | Boolean => SBoolean
+  | Null => SNull
+  | Array(_) => SArray
+  | Object(_) | Dict(_) => SObject
+  | Refined(inner, _) => runtimeShapeOf(inner, ~resolve, ~depth)
+  // Follow a reference to the type it names, with a hop limit so a cyclic
+  // $ref chain cannot spin here.
+  | Ref(name) =>
+    depth > 8
+      ? SOpaque
+      : switch resolve(name) {
+        | Some(target) => runtimeShapeOf(target, ~resolve, ~depth=depth + 1)
+        | None => SOpaque
+        }
+  // A nested union/variant spans several shapes; option/null blur into the
+  // wrapped type. Neither can be told apart as a single arm.
+  | Union(_) | PolyVariant(_) | Optional(_) | Nullable(_) | Unknown => SOpaque
+  }
+}
+
+// True when every arm occupies a distinct, recognizable runtime shape — the
+// union can then be an untagged variant and needs no discriminator.
+let isShapeDistinctUnion = (
+  types: array<Schema.schemaType>,
+  ~resolve: string => option<Schema.schemaType>,
+): bool => {
+  let shapes = types->Array.map(t => runtimeShapeOf(t, ~resolve))
+  if shapes->Array.some(sh => sh == SOpaque) {
+    false
+  } else {
+    let seen = []
+    shapes->Array.every(sh =>
+      if seen->Array.includes(sh) {
+        false
+      } else {
+        seen->Array.push(sh)->ignore
+        true
+      }
+    )
+  }
+}
+
 let isPrimitiveOnlyUnion = (types: array<Schema.schemaType>): bool => {
   let allPrimitive = types->Array.every(t => {
     switch t {

@@ -1174,6 +1174,11 @@ function buildSkipSchemaSet(schemas) {
 function collectUnionWarnings(schemas) {
   let seen = {};
   let warnings = [];
+  let schemasDict = {};
+  schemas.forEach(s => {
+    schemasDict[s.name] = s.schema;
+  });
+  let resolve = name => schemasDict[name];
   let findUnions = _schema => {
     while (true) {
       let schema = _schema;
@@ -1210,7 +1215,7 @@ function collectUnionWarnings(schemas) {
         return;
       }
       let primName = isPrimitivePlusDictUnion(types);
-      if (primName !== undefined) {
+      if (primName !== undefined && !CodegenHelpers.isShapeDistinctUnion(types, resolve)) {
         warnings.push(`⚠ ` + unionName + `: anyOf [` + primName + `, Dict] without discriminator, @tag("_tag") may not work at runtime`);
         return;
       }
@@ -1274,7 +1279,8 @@ function validateUnionDiscriminators(schemas) {
         return;
       }
       seen[unionName] = true;
-      if (CodegenHelpers.isPrimitiveOnlyUnion(types)) {
+      let resolve = name => schemasDict[name];
+      if (CodegenHelpers.isPrimitiveOnlyUnion(types) || CodegenHelpers.isShapeDistinctUnion(types, resolve)) {
         return;
       }
       let match = isRefPlusDictUnion(types);

@@ -933,6 +933,10 @@ let collectUnionWarnings = (schemas: array<OpenAPIParser.namedSchema>): array<st
   let seen = Dict.make()
   let warnings = []
 
+  let schemasDict = Dict.make()
+  schemas->Array.forEach(s => schemasDict->Dict.set(s.name, s.schema))
+  let resolve = name => schemasDict->Dict.get(name)
+
   // Recursively find all Union types in a schema
   let rec findUnions = (schema: Schema.schemaType): array<array<Schema.schemaType>> => {
     switch schema {
@@ -964,13 +968,16 @@ let collectUnionWarnings = (schemas: array<OpenAPIParser.namedSchema>): array<st
         | None =>
           // Check for [Primitive, Dict] pattern (kept but problematic)
           switch isPrimitivePlusDictUnion(types) {
-          | Some(primName) =>
+          // A scalar and a dict have different runtime shapes, so this lowers to
+          // an untagged variant that picks the arm by shape — nothing to warn
+          // about. The warning stands only when the arms can't be told apart.
+          | Some(primName) if !CodegenHelpers.isShapeDistinctUnion(types, ~resolve) =>
             warnings
             ->Array.push(
               `⚠ ${unionName}: anyOf [${primName}, Dict] without discriminator, @tag("_tag") may not work at runtime`,
             )
             ->ignore
-          | None => ()
+          | _ => ()
           }
         }
       }
@@ -1032,8 +1039,14 @@ let validateUnionDiscriminators = (schemas: array<OpenAPIParser.namedSchema>): E
       if seen->Dict.get(unionName)->Option.isNone {
         seen->Dict.set(unionName, true)
 
-        // Skip primitive-only unions (they use @unboxed, no discriminator needed)
-        if !CodegenHelpers.isPrimitiveOnlyUnion(types) {
+        // Skip unions that need no discriminator: their arms occupy distinct
+        // runtime shapes, so an untagged variant can tell them apart. Covers
+        // primitive-only unions and the object-vs-scalar case alike.
+        let resolve = name => schemasDict->Dict.get(name)
+        if (
+          !CodegenHelpers.isPrimitiveOnlyUnion(types) &&
+          !CodegenHelpers.isShapeDistinctUnion(types, ~resolve)
+        ) {
           // Skip Ref+Dict unions (they get simplified to just Ref)
           switch isRefPlusDictUnion(types) {
           | Some(_) => ()
