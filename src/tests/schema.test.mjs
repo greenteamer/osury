@@ -3389,3 +3389,49 @@ describe('const without type', () => {
         expect(g._0.code).toContain('#lost_sales');
     });
 });
+
+// A discriminator that carries the same value on every arm does not
+// discriminate: every arm lowers to the same constructor name and ReScript
+// rejects the duplicate. That is a spec defect, but osury must NAME it rather
+// than emit a file that fails to compile.
+describe('Non-distinct discriminator values', () => {
+    const metricArm = (key) => ({
+        type: "object",
+        properties: {
+            _tag: { type: "string", const: "Metric" },
+            metricKey: { type: "string", const: key },
+            value: { type: "number" },
+        },
+        required: ["_tag", "metricKey", "value"],
+    });
+
+    const SPEC = {
+        $defs: {
+            LostSalesA: metricArm("lost_sales_a"),
+            LostSalesB: metricArm("lost_sales_b"),
+            Holder: {
+                type: "object",
+                properties: {
+                    components: {
+                        anyOf: [{ $ref: "#/$defs/LostSalesA" }, { $ref: "#/$defs/LostSalesB" }],
+                    },
+                },
+                required: ["components"],
+            },
+        },
+    };
+
+    test('reports a structured error instead of duplicate constructors', () => {
+        const parsed = OpenAPIParser.parseDocument(SPEC);
+        expect(parsed.TAG).toBe('Ok');
+
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+        expect(g.TAG).toBe('Error');
+
+        const [error] = g._0;
+        expect(error.kind.TAG).toBe('DuplicateConstructor');
+        // names the constructor that repeats and the type it repeats in
+        expect(JSON.stringify(error.kind)).toContain('Metric');
+        expect(error.hint).toBeTruthy();
+    });
+});

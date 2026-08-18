@@ -16,6 +16,9 @@ type errorKind =
   | AmbiguousUnion
   | MissingDiscriminator(string)
   | DuplicateTypeName(string)
+  // (type, constructor) — two union arms lower to the same constructor name,
+  // which ReScript rejects. Usually a discriminator whose value repeats.
+  | DuplicateConstructor(string, string)
   | ConflictingInlineEnums(string)
   | InvalidJson(string)
 
@@ -68,6 +71,8 @@ let formatError = (error: error): string => {
   | CircularReference(ref) => `Circular reference detected: "${ref}"`
   | AmbiguousUnion => "Ambiguous union (anyOf/oneOf cannot be distinguished)"
   | MissingDiscriminator(union) => `Missing discriminator for union "${union}"`
+  | DuplicateConstructor(type_, ctor) =>
+    `Union "${type_}" produces the constructor "${ctor}" more than once`
   | DuplicateTypeName(name) => `Duplicate type name "${name}"`
   | ConflictingInlineEnums(field) =>
     `Conflicting inline enums at field "${field}" (different value sets on the same field path)`

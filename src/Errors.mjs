@@ -83,6 +83,9 @@ function formatError(error) {
       case "DuplicateTypeName" :
         kindStr = `Duplicate type name "` + value._0 + `"`;
         break;
+      case "DuplicateConstructor" :
+        kindStr = `Union "` + value._0 + `" produces the constructor "` + value._1 + `" more than once`;
+        break;
       case "ConflictingInlineEnums" :
         kindStr = `Conflicting inline enums at field "` + value._0 + `" (different value sets on the same field path)`;
         break;

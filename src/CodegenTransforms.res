@@ -561,6 +561,14 @@ let stripRefinements = (schemas: array<OpenAPIParser.namedSchema>): array<
   OpenAPIParser.namedSchema,
 > => schemas->Array.map(s => {...s, OpenAPIParser.schema: stripRefinementsInType(s.schema)})
 
+// ReScript constructor for a wire tag. Shared with IRGen.mkTaggedCase so the
+// validator below and the generator can never disagree on what a union arm is
+// named: "MetricGrid" stays as is, "reduce_bid" becomes "ReduceBid".
+let constructorName = (wireTag: string): string =>
+  CodegenHelpers.ucFirst(wireTag) == wireTag
+    ? wireTag
+    : CodegenHelpers.ucFirst(camelize(wireTag))
+
 // Union arms that lower to the same ReScript type collide: the constructor name
 // comes from `getTagForType`, so `Union[str, datetime]` — which reaches the spec
 // as [{type: string}, {type: string, format: date-time}] — would emit
@@ -644,6 +652,103 @@ and dedupeUnionsInType = (schema: Schema.schemaType): Schema.schemaType => {
 let dedupeUnions = (schemas: array<OpenAPIParser.namedSchema>): array<
   OpenAPIParser.namedSchema,
 > => schemas->Array.map(s => {...s, OpenAPIParser.schema: dedupeUnionsInType(s.schema)})
+
+// A discriminator carrying the same value on every arm does not discriminate:
+// each arm lowers to the same constructor and ReScript refuses the duplicate.
+// The spec is at fault, but osury has to say so — otherwise the failure only
+// surfaces when the generated file is compiled, far from its cause.
+let validateDistinctConstructors = (schemas: array<OpenAPIParser.namedSchema>): Errors.errors => {
+  let tagsDict = Dict.make()
+  schemas->Array.forEach(s =>
+    switch s.discriminatorTag {
+    | Some(tag) => tagsDict->Dict.set(s.name, tag)
+    | None => ()
+    }
+  )
+
+  // Mirrors IRGen: a Ref arm is tagged by the referenced schema's _tag const
+  // (falling back to its name), anything else by its structural tag.
+  let armConstructor = (t: Schema.schemaType): string =>
+    switch t {
+    | Ref(name) => constructorName(tagsDict->Dict.get(name)->Option.getOr(name))
+    | other => constructorName(CodegenHelpers.getTagForType(other))
+    }
+
+  let errors = []
+  let report = (typeName: string, ctors: array<string>, ~path: array<string>) => {
+    let seen = Dict.make()
+    ctors->Array.forEach(ctor =>
+      switch seen->Dict.get(ctor) {
+      | Some(_) => ()
+      | None => seen->Dict.set(ctor, true)
+      }
+    )
+    if Dict.keysToArray(seen)->Array.length != Array.length(ctors) {
+      // Name the first constructor that repeats
+      let counts = Dict.make()
+      let dup = ref(None)
+      ctors->Array.forEach(ctor => {
+        let n = counts->Dict.get(ctor)->Option.getOr(0) + 1
+        counts->Dict.set(ctor, n)
+        if n == 2 && dup.contents == None {
+          dup := Some(ctor)
+        }
+      })
+      switch dup.contents {
+      | Some(ctor) =>
+        errors
+        ->Array.push(
+          Errors.makeError(
+            ~kind=DuplicateConstructor(typeName, ctor),
+            ~path,
+            ~hint=Some(
+              `Every arm carries the same discriminator value "${ctor}". Give each arm a distinct const, or point discriminator.propertyName at a property whose value does differ.`,
+            ),
+            (),
+          ),
+        )
+        ->ignore
+      | None => ()
+      }
+    }
+  }
+
+  // Only tags that come FROM a discriminator are checked here. Structural tags
+  // (two inline Enum arms both tagging as "Enum") collide for a different
+  // reason and have their own diagnostics — ConflictingInlineEnums and
+  // MissingDiscriminator — which say something more useful than "duplicate".
+  let allRefArms = (types: array<Schema.schemaType>): bool =>
+    types->Array.every(t =>
+      switch t {
+      | Ref(_) => true
+      | _ => false
+      }
+    )
+
+  let rec walk = (schema: Schema.schemaType, ~path: array<string>) => {
+    switch schema {
+    | Union(types) =>
+      if allRefArms(types) {
+        report(getUnionName(types), types->Array.map(armConstructor), ~path)
+      }
+      types->Array.forEach(t => walk(t, ~path))
+    | PolyVariant(cases) =>
+      report(
+        getPolyVariantName(cases),
+        cases->Array.map(c => constructorName(c.tag)),
+        ~path,
+      )
+      cases->Array.forEach(c => walk(c.payload, ~path))
+    | Optional(inner) | Nullable(inner) | Array(inner) | Dict(inner) | Refined(inner, _) =>
+      walk(inner, ~path)
+    | Object(fields) => fields->Array.forEach(f => walk(f.type_, ~path=Array.concat(path, [f.name])))
+    | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => ()
+    }
+  }
+
+  schemas->Array.forEach(s => walk(s.schema, ~path=[s.name]))
+  errors
+}
 
 // Topological sort using Kahn's algorithm
 // Types with no dependencies come first, then types that depend on them

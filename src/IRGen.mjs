@@ -8,19 +8,20 @@ import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js
 import * as CodegenTransforms from "./CodegenTransforms.mjs";
 
 function mkTaggedCase(wireTag, payload) {
-  if (CodegenHelpers.ucFirst(wireTag) === wireTag) {
+  let ctor = CodegenTransforms.constructorName(wireTag);
+  if (ctor === wireTag) {
     return {
       tag: wireTag,
       asValue: undefined,
       payload: payload
     };
+  } else {
+    return {
+      tag: ctor,
+      asValue: wireTag,
+      payload: payload
+    };
   }
-  let ctor = CodegenHelpers.ucFirst(CodegenTransforms.camelize(wireTag));
-  return {
-    tag: ctor,
-    asValue: wireTag,
-    payload: payload
-  };
 }
 
 function convertType(schema) {
@@ -372,7 +373,7 @@ function generate(schemas, refinementsOpt, param) {
   let schemas$1 = refinements ? schemas : CodegenTransforms.stripRefinements(schemas);
   let schemas$2 = CodegenTransforms.dedupeUnions(schemas$1);
   let schemas$3 = CodegenTransforms.collapseLiteralUnions(schemas$2);
-  let validationErrors = CodegenTransforms.validateUnionDiscriminators(schemas$3);
+  let validationErrors = CodegenTransforms.validateUnionDiscriminators(schemas$3).concat(CodegenTransforms.validateDistinctConstructors(schemas$3));
   if (validationErrors.length > 0) {
     return {
       TAG: "Error",

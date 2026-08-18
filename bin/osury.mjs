@@ -237,6 +237,10 @@ function formatErrorKind(kind) {
       return `Missing discriminator for union ${c.bold(`"${kind._0}"`)}`;
     case "DuplicateTypeName":
       return `Duplicate type name ${c.bold(`"${kind._0}"`)}`;
+    case "DuplicateConstructor":
+      return `Union ${c.bold(`"${kind._0}"`)} produces the constructor ${c.bold(`"${kind._1}"`)} more than once`;
+    case "ConflictingInlineEnums":
+      return `Conflicting inline enums for ${c.bold(`"${kind._0}"`)}`;
     case "InvalidJson":
       return `Invalid JSON: ${kind._0}`;
     default:

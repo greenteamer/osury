@@ -8,12 +8,10 @@
 // @as("reduce_bid") preserves the wire contract. Tags that survive ucFirst
 // unchanged ("MetricGrid", "Type_") keep their name and need no @as.
 let mkTaggedCase = (wireTag: string, payload: IR.irType): IR.irVariantCase => {
-  if CodegenHelpers.ucFirst(wireTag) == wireTag {
-    {IR.tag: wireTag, asValue: None, payload}
-  } else {
-    let ctor = CodegenHelpers.ucFirst(CodegenTransforms.camelize(wireTag))
-    {IR.tag: ctor, asValue: Some(wireTag), payload}
-  }
+  let ctor = CodegenTransforms.constructorName(wireTag)
+  ctor == wireTag
+    ? {IR.tag: wireTag, asValue: None, payload}
+    : {IR.tag: ctor, asValue: Some(wireTag), payload}
 }
 
 // Convert Schema.schemaType → IR.irType (recursive)
@@ -244,8 +242,11 @@ let generate = (
   // to key a discriminator on, and after the collapse they don't need one.
   let schemas = CodegenTransforms.collapseLiteralUnions(schemas)
 
-  // Step 0: Validate — check that all object-ref unions have discriminators
-  let validationErrors = CodegenTransforms.validateUnionDiscriminators(schemas)
+  // Step 0: Validate — discriminators must exist AND actually distinguish
+  let validationErrors = Array.concat(
+    CodegenTransforms.validateUnionDiscriminators(schemas),
+    CodegenTransforms.validateDistinctConstructors(schemas),
+  )
   if Array.length(validationErrors) > 0 {
     Error(validationErrors)
   } else {

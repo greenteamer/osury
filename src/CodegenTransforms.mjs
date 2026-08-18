@@ -5,6 +5,7 @@ import * as Core__Array from "@rescript/core/src/Core__Array.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
 import * as CodegenHelpers from "./CodegenHelpers.mjs";
 import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js";
+import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
 
 function collectEnumsFromType(parentType, fieldPath, _schema) {
   while (true) {
@@ -756,6 +757,14 @@ function stripRefinements(schemas) {
   }));
 }
 
+function constructorName(wireTag) {
+  if (CodegenHelpers.ucFirst(wireTag) === wireTag) {
+    return wireTag;
+  } else {
+    return CodegenHelpers.ucFirst(camelize(wireTag));
+  }
+}
+
 function isCollapsibleArm(t) {
   if (typeof t !== "object") {
     switch (t) {
@@ -888,6 +897,107 @@ function dedupeUnions(schemas) {
     fieldDiscriminators: s.fieldDiscriminators,
     variantEncoding: s.variantEncoding
   }));
+}
+
+function validateDistinctConstructors(schemas) {
+  let tagsDict = {};
+  schemas.forEach(s => {
+    let tag = s.discriminatorTag;
+    if (tag !== undefined) {
+      tagsDict[s.name] = tag;
+      return;
+    }
+  });
+  let armConstructor = t => {
+    if (typeof t !== "object") {
+      return constructorName(CodegenHelpers.getTagForType(t));
+    }
+    if (t._tag !== "Ref") {
+      return constructorName(CodegenHelpers.getTagForType(t));
+    }
+    let name = t._0;
+    return constructorName(Core__Option.getOr(tagsDict[name], name));
+  };
+  let errors = [];
+  let report = (typeName, ctors, path) => {
+    let seen = {};
+    ctors.forEach(ctor => {
+      let match = seen[ctor];
+      if (match !== undefined) {
+        return;
+      } else {
+        seen[ctor] = true;
+        return;
+      }
+    });
+    if (Object.keys(seen).length === ctors.length) {
+      return;
+    }
+    let counts = {};
+    let dup = {
+      contents: undefined
+    };
+    ctors.forEach(ctor => {
+      let n = Core__Option.getOr(counts[ctor], 0) + 1 | 0;
+      counts[ctor] = n;
+      if (n === 2 && dup.contents === undefined) {
+        dup.contents = ctor;
+        return;
+      }
+    });
+    let ctor = dup.contents;
+    if (ctor !== undefined) {
+      errors.push(Errors.makeError({
+        TAG: "DuplicateConstructor",
+        _0: typeName,
+        _1: ctor
+      }, path, Primitive_option.some(`Every arm carries the same discriminator value "` + ctor + `". Give each arm a distinct const, or point discriminator.propertyName at a property whose value does differ.`), undefined));
+      return;
+    }
+  };
+  let allRefArms = types => types.every(t => {
+    if (typeof t !== "object") {
+      return false;
+    } else {
+      return t._tag === "Ref";
+    }
+  });
+  let walk = (_schema, path) => {
+    while (true) {
+      let schema = _schema;
+      if (typeof schema !== "object") {
+        return;
+      }
+      switch (schema._tag) {
+        case "Object" :
+          schema._0.forEach(f => walk(f.type, path.concat([f.name])));
+          return;
+        case "PolyVariant" :
+          let cases = schema._0;
+          report(getPolyVariantName(cases), cases.map(c => constructorName(c._tag)), path);
+          cases.forEach(c => walk(c.payload, path));
+          return;
+        case "Union" :
+          let types = schema._0;
+          if (allRefArms(types)) {
+            report(getUnionName(types), types.map(armConstructor), path);
+          }
+          types.forEach(t => walk(t, path));
+          return;
+        case "Optional" :
+        case "Nullable" :
+        case "Array" :
+        case "Dict" :
+        case "Refined" :
+          _schema = schema._0;
+          continue;
+        default:
+          return;
+      }
+    };
+  };
+  schemas.forEach(s => walk(s.schema, [s.name]));
+  return errors;
 }
 
 function topologicalSort(schemas) {
@@ -1224,10 +1334,12 @@ export {
   getDependencies,
   stripRefinementsInType,
   stripRefinements,
+  constructorName,
   isCollapsibleArm,
   dedupeUnionArms,
   dedupeUnionsInType,
   dedupeUnions,
+  validateDistinctConstructors,
   topologicalSort,
   recursiveTypeNames,
   buildSkipSchemaSet,
