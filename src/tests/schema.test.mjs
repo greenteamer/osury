@@ -3515,3 +3515,113 @@ describe('Shape-distinct unions need no discriminator', () => {
         expect(g._0[0].kind.TAG).toBe('MissingDiscriminator');
     });
 });
+
+// JSON null is a legal value anywhere in an OpenAPI document — `default: null`
+// on a nullable field is the common one. Both document walkers matched
+// `Object(dict)` and folded Null into the wildcard, which is a trap in the
+// generated JS: `typeof null === "object"`, so the null landed in the object
+// branch and every property read off it threw.
+describe('JSON null anywhere in the document', () => {
+    const genThing = (x) => {
+        const parsed = OpenAPIParser.parseDocument({ $defs: { Thing: { type: "object", properties: { x } } } });
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+        expect(g.TAG).toBe('Ok');
+        return g._0.code;
+    };
+
+    test('anyOf field with default: null parses and generates', () => {
+        const nullable = { anyOf: [{ type: "string" }, { type: "null" }] };
+        const code = genThing({ ...nullable, default: null });
+
+        expect(code).toContain('x: @s.null Nullable.t<string>');
+        // The default carries no decoder information a nullable field lacks, so
+        // it must not perturb the output at all.
+        expect(code).toBe(genThing(nullable));
+    });
+
+    // extractAllDiscriminatorMappings walks the WHOLE document, not just
+    // `properties`, so a null outside any property subtree hits it alone.
+    test('null outside a property subtree does not throw', () => {
+        const spec = {
+            $defs: {
+                Thing: {
+                    type: "object",
+                    example: null,
+                    default: null,
+                    properties: { x: { type: "string" } },
+                },
+            },
+        };
+        const parsed = OpenAPIParser.parseDocument(spec);
+        expect(parsed.TAG).toBe('Ok');
+    });
+
+    test('null survives inside arrays and nested objects', () => {
+        const spec = {
+            $defs: {
+                Thing: {
+                    type: "object",
+                    properties: {
+                        items: {
+                            type: "array",
+                            items: { anyOf: [{ type: "integer" }, { type: "null" }], default: null },
+                            examples: [null],
+                        },
+                        bag: {
+                            type: "object",
+                            additionalProperties: {
+                                anyOf: [{ type: "number" }, { type: "null" }],
+                                default: null,
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        const parsed = OpenAPIParser.parseDocument(spec);
+        expect(parsed.TAG).toBe('Ok');
+        expect(Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined).TAG).toBe('Ok');
+    });
+
+    // A discriminated union next to a null: the mapping must still be harvested,
+    // i.e. the null guard returns early instead of aborting the walk.
+    test('discriminator.mapping is still harvested when a null sits beside it', () => {
+        const spec = {
+            $defs: {
+                Cat: {
+                    type: "object",
+                    properties: { kind: { type: "string" }, meow: { type: "string" } },
+                    required: ["kind", "meow"],
+                },
+                Dog: {
+                    type: "object",
+                    properties: { kind: { type: "string" }, bark: { type: "string" } },
+                    required: ["kind", "bark"],
+                },
+                Holder: {
+                    type: "object",
+                    properties: {
+                        pet: {
+                            default: null,
+                            oneOf: [{ $ref: "#/$defs/Cat" }, { $ref: "#/$defs/Dog" }],
+                            discriminator: {
+                                propertyName: "kind",
+                                mapping: { cat: "#/$defs/Cat", dog: "#/$defs/Dog" },
+                            },
+                        },
+                    },
+                    required: ["pet"],
+                },
+            },
+        };
+        const parsed = OpenAPIParser.parseDocument(spec);
+        expect(parsed.TAG).toBe('Ok');
+
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+        expect(g.TAG).toBe('Ok');
+        expect(g._0.code).toContain('@tag("kind")');
+        expect(g._0.code).toContain('@as("cat")');
+        expect(g._0.code).toContain('@as("dog")');
+    });
+});

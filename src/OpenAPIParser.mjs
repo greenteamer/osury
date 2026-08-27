@@ -176,6 +176,9 @@ function extractDiscriminatorFromPair(items, discDict) {
 function extractFieldDiscriminators(schemaJson) {
   let result = {};
   let walk = json => {
+    if (json === null) {
+      return;
+    }
     if (Array.isArray(json)) {
       json.forEach(walk);
       return;
@@ -507,6 +510,9 @@ function parsePathParameters(pathsJson) {
 function extractAllDiscriminatorMappings(json) {
   let result = {};
   let walk = j => {
+    if (j === null) {
+      return;
+    }
     if (Array.isArray(j)) {
       j.forEach(walk);
       return;

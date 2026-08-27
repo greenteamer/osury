@@ -258,6 +258,42 @@ opt-in: `IRGen.generate(schemas, ~refinements=true, ())` (CLI: `--refinements`).
 
 ---
 
+## Правило 15. `Null` матчится явно при обходе `JSON.t`
+
+В любом `switch` по `JSON.t`, где есть ветка `Object(dict)`, ветка `Null`
+пишется **явно** — нельзя складывать её в `| _ =>`.
+
+Причина в кодогенерации ReScript, а не в семантике: для такой формы матча
+компилятор строит диспетчер `switch (typeof json) { case "object": ... }`, и
+`Null` попадает в него вместе с объектами, потому что в JS
+`typeof null === "object"`. Проверки `!== null` в этой ветке не появляется, и
+первое же чтение поля падает с `Cannot read properties of null`.
+
+```rescript
+// НЕПРАВИЛЬНО — null уходит в ветку Object и падает в рантайме
+switch json {
+| Object(dict) => dict->Dict.get("anyOf")->...
+| Array(items) => items->Array.forEach(walk)
+| _ => ()
+}
+
+// ПРАВИЛЬНО
+switch json {
+| Null => ()
+| Object(dict) => dict->Dict.get("anyOf")->...
+| Array(items) => items->Array.forEach(walk)
+| _ => ()
+}
+```
+
+Особенно опасны рекурсивные обходы документа (`extractFieldDiscriminators`,
+`extractAllDiscriminatorMappings`): они спускаются в **каждое** значение, а
+`null` в спеке — норма (`default: null`, `example: null`). Один такой узел
+роняет весь запуск.
+
+Проверка: после `npm run res:build` в `.mjs` перед `case "object"` должен стоять
+`if (x === null) return;`.
+
 ---
 
 ## Checklist перед merge
@@ -272,3 +308,4 @@ opt-in: `IRGen.generate(schemas, ~refinements=true, ())` (CLI: `--refinements`).
 6. [ ] **Выход компилируется:** Сгенерированный `.res` файл компилируется ReScript-ом (проверить на `openapi.json`)
 7. [ ] **Shim-ы актуальны:** Если добавлены новые TypeScript-шимы, они включены в `package.json` files
 8. [ ] **Ошибки информативны:** Новые ошибочные пути дают структурированную диагностику (kind + location + hint)
+9. [ ] **`Null` явно:** Новые обходы `JSON.t` матчат `Null` отдельной веткой (Правило 15)

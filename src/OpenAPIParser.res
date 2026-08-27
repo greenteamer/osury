@@ -166,6 +166,10 @@ let extractFieldDiscriminators = (schemaJson: JSON.t): Dict.t<string> => {
   // + discriminator}}, null]), so probing fixed shapes misses them.
   let rec walk = (json: JSON.t) => {
     switch json {
+    // Null must be matched explicitly: `typeof null === "object"` in JS, and the
+    // compiled decision tree for this shape dispatches on typeof without adding
+    // a null guard, so folding Null into `_` reads `.anyOf` off null at runtime.
+    | Null => ()
     | Object(dict) =>
       let items = switch dict->Dict.get("anyOf") {
       | Some(Array(items)) => Some(items)
@@ -418,6 +422,7 @@ let extractAllDiscriminatorMappings = (json: JSON.t): Dict.t<string> => {
   let result = Dict.make()
   let rec walk = (j: JSON.t) =>
     switch j {
+    | Null => () // see extractFieldDiscriminators: typeof null === "object"
     | Object(dict) =>
       // If this object has oneOf + discriminator.mapping, harvest the mapping.
       switch (dict->Dict.get("oneOf"), dict->Dict.get("discriminator")) {
