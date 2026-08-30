@@ -1802,7 +1802,7 @@ describe('Code Generator', () => {
                 required: true
             }]
         };
-        const replaced = Codegen.replaceUnions('Parent', schema);
+        const replaced = Codegen.replaceUnions({}, 'Parent', schema);
 
         const field = replaced._0.find(f => f.name === 'value');
         expect(field.type._tag).toBe('Ref');
@@ -2822,7 +2822,7 @@ describe('Sample Data Generator', () => {
                 required: true
             }]
         };
-        const replaced = Codegen.replaceUnions('Parent', schema);
+        const replaced = Codegen.replaceUnions({}, 'Parent', schema);
 
         const field = replaced._0.find(f => f.name === 'filters');
         // Array(Ref("catOrDog"))
@@ -3623,5 +3623,127 @@ describe('JSON null anywhere in the document', () => {
         expect(g._0.code).toContain('@tag("kind")');
         expect(g._0.code).toContain('@as("cat")');
         expect(g._0.code).toContain('@as("dog")');
+    });
+});
+
+// Structural union names dropped the inner type (Array(_) -> "array",
+// Dict(_) -> "dict", inline Object -> "unknown") and extracted unions were
+// deduplicated BY THAT NAME, keep-first. Two fields whose unions differ only in
+// the inner type therefore collapsed onto one generated type — the second field
+// got a silently wrong type, with no warning.
+describe('Extracted unions are deduplicated by structure', () => {
+    const gen = (spec) => {
+        const parsed = OpenAPIParser.parseDocument(spec);
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+        expect(g.TAG).toBe('Ok');
+        return g._0.code;
+    };
+
+    test('unions differing in array element type stay separate types', () => {
+        const code = gen({
+            $defs: {
+                Holder: {
+                    type: "object",
+                    properties: {
+                        a: { anyOf: [{ type: "string" }, { type: "array", items: { type: "integer" } }] },
+                        b: { anyOf: [{ type: "string" }, { type: "array", items: { type: "boolean" } }] },
+                    },
+                    required: ["a", "b"],
+                },
+            },
+        });
+
+        expect(code).toContain('type stringOrArrayInt = String(string) | ArrayInt(array<int>)');
+        expect(code).toContain('type stringOrArrayBool = String(string) | ArrayBool(array<bool>)');
+        expect(code).toContain('a: stringOrArrayInt');
+        expect(code).toContain('b: stringOrArrayBool');
+    });
+
+    test('union names carry the dict value type', () => {
+        const code = gen({
+            $defs: {
+                Holder: {
+                    type: "object",
+                    properties: {
+                        c: { anyOf: [{ type: "string" }, { type: "object", additionalProperties: { type: "number" } }] },
+                    },
+                    required: ["c"],
+                },
+            },
+        });
+
+        expect(code).toContain('type stringOrDictFloat');
+        expect(code).toContain('c: stringOrDictFloat');
+    });
+
+    test('an inline object arm is named after its fields, not "unknown"', () => {
+        const code = gen({
+            $defs: {
+                Holder: {
+                    type: "object",
+                    properties: {
+                        d: {
+                            anyOf: [
+                                { type: "string" },
+                                { type: "object", properties: { value: { type: "number" } }, required: ["value"] },
+                            ],
+                        },
+                    },
+                    required: ["d"],
+                },
+            },
+        });
+
+        expect(code).not.toContain('stringOrUnknown');
+        expect(code).toContain('stringOrObjectValue');
+    });
+
+    test('same preferred name for different structures gets a suffix, not a merge', () => {
+        const code = gen({
+            $defs: {
+                Holder: {
+                    type: "object",
+                    properties: {
+                        e: {
+                            anyOf: [
+                                { type: "string" },
+                                { type: "object", properties: { v: { type: "number" } }, required: ["v"] },
+                            ],
+                        },
+                        f: {
+                            anyOf: [
+                                { type: "string" },
+                                { type: "object", properties: { v: { type: "boolean" } }, required: ["v"] },
+                            ],
+                        },
+                    },
+                    required: ["e", "f"],
+                },
+            },
+        });
+
+        expect(code).toContain('stringOrObjectV2');
+        expect(code).toContain('e: stringOrObjectV,');
+        expect(code).toContain('f: stringOrObjectV2');
+    });
+
+    test('identical union structures still share one type', () => {
+        const code = gen({
+            $defs: {
+                Holder: {
+                    type: "object",
+                    properties: {
+                        g: { anyOf: [{ type: "string" }, { type: "array", items: { type: "integer" } }] },
+                        h: { anyOf: [{ type: "string" }, { type: "array", items: { type: "integer" } }] },
+                    },
+                    required: ["g", "h"],
+                },
+            },
+        });
+
+        expect(code.match(/type stringOrArrayInt\b/g)).toHaveLength(1);
+        expect(code).toContain('g: stringOrArrayInt');
+        expect(code).toContain('h: stringOrArrayInt');
     });
 });

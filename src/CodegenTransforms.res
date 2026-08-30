@@ -406,36 +406,119 @@ let isPrimitivePlusDictUnion = (types: array<Schema.schemaType>): option<string>
   }
 }
 
-// Generate a structural name for a Union type based on its members
-// Union([String, Number]) → "stringOrFloat"
-// Union([Ref("Cat"), Ref("Dog")]) → "catOrDog"
-let getUnionName = (types: array<Schema.schemaType>): string => {
-  let names = types->Array.map(t => {
-    switch t {
-    | String => "string"
-    | Number => "float"
-    | Integer => "int"
-    | Boolean => "bool"
-    | Null => "null"
-    | Ref(name) => CodegenHelpers.lcFirst(name)
-    | Dict(_) => "dict"
-    | Array(_) => "array"
-    // Constraints don't change the shape, so the name follows the base type —
-    // otherwise a refined arm would land in the catch-all and read "unknown"
-    | Refined(String, _) => "string"
-    | Refined(Number, _) => "float"
-    | Refined(Integer, _) => "int"
-    | _ => "unknown"
-    }
-  })
+// Keep only characters legal in a ReScript identifier — JSON property names
+// feed into generated type names and may carry dashes, dots or spaces.
+let identChars = (s: string): string => {
+  s->String.replaceRegExp(%re("/[^A-Za-z0-9]/g"), "")
+}
 
-  // Join with "Or": [a, b, c] → "aOrBOrC"
+// One arm of a structural union name. Every wrapper carries its inner type into
+// the name: without it `array<int>` and `array<bool>` are both "array", and two
+// structurally different unions end up asking for the same type name.
+let rec typeNamePart = (t: Schema.schemaType): string => {
+  switch t {
+  | String => "string"
+  | Number => "float"
+  | Integer => "int"
+  | Boolean => "bool"
+  | Null => "null"
+  | Unknown => "unknown"
+  | Ref(name) => CodegenHelpers.lcFirst(name)
+  | Optional(inner) => "optional" ++ CodegenHelpers.ucFirst(typeNamePart(inner))
+  | Nullable(inner) => "nullable" ++ CodegenHelpers.ucFirst(typeNamePart(inner))
+  | Array(inner) => "array" ++ CodegenHelpers.ucFirst(typeNamePart(inner))
+  | Dict(inner) => "dict" ++ CodegenHelpers.ucFirst(typeNamePart(inner))
+  | Enum(_) => "enum"
+  | PolyVariant(_) => "variant"
+  | Object(fields) =>
+    // An inline object arm reads as "object" plus its field names — "unknown"
+    // told the consumer nothing. Wide objects fall back to plain "object";
+    // uniqueness is guaranteed by the structural registry, not by the name.
+    if Array.length(fields) == 0 || Array.length(fields) > 3 {
+      "object"
+    } else {
+      "object" ++
+      fields->Array.map(f => CodegenHelpers.ucFirst(identChars(f.name)))->Array.join("")
+    }
+  | Union(types) => joinUnionParts(types->Array.map(typeNamePart))
+  // Constraints don't change the shape, so the name follows the base type —
+  // otherwise a refined arm would land in the catch-all and read "unknown"
+  | Refined(inner, _) => typeNamePart(inner)
+  }
+}
+
+// Join with "Or": [a, b, c] → "aOrBOrC"
+and joinUnionParts = (names: array<string>): string => {
   if Array.length(names) == 0 {
     "emptyUnion"
   } else {
     let first = names->Array.get(0)->Option.getOr("unknown")
     let rest = names->Array.sliceToEnd(~start=1)
     first ++ rest->Array.map(n => "Or" ++ CodegenHelpers.ucFirst(n))->Array.join("")
+  }
+}
+
+// Generate a structural name for a Union type based on its members
+// Union([String, Number]) → "stringOrFloat"
+// Union([Ref("Cat"), Ref("Dog")]) → "catOrDog"
+let getUnionName = (types: array<Schema.schemaType>): string => {
+  joinUnionParts(types->Array.map(typeNamePart))
+}
+
+// A canonical, injective-in-practice encoding of a schema type. Two extracted
+// unions are the same generated type iff their keys match — names are only a
+// preference, and deduplicating by name silently retypes fields (a union named
+// after a shape it doesn't have).
+let refinementKey = (r: Schema.refinement): string => {
+  switch r {
+  | Format(f) =>
+    let name = switch f {
+    | Uuid => "uuid"
+    | Email => "email"
+    | Uri => "uri"
+    | IsoDate => "isoDate"
+    | IsoDateTime => "isoDateTime"
+    | IsoTime => "isoTime"
+    | Duration => "duration"
+    | Ipv4 => "ipv4"
+    | Ipv6 => "ipv6"
+    | Hostname => "hostname"
+    }
+    `format=${name}`
+  | MinLength(n) => `minLength=${Int.toString(n)}`
+  | MaxLength(n) => `maxLength=${Int.toString(n)}`
+  | Pattern(p) => `pattern=${p}`
+  | Gte(v) => `gte=${Float.toString(v)}`
+  | Lte(v) => `lte=${Float.toString(v)}`
+  | Gt(v) => `gt=${Float.toString(v)}`
+  | Lt(v) => `lt=${Float.toString(v)}`
+  | MultipleOf(v) => `multipleOf=${Float.toString(v)}`
+  }
+}
+
+let rec structuralKey = (t: Schema.schemaType): string => {
+  switch t {
+  | String => "string"
+  | Number => "number"
+  | Integer => "integer"
+  | Boolean => "boolean"
+  | Null => "null"
+  | Unknown => "unknown"
+  | Ref(name) => `ref(${name})`
+  | Optional(inner) => `optional(${structuralKey(inner)})`
+  | Nullable(inner) => `nullable(${structuralKey(inner)})`
+  | Array(inner) => `array(${structuralKey(inner)})`
+  | Dict(inner) => `dict(${structuralKey(inner)})`
+  | Enum(values) => `enum(${values->Array.join("|")})`
+  | Object(fields) =>
+    `object(${fields
+      ->Array.map(f => `${f.name}${f.required ? "!" : "?"}:${structuralKey(f.type_)}`)
+      ->Array.join(";")})`
+  | PolyVariant(cases) =>
+    `variant(${cases->Array.map(c => `${c.tag}:${structuralKey(c.payload)}`)->Array.join(";")})`
+  | Union(types) => `union(${types->Array.map(structuralKey)->Array.join(",")})`
+  | Refined(inner, refs) =>
+    `refined(${structuralKey(inner)}#${refs->Array.map(refinementKey)->Array.join(",")})`
   }
 }
 
@@ -483,12 +566,30 @@ and extractUnionsFromType = (schema: Schema.schemaType): array<extractedUnion> =
   }
 }
 
-// Replace Union types with Ref to extracted type (using structural name)
-let rec replaceUnions = (_parentName: string, schema: Schema.schemaType): Schema.schemaType => {
+// The final type name assigned to this union structure. The registry is built
+// once per run (resolveExtractedUnionNames); without one — unit tests and
+// callers outside the pipeline — the preferred structural name stands.
+let lookupUnionName = (
+  names: Dict.t<string>,
+  schema: Schema.schemaType,
+  preferred: string,
+): string => {
+  switch names->Dict.get(structuralKey(schema)) {
+  | Some(name) => name
+  | None => preferred
+  }
+}
+
+// Replace Union types with Ref to extracted type (using the resolved name)
+let rec replaceUnions = (
+  ~names: Dict.t<string>,
+  _parentName: string,
+  schema: Schema.schemaType,
+): Schema.schemaType => {
   switch schema {
   | Object(fields) =>
     let newFields = fields->Array.map(field => {
-      let newType = replaceUnionInType(field.type_)
+      let newType = replaceUnionInType(~names, field.type_)
       {...field, type_: newType}
     })
     Object(newFields)
@@ -497,28 +598,63 @@ let rec replaceUnions = (_parentName: string, schema: Schema.schemaType): Schema
 }
 
 // Replace Union in a type, handling wrappers like Optional, Array, Dict
-and replaceUnionInType = (schema: Schema.schemaType): Schema.schemaType => {
+and replaceUnionInType = (~names: Dict.t<string>, schema: Schema.schemaType): Schema.schemaType => {
   switch schema {
   | Union(types) =>
     // Simplify Ref+Dict unions to just Ref (no discriminator needed)
     switch isRefPlusDictUnion(types) {
     | Some(refName) => Ref(refName)
-    | None => Ref(getUnionName(types))
+    | None => Ref(lookupUnionName(names, schema, getUnionName(types)))
     }
-  | PolyVariant(cases) => Ref(getPolyVariantName(cases))
-  | Optional(inner) => Optional(replaceUnionInType(inner))
-  | Nullable(inner) => Nullable(replaceUnionInType(inner))
-  | Array(inner) => Array(replaceUnionInType(inner))
-  | Dict(inner) => Dict(replaceUnionInType(inner))
+  | PolyVariant(cases) => Ref(lookupUnionName(names, schema, getPolyVariantName(cases)))
+  | Optional(inner) => Optional(replaceUnionInType(~names, inner))
+  | Nullable(inner) => Nullable(replaceUnionInType(~names, inner))
+  | Array(inner) => Array(replaceUnionInType(~names, inner))
+  | Dict(inner) => Dict(replaceUnionInType(~names, inner))
   | Object(fields) =>
     // Nested object - replace unions in its fields
     let newFields = fields->Array.map(field => {
-      let newType = replaceUnionInType(field.type_)
+      let newType = replaceUnionInType(~names, field.type_)
       {...field, type_: newType}
     })
     Object(newFields)
   | other => other
   }
+}
+
+// Assign one type name per distinct union STRUCTURE, keeping the first
+// occurrence's preferred name and suffixing later structures that want a name
+// already taken (by another structure or by a top-level type). Returns the
+// deduplicated schemas plus the structuralKey → name registry that
+// replaceUnions must be driven with.
+let resolveExtractedUnionNames = (
+  extracted: array<OpenAPIParser.namedSchema>,
+  ~taken: array<string>,
+): (array<OpenAPIParser.namedSchema>, Dict.t<string>) => {
+  let registry = Dict.make()
+  let used = Dict.make()
+  // Generated type names are lowercased on print, so collisions are decided on
+  // the lowercased form.
+  taken->Array.forEach(n => used->Dict.set(CodegenHelpers.lcFirst(n), true))
+  let unique = []
+  extracted->Array.forEach(u => {
+    let key = structuralKey(u.schema)
+    switch registry->Dict.get(key) {
+    | Some(_) => ()
+    | None =>
+      let rec freeName = (candidate, attempt) =>
+        if used->Dict.get(CodegenHelpers.lcFirst(candidate))->Option.isSome {
+          freeName(u.name ++ Int.toString(attempt), attempt + 1)
+        } else {
+          candidate
+        }
+      let name = freeName(u.name, 2)
+      used->Dict.set(CodegenHelpers.lcFirst(name), true)
+      registry->Dict.set(key, name)
+      unique->Array.push({...u, OpenAPIParser.name: name})
+    }
+  })
+  (unique, registry)
 }
 
 // Extract all Ref dependencies from a schema type

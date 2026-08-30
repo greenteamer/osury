@@ -318,20 +318,17 @@ let generate = (
     })
   })
 
-  // Step 3: Deduplicate — by structural name
-  let seen = Dict.make()
-  let uniqueUnions = extractedUnions->Array.filter(u => {
-    if seen->Dict.get(u.name)->Option.isSome {
-      false
-    } else {
-      seen->Dict.set(u.name, true)
-      true
-    }
-  })
+  // Step 3: Deduplicate — by structure, not by name. Two unions that merely
+  // want the same structural name are different types; merging them by name
+  // retyped one of the fields silently.
+  let (uniqueUnions, unionNames) = CodegenTransforms.resolveExtractedUnionNames(
+    extractedUnions,
+    ~taken=schemas->Array.map(s => s.name),
+  )
 
   // Step 4: Replace — unions with refs in original schemas
   let modifiedSchemas = schemas->Array.map(s => {
-    {OpenAPIParser.name: s.name, schema: CodegenTransforms.replaceUnions(s.name, s.schema), discriminatorTag: s.discriminatorTag, discriminatorPropertyName: s.discriminatorPropertyName, fieldDiscriminators: s.fieldDiscriminators, variantEncoding: s.variantEncoding}
+    {OpenAPIParser.name: s.name, schema: CodegenTransforms.replaceUnions(~names=unionNames, s.name, s.schema), discriminatorTag: s.discriminatorTag, discriminatorPropertyName: s.discriminatorPropertyName, fieldDiscriminators: s.fieldDiscriminators, variantEncoding: s.variantEncoding}
   })
 
   // Step 5: Combine — unique unions + modified originals

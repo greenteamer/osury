@@ -428,24 +428,17 @@ function generate(schemas, refinementsOpt, param) {
       variantEncoding: undefined
     };
   }));
-  let seen = {};
-  let uniqueUnions = extractedUnions.filter(u => {
-    if (Core__Option.isSome(seen[u.name])) {
-      return false;
-    } else {
-      seen[u.name] = true;
-      return true;
-    }
-  });
+  let match = CodegenTransforms.resolveExtractedUnionNames(extractedUnions, schemas$4.map(s => s.name));
+  let unionNames = match[1];
   let modifiedSchemas = schemas$4.map(s => ({
     name: s.name,
-    schema: CodegenTransforms.replaceUnions(s.name, s.schema),
+    schema: CodegenTransforms.replaceUnions(unionNames, s.name, s.schema),
     discriminatorTag: s.discriminatorTag,
     discriminatorPropertyName: s.discriminatorPropertyName,
     fieldDiscriminators: s.fieldDiscriminators,
     variantEncoding: s.variantEncoding
   }));
-  let allSchemas = uniqueUnions.concat(modifiedSchemas);
+  let allSchemas = match[0].concat(modifiedSchemas);
   let schemasDict = {};
   let tagsDict = {};
   allSchemas.forEach(s => {

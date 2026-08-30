@@ -472,8 +472,13 @@ function isPrimitivePlusDictUnion(types) {
   }
 }
 
-function getUnionName(types) {
-  let names = types.map(t => {
+function identChars(s) {
+  return s.replace(/[^A-Za-z0-9]/g, "");
+}
+
+function typeNamePart(_t) {
+  while (true) {
+    let t = _t;
     if (typeof t !== "object") {
       switch (t) {
         case "String" :
@@ -486,37 +491,43 @@ function getUnionName(types) {
           return "bool";
         case "Null" :
           return "null";
-        default:
+        case "Unknown" :
           return "unknown";
       }
     } else {
       switch (t._tag) {
+        case "Optional" :
+          return "optional" + CodegenHelpers.ucFirst(typeNamePart(t._0));
+        case "Nullable" :
+          return "nullable" + CodegenHelpers.ucFirst(typeNamePart(t._0));
+        case "Object" :
+          let fields = t._0;
+          if (fields.length === 0 || fields.length > 3) {
+            return "object";
+          } else {
+            return "object" + fields.map(f => CodegenHelpers.ucFirst(identChars(f.name))).join("");
+          }
         case "Array" :
-          return "array";
+          return "array" + CodegenHelpers.ucFirst(typeNamePart(t._0));
         case "Ref" :
           return CodegenHelpers.lcFirst(t._0);
+        case "Enum" :
+          return "enum";
+        case "PolyVariant" :
+          return "variant";
         case "Dict" :
-          return "dict";
+          return "dict" + CodegenHelpers.ucFirst(typeNamePart(t._0));
+        case "Union" :
+          return joinUnionParts(t._0.map(typeNamePart));
         case "Refined" :
-          let tmp = t._0;
-          if (typeof tmp === "object") {
-            return "unknown";
-          }
-          switch (tmp) {
-            case "String" :
-              return "string";
-            case "Number" :
-              return "float";
-            case "Integer" :
-              return "int";
-            default:
-              return "unknown";
-          }
-        default:
-          return "unknown";
+          _t = t._0;
+          continue;
       }
     }
-  });
+  };
+}
+
+function joinUnionParts(names) {
   if (names.length === 0) {
     return "emptyUnion";
   }
@@ -525,8 +536,113 @@ function getUnionName(types) {
   return first + rest.map(n => "Or" + CodegenHelpers.ucFirst(n)).join("");
 }
 
+function getUnionName(types) {
+  return joinUnionParts(types.map(typeNamePart));
+}
+
+function refinementKey(r) {
+  switch (r._tag) {
+    case "Format" :
+      let name;
+      switch (r._0) {
+        case "Uuid" :
+          name = "uuid";
+          break;
+        case "Email" :
+          name = "email";
+          break;
+        case "Uri" :
+          name = "uri";
+          break;
+        case "IsoDate" :
+          name = "isoDate";
+          break;
+        case "IsoDateTime" :
+          name = "isoDateTime";
+          break;
+        case "IsoTime" :
+          name = "isoTime";
+          break;
+        case "Duration" :
+          name = "duration";
+          break;
+        case "Ipv4" :
+          name = "ipv4";
+          break;
+        case "Ipv6" :
+          name = "ipv6";
+          break;
+        case "Hostname" :
+          name = "hostname";
+          break;
+      }
+      return `format=` + name;
+    case "MinLength" :
+      return `minLength=` + r._0.toString();
+    case "MaxLength" :
+      return `maxLength=` + r._0.toString();
+    case "Pattern" :
+      return `pattern=` + r._0;
+    case "Gte" :
+      return `gte=` + r._0.toString();
+    case "Lte" :
+      return `lte=` + r._0.toString();
+    case "Gt" :
+      return `gt=` + r._0.toString();
+    case "Lt" :
+      return `lt=` + r._0.toString();
+    case "MultipleOf" :
+      return `multipleOf=` + r._0.toString();
+  }
+}
+
+function structuralKey(t) {
+  if (typeof t !== "object") {
+    switch (t) {
+      case "String" :
+        return "string";
+      case "Number" :
+        return "number";
+      case "Integer" :
+        return "integer";
+      case "Boolean" :
+        return "boolean";
+      case "Null" :
+        return "null";
+      case "Unknown" :
+        return "unknown";
+    }
+  } else {
+    switch (t._tag) {
+      case "Optional" :
+        return `optional(` + structuralKey(t._0) + `)`;
+      case "Nullable" :
+        return `nullable(` + structuralKey(t._0) + `)`;
+      case "Object" :
+        return `object(` + t._0.map(f => f.name + (
+          f.required ? "!" : "?"
+        ) + `:` + structuralKey(f.type)).join(";") + `)`;
+      case "Array" :
+        return `array(` + structuralKey(t._0) + `)`;
+      case "Ref" :
+        return `ref(` + t._0 + `)`;
+      case "Enum" :
+        return `enum(` + t._0.join("|") + `)`;
+      case "PolyVariant" :
+        return `variant(` + t._0.map(c => c._tag + `:` + structuralKey(c.payload)).join(";") + `)`;
+      case "Dict" :
+        return `dict(` + structuralKey(t._0) + `)`;
+      case "Union" :
+        return `union(` + t._0.map(structuralKey).join(",") + `)`;
+      case "Refined" :
+        return `refined(` + structuralKey(t._0) + `#` + t._1.map(refinementKey).join(",") + `)`;
+    }
+  }
+}
+
 function getPolyVariantName(cases) {
-  return getUnionName(cases.map(c => c.payload));
+  let types = cases.map(c => c.payload);
+  return joinUnionParts(types.map(typeNamePart));
 }
 
 function extractUnionsFromType(_schema) {
@@ -556,7 +672,7 @@ function extractUnionsFromType(_schema) {
         if (match !== undefined) {
           return [];
         }
-        let name$1 = getUnionName(types);
+        let name$1 = joinUnionParts(types.map(typeNamePart));
         return [{
             name: name$1,
             schema: schema
@@ -577,7 +693,16 @@ function extractUnions(_parentName, schema) {
   }
 }
 
-function replaceUnionInType(schema) {
+function lookupUnionName(names, schema, preferred) {
+  let name = names[structuralKey(schema)];
+  if (name !== undefined) {
+    return name;
+  } else {
+    return preferred;
+  }
+}
+
+function replaceUnionInType(names, schema) {
   if (typeof schema !== "object") {
     return schema;
   }
@@ -585,16 +710,16 @@ function replaceUnionInType(schema) {
     case "Optional" :
       return {
         _tag: "Optional",
-        _0: replaceUnionInType(schema._0)
+        _0: replaceUnionInType(names, schema._0)
       };
     case "Nullable" :
       return {
         _tag: "Nullable",
-        _0: replaceUnionInType(schema._0)
+        _0: replaceUnionInType(names, schema._0)
       };
     case "Object" :
       let newFields = schema._0.map(field => {
-        let newType = replaceUnionInType(field.type);
+        let newType = replaceUnionInType(names, field.type);
         return {
           name: field.name,
           type: newType,
@@ -608,17 +733,17 @@ function replaceUnionInType(schema) {
     case "Array" :
       return {
         _tag: "Array",
-        _0: replaceUnionInType(schema._0)
+        _0: replaceUnionInType(names, schema._0)
       };
     case "PolyVariant" :
       return {
         _tag: "Ref",
-        _0: getPolyVariantName(schema._0)
+        _0: lookupUnionName(names, schema, getPolyVariantName(schema._0))
       };
     case "Dict" :
       return {
         _tag: "Dict",
-        _0: replaceUnionInType(schema._0)
+        _0: replaceUnionInType(names, schema._0)
       };
     case "Union" :
       let types = schema._0;
@@ -631,7 +756,7 @@ function replaceUnionInType(schema) {
       } else {
         return {
           _tag: "Ref",
-          _0: getUnionName(types)
+          _0: lookupUnionName(names, schema, joinUnionParts(types.map(typeNamePart)))
         };
       }
     default:
@@ -639,7 +764,7 @@ function replaceUnionInType(schema) {
   }
 }
 
-function replaceUnions(_parentName, schema) {
+function replaceUnions(names, _parentName, schema) {
   if (typeof schema !== "object") {
     return schema;
   }
@@ -647,7 +772,7 @@ function replaceUnions(_parentName, schema) {
     return schema;
   }
   let newFields = schema._0.map(field => {
-    let newType = replaceUnionInType(field.type);
+    let newType = replaceUnionInType(names, field.type);
     return {
       name: field.name,
       type: newType,
@@ -658,6 +783,49 @@ function replaceUnions(_parentName, schema) {
     _tag: "Object",
     _0: newFields
   };
+}
+
+function resolveExtractedUnionNames(extracted, taken) {
+  let registry = {};
+  let used = {};
+  taken.forEach(n => {
+    used[CodegenHelpers.lcFirst(n)] = true;
+  });
+  let unique = [];
+  extracted.forEach(u => {
+    let key = structuralKey(u.schema);
+    let match = registry[key];
+    if (match !== undefined) {
+      return;
+    }
+    let freeName = (_candidate, _attempt) => {
+      while (true) {
+        let attempt = _attempt;
+        let candidate = _candidate;
+        if (!Core__Option.isSome(used[CodegenHelpers.lcFirst(candidate)])) {
+          return candidate;
+        }
+        _attempt = attempt + 1 | 0;
+        _candidate = u.name + attempt.toString();
+        continue;
+      };
+    };
+    let name = freeName(u.name, 2);
+    used[CodegenHelpers.lcFirst(name)] = true;
+    registry[key] = name;
+    unique.push({
+      name: name,
+      schema: u.schema,
+      discriminatorTag: u.discriminatorTag,
+      discriminatorPropertyName: u.discriminatorPropertyName,
+      fieldDiscriminators: u.fieldDiscriminators,
+      variantEncoding: u.variantEncoding
+    });
+  });
+  return [
+    unique,
+    registry
+  ];
 }
 
 function getDependencies(_schema) {
@@ -980,7 +1148,7 @@ function validateDistinctConstructors(schemas) {
         case "Union" :
           let types = schema._0;
           if (allRefArms(types)) {
-            report(getUnionName(types), types.map(armConstructor), path);
+            report(joinUnionParts(types.map(typeNamePart)), types.map(armConstructor), path);
           }
           types.forEach(t => walk(t, path));
           return;
@@ -1204,7 +1372,7 @@ function collectUnionWarnings(schemas) {
   schemas.forEach(s => {
     let unions = findUnions(s.schema);
     unions.forEach(types => {
-      let unionName = getUnionName(types);
+      let unionName = joinUnionParts(types.map(typeNamePart));
       if (!Core__Option.isNone(seen[unionName])) {
         return;
       }
@@ -1274,7 +1442,7 @@ function validateUnionDiscriminators(schemas) {
   schemas.forEach(s => {
     let unions = findUnions(s.schema);
     unions.forEach(types => {
-      let unionName = getUnionName(types);
+      let unionName = joinUnionParts(types.map(typeNamePart));
       if (!Core__Option.isNone(seen[unionName])) {
         return;
       }
@@ -1331,12 +1499,19 @@ export {
   collapseLiteralUnions,
   isRefPlusDictUnion,
   isPrimitivePlusDictUnion,
+  identChars,
+  typeNamePart,
+  joinUnionParts,
   getUnionName,
+  refinementKey,
+  structuralKey,
   getPolyVariantName,
   extractUnions,
   extractUnionsFromType,
+  lookupUnionName,
   replaceUnions,
   replaceUnionInType,
+  resolveExtractedUnionNames,
   getDependencies,
   stripRefinementsInType,
   stripRefinements,
