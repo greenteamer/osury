@@ -30,8 +30,9 @@ function generateModuleWithDiagnostics(schemas, refinementsOpt, param) {
   };
 }
 
-function generateOCamlWithDiagnostics(schemas) {
-  let irModule = IRGen.generate(schemas, undefined, undefined);
+function generateOCamlWithDiagnostics(schemas, refinementsOpt, param) {
+  let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
+  let irModule = IRGen.generate(schemas, refinements, undefined);
   if (irModule.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -44,13 +45,14 @@ function generateOCamlWithDiagnostics(schemas) {
     TAG: "Ok",
     _0: {
       code: code,
-      warnings: irModule$1.warnings
+      warnings: irModule$1.warnings.concat(BackendOCaml.droppedRefinements(irModule$1))
     }
   };
 }
 
-function generateEffectTSWithDiagnostics(schemas) {
-  let irModule = IRGen.generate(schemas, undefined, undefined);
+function generateEffectTSWithDiagnostics(schemas, refinementsOpt, param) {
+  let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
+  let irModule = IRGen.generate(schemas, refinements, undefined);
   if (irModule.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -63,13 +65,14 @@ function generateEffectTSWithDiagnostics(schemas) {
     TAG: "Ok",
     _0: {
       code: code,
-      warnings: irModule$1.warnings
+      warnings: irModule$1.warnings.concat(BackendEffectTS.droppedRefinements(irModule$1))
     }
   };
 }
 
-function generateRustWithDiagnostics(schemas) {
-  let irModule = IRGen.generate(schemas, undefined, undefined);
+function generateRustWithDiagnostics(schemas, refinementsOpt, param) {
+  let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
+  let irModule = IRGen.generate(schemas, refinements, undefined);
   if (irModule.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -82,7 +85,7 @@ function generateRustWithDiagnostics(schemas) {
     TAG: "Ok",
     _0: {
       code: code,
-      warnings: irModule$1.warnings
+      warnings: irModule$1.warnings.concat(BackendRust.droppedRefinements(irModule$1))
     }
   };
 }

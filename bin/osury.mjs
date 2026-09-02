@@ -87,7 +87,7 @@ function printHelp() {
   log(`  ${c.bold("Options")}`);
   log(`    ${c.cyan("-t")}, ${c.cyan("--target")}    Output language: ${c.cyan("rescript")} ${c.dim("(default)")}, ${c.cyan("ocaml")}, ${c.cyan("effect-ts")}, ${c.cyan("rust")}`);
   log(`    ${c.cyan("-o")}, ${c.cyan("--output")}    Output file path ${c.dim("(default depends on target)")}`);
-  log(`    ${c.cyan("--refinements")} Emit OpenAPI validation keywords as sury checks ${c.dim("(rescript only)")}`);
+  log(`    ${c.cyan("--refinements")} Emit OpenAPI validation keywords as runtime checks ${c.dim("(all targets)")}`);
   log(`    ${c.cyan("-h")}, ${c.cyan("--help")}      Show this help`);
   log(`    ${c.cyan("-v")}, ${c.cyan("--version")}   Show version`);
   log(`    ${c.cyan("--no-color")}    Disable colored output`);
@@ -318,15 +318,9 @@ function generate(inputPath, outputPath, target = "rescript", refinements = fals
   log(`  ${sym.success} Parsed ${c.bold(String(schemaCount))} schema${schemaCount !== 1 ? "s" : ""} from ${c.cyan(inputPath)}`);
 
   // ── Generate code ──
-  // Only the ReScript backend can print refinements today; say so rather than
-  // silently accepting a flag that does nothing.
-  if (refinements && target !== "rescript") {
-    log(`  ${sym.warning} ${c.yellow("--refinements")} is ignored for target ${c.cyan(target)} (rescript only)`);
-  }
-  const genResult =
-    target === "rescript"
-      ? Codegen[TARGETS[target].generate](schemas, refinements, undefined)
-      : Codegen[TARGETS[target].generate](schemas);
+  // Every backend takes the flag now; each enforces what its target can express
+  // and warns about the checks it cannot (see the warnings block below).
+  const genResult = Codegen[TARGETS[target].generate](schemas, refinements, undefined);
 
   if (genResult.TAG !== "Ok") {
     const errors = genResult._0;

@@ -42,6 +42,39 @@ let wireTag = (c: IR.irVariantCase): string => c.asValue->Option.getOr(c.tag)
 
 // ─── Schema expressions ──────────────────────────────────────────────────────
 
+// A number as TypeScript spells it: no trailing dot, no ReScript "1." form.
+let numLit = (v: float): string => {
+  let s = Float.toString(v)
+  s->String.endsWith(".") ? s->String.slice(~start=0, ~end=String.length(s) - 1) : s
+}
+
+// Effect's own filters, attached with `.check(...)`. Only checks Effect states
+// natively are emitted — a hand-rolled regex for `format: email` would quietly
+// disagree with what the ReScript/sury target enforces for the same spec.
+let checkExpr = (r: Schema.refinement): option<string> => {
+  switch r {
+  | MinLength(n) => Some(`Schema.isMinLength(${Int.toString(n)})`)
+  | MaxLength(n) => Some(`Schema.isMaxLength(${Int.toString(n)})`)
+  | Pattern(p) => Some(`Schema.isPattern(/${p}/)`)
+  | Gte(v) => Some(`Schema.isGreaterThanOrEqualTo(${numLit(v)})`)
+  | Lte(v) => Some(`Schema.isLessThanOrEqualTo(${numLit(v)})`)
+  | Gt(v) => Some(`Schema.isGreaterThan(${numLit(v)})`)
+  | Lt(v) => Some(`Schema.isLessThan(${numLit(v)})`)
+  | MultipleOf(v) => Some(`Schema.isMultipleOf(${numLit(v)})`)
+  | Format(Uuid) => Some("Schema.isUUID()")
+  // email/uri/date-time/... have no Effect counterpart
+  | Format(Email)
+  | Format(Uri)
+  | Format(IsoDate)
+  | Format(IsoDateTime)
+  | Format(IsoTime)
+  | Format(Duration)
+  | Format(Ipv4)
+  | Format(Ipv6)
+  | Format(Hostname) => None
+  }
+}
+
 let rec schemaExpr = (t: IR.irType, ~indent: string): string => {
   switch t {
   | Primitive(PString) => "Schema.String"
@@ -59,9 +92,11 @@ let rec schemaExpr = (t: IR.irType, ~indent: string): string => {
   | Enum(values) => `Schema.Literals([${values->Array.map(v => `'${v}'`)->Array.join(", ")}])`
   | InlineRecord(fields) => structExpr(fields, ~indent)
   | InlineVariant(_) | JSON => "Schema.Unknown"
-  // Effect has its own filters (Schema.minLength, ...) but osury does not map
-  // them yet — the base schema keeps the shape, checks are simply absent
-  | Refined(inner, _) => schemaExpr(inner, ~indent)
+  | Refined(inner, refs) =>
+    switch refs->Array.filterMap(checkExpr) {
+    | [] => schemaExpr(inner, ~indent)
+    | checks => `${schemaExpr(inner, ~indent)}.check(${checks->Array.join(", ")})`
+    }
   }
 }
 
@@ -219,3 +254,9 @@ let print = (module_: IR.irModule): string => {
 
   `import { ${imports} } from 'effect'\n\n${body}\n`
 }
+
+// Checks Effect cannot express (every format but uuid) — reported, not hidden.
+let droppedRefinements = (m: IR.irModule): array<string> =>
+  IR.droppedRefinementWarnings(m, ~target="Effect Schema", ~supported=r =>
+    checkExpr(r)->Option.isSome
+  )

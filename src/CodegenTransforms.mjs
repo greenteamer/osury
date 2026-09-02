@@ -566,62 +566,6 @@ function getUnionName(types) {
   return joinUnionParts(types.map(typeNamePart));
 }
 
-function refinementKey(r) {
-  switch (r._tag) {
-    case "Format" :
-      let name;
-      switch (r._0) {
-        case "Uuid" :
-          name = "uuid";
-          break;
-        case "Email" :
-          name = "email";
-          break;
-        case "Uri" :
-          name = "uri";
-          break;
-        case "IsoDate" :
-          name = "isoDate";
-          break;
-        case "IsoDateTime" :
-          name = "isoDateTime";
-          break;
-        case "IsoTime" :
-          name = "isoTime";
-          break;
-        case "Duration" :
-          name = "duration";
-          break;
-        case "Ipv4" :
-          name = "ipv4";
-          break;
-        case "Ipv6" :
-          name = "ipv6";
-          break;
-        case "Hostname" :
-          name = "hostname";
-          break;
-      }
-      return `format=` + name;
-    case "MinLength" :
-      return `minLength=` + r._0.toString();
-    case "MaxLength" :
-      return `maxLength=` + r._0.toString();
-    case "Pattern" :
-      return `pattern=` + r._0;
-    case "Gte" :
-      return `gte=` + r._0.toString();
-    case "Lte" :
-      return `lte=` + r._0.toString();
-    case "Gt" :
-      return `gt=` + r._0.toString();
-    case "Lt" :
-      return `lt=` + r._0.toString();
-    case "MultipleOf" :
-      return `multipleOf=` + r._0.toString();
-  }
-}
-
 function structuralKey(t) {
   if (typeof t !== "object") {
     switch (t) {
@@ -663,7 +607,7 @@ function structuralKey(t) {
       case "AllOf" :
         return `allOf(` + t._0.map(structuralKey).join(",") + `)`;
       case "Refined" :
-        return `refined(` + structuralKey(t._0) + `#` + t._1.map(refinementKey).join(",") + `)`;
+        return `refined(` + structuralKey(t._0) + `#` + t._1.map(CodegenHelpers.refinementLabel).join(",") + `)`;
     }
   }
 }
@@ -1904,6 +1848,8 @@ function validateUnionDiscriminators(schemas) {
   });
   return errors;
 }
+
+let refinementKey = CodegenHelpers.refinementLabel;
 
 export {
   collectEnumsFromType,

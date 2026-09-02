@@ -75,6 +75,114 @@ let rec printType = (t: IR.irType): string => {
   }
 }
 
+// ─── Validation ──────────────────────────────────────────────────────────────
+// serde checks shape, not values. To enforce a spec's validation keywords the
+// backend generates one `deserialize_with` helper per distinct constraint set
+// and points the field at it — no external crate, and the check runs where it
+// matters: on decode. `pattern` and the string formats need a regex engine, so
+// they are dropped and reported instead.
+
+// A number as Rust spells it, and as a function-name token.
+let numLit = (v: float, ~isInt: bool): string =>
+  isInt ? Float.toInt(v)->Int.toString : (
+      Float.toString(v)->String.includes(".")
+        ? Float.toString(v)
+        : Float.toString(v) ++ ".0"
+    )
+
+let numToken = (v: float, ~isInt: bool): string =>
+  numLit(v, ~isInt)->String.replaceRegExp(%re("/[.\-]/g"), "_")
+
+let refinementToken = (r: Schema.refinement, ~isInt: bool): option<string> => {
+  switch r {
+  | MinLength(n) => Some(`minlen${Int.toString(n)}`)
+  | MaxLength(n) => Some(`maxlen${Int.toString(n)}`)
+  | Gte(v) => Some(`gte${numToken(v, ~isInt)}`)
+  | Lte(v) => Some(`lte${numToken(v, ~isInt)}`)
+  | Gt(v) => Some(`gt${numToken(v, ~isInt)}`)
+  | Lt(v) => Some(`lt${numToken(v, ~isInt)}`)
+  | MultipleOf(v) => Some(`mult${numToken(v, ~isInt)}`)
+  | Pattern(_) | Format(_) => None
+  }
+}
+
+// Rust boolean expression over `v` (a reference to the decoded value).
+let refinementCond = (r: Schema.refinement, ~isInt: bool): option<string> => {
+  switch r {
+  | MinLength(n) => Some(`v.chars().count() >= ${Int.toString(n)}`)
+  | MaxLength(n) => Some(`v.chars().count() <= ${Int.toString(n)}`)
+  | Gte(x) => Some(`*v >= ${numLit(x, ~isInt)}`)
+  | Lte(x) => Some(`*v <= ${numLit(x, ~isInt)}`)
+  | Gt(x) => Some(`*v > ${numLit(x, ~isInt)}`)
+  | Lt(x) => Some(`*v < ${numLit(x, ~isInt)}`)
+  | MultipleOf(x) =>
+    Some(isInt ? `*v % ${numLit(x, ~isInt)} == 0` : `(*v % ${numLit(x, ~isInt)}).abs() < f64::EPSILON`)
+  | Pattern(_) | Format(_) => None
+  }
+}
+
+// The validator a field needs, if any: its function name, the Rust type it
+// decodes, whether it is wrapped in Option, and the checks it enforces.
+type validator = {
+  fnName: string,
+  rustType: string,
+  optional: bool,
+  isInt: bool,
+  refs: array<Schema.refinement>,
+}
+
+let validatorFor = (t: IR.irType): option<validator> => {
+  let build = (inner: IR.irType, refs: array<Schema.refinement>, ~optional: bool) => {
+    let isInt = inner == IR.Primitive(PInt)
+    let tokens = refs->Array.filterMap(r => refinementToken(r, ~isInt))
+    if Array.length(tokens) == 0 {
+      None
+    } else {
+      let base = printType(inner)->String.toLowerCase
+      Some({
+        fnName: `de_${optional ? "opt_" : ""}${base}_${tokens->Array.join("_")}`,
+        rustType: printType(inner),
+        optional,
+        isInt,
+        refs,
+      })
+    }
+  }
+  switch t {
+  | Refined(inner, refs) => build(inner, refs, ~optional=false)
+  | Option(Refined(inner, refs)) | Nullable(Refined(inner, refs)) =>
+    build(inner, refs, ~optional=true)
+  | _ => None
+  }
+}
+
+let printValidator = (v: validator): string => {
+  let checks =
+    v.refs
+    ->Array.filterMap(r =>
+      refinementCond(r, ~isInt=v.isInt)->Option.map(cond => (
+        cond,
+        CodegenHelpers.refinementLabel(r),
+      ))
+    )
+    ->Array.map(((cond, label)) =>
+      `    if !(${cond}) {\n        return Err(serde::de::Error::custom("${label}"));\n    }`
+    )
+    ->Array.join("\n")
+  let (signature, prelude, ret) = v.optional
+    ? (
+        `Option<${v.rustType}>`,
+        `    let opt = Option::<${v.rustType}>::deserialize(deserializer)?;\n    let v = match opt.as_ref() {\n        Some(v) => v,\n        None => return Ok(None),\n    };`,
+        "    Ok(opt)",
+      )
+    : (
+        v.rustType,
+        `    let value = ${v.rustType}::deserialize(deserializer)?;\n    let v = &value;`,
+        "    Ok(value)",
+      )
+  `fn ${v.fnName}<'de, D>(deserializer: D) -> Result<${signature}, D::Error>\nwhere\n    D: serde::Deserializer<'de>,\n{\n${prelude}\n${checks}\n${ret}\n}`
+}
+
 // Field lines with serde attributes, at the given indentation
 let printField = (f: IR.irField, ~indent: string): string => {
   let wire = wireName(f)
@@ -82,6 +190,10 @@ let printField = (f: IR.irField, ~indent: string): string => {
   let attrs = []
   if name != wire {
     attrs->Array.push(`${indent}#[serde(rename = "${wire}")]`)->ignore
+  }
+  switch validatorFor(f.type_) {
+  | Some(v) => attrs->Array.push(`${indent}#[serde(deserialize_with = "${v.fnName}")]`)->ignore
+  | None => ()
   }
   // Option = key may be absent on the wire: tolerate absence on decode,
   // omit the key on encode. Nullable stays a plain Option (explicit null).
@@ -99,6 +211,10 @@ let printCaseField = (f: IR.irField, ~indent: string): string => {
   let wire = wireName(f)
   let name = rustFieldName(wire)
   let attrs = name != wire ? [`${indent}#[serde(rename = "${wire}")]`] : []
+  let attrs = switch validatorFor(f.type_) {
+  | Some(v) => attrs->Array.concat([`${indent}#[serde(deserialize_with = "${v.fnName}")]`])
+  | None => attrs
+  }
   switch f.type_ {
   | Option(_) =>
     attrs
@@ -197,12 +313,57 @@ ${fromArms}
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
+// Every validator the module needs, one definition per distinct constraint set.
+let collectValidators = (module_: IR.irModule): array<validator> => {
+  let seen = Dict.make()
+  let result = []
+  let claim = (t: IR.irType) =>
+    switch validatorFor(t) {
+    | Some(v) =>
+      if seen->Dict.get(v.fnName)->Option.isNone {
+        seen->Dict.set(v.fnName, true)
+        result->Array.push(v)->ignore
+      }
+    | None => ()
+    }
+  module_.types->Array.forEach(def =>
+    switch def.kind {
+    | RecordDef(fields) => fields->Array.forEach(f => claim(f.type_))
+    | VariantDef(cases, _) =>
+      cases->Array.forEach(c =>
+        switch c.payload {
+        | InlineRecord(fields) => fields->Array.forEach(f => claim(f.type_))
+        | other => claim(other)
+        }
+      )
+    | AliasDef(t) => claim(t)
+    }
+  )
+  result
+}
+
 let print = (module_: IR.irModule): string => {
   let body = module_.types->Array.map(printTypeDef)->Array.join("\n\n")
+  let validators = collectValidators(module_)
+  let validatorBlock =
+    Array.length(validators) == 0
+      ? ""
+      : "\n\n" ++ validators->Array.map(printValidator)->Array.join("\n\n")
   `// Generated by osury. Do not edit.
 
 use serde::{Deserialize, Serialize};
 
-${body}
+${body}${validatorBlock}
 `
 }
+
+// `pattern` and the string formats need a regex crate; a refinement nested
+// inside a Vec or a map has no field to hang `deserialize_with` on. Both are
+// reported rather than silently ignored.
+let droppedRefinements = (m: IR.irModule): array<string> =>
+  IR.droppedRefinementWarnings(m, ~target="Rust", ~supported=r =>
+    switch r {
+    | Pattern(_) | Format(_) => false
+    | MinLength(_) | MaxLength(_) | Gte(_) | Lte(_) | Gt(_) | Lt(_) | MultipleOf(_) => true
+    }
+  )

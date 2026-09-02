@@ -160,6 +160,30 @@ let encFieldEntries = (fields: array<IR.irField>, prefix: string, ~indent: strin
 
 // ─── Decoders ────────────────────────────────────────────────────────────────
 
+// An OCaml boolean expression over `v` for one refinement. `pattern` and the
+// string formats would need a regex library (Str is not in every consumer's
+// build), so they are dropped rather than half-implemented.
+let checkPredicate = (r: Schema.refinement, ~isInt: bool): option<string> => {
+  let num = (v: float) => {
+    let s = Float.toString(v)
+    isInt
+      ? Float.toInt(v)->Int.toString
+      : s->String.includes(".") ? s : s ++ "."
+  }
+  switch r {
+  | MinLength(n) => Some(`String.length v >= ${Int.toString(n)}`)
+  | MaxLength(n) => Some(`String.length v <= ${Int.toString(n)}`)
+  | Gte(v) => Some(`v >= ${num(v)}`)
+  | Lte(v) => Some(`v <= ${num(v)}`)
+  | Gt(v) => Some(`v > ${num(v)}`)
+  | Lt(v) => Some(`v < ${num(v)}`)
+  | MultipleOf(v) =>
+    Some(isInt ? `v mod ${num(v)} = 0` : `Float.rem v ${num(v)} = 0.`)
+  | Pattern(_)
+  | Format(_) => None
+  }
+}
+
 // Expression decoding json `j` into (value, string) result for irType `t`
 let rec decExpr = (t: IR.irType, j: string): string => {
   switch t {
@@ -174,8 +198,16 @@ let rec decExpr = (t: IR.irType, j: string): string => {
   | Named(name) => `${typeName(name)}_of_yojson ${j}`
   | Enum(_) => `Oj.string_ ${j}`
   | InlineRecord(_) | InlineVariant(_) | JSON => `Ok ${j}`
-  // Constraints are not validated by the OCaml codec — decode the base type
-  | Refined(inner, _) => decExpr(inner, j)
+  // Constraints wrap the decoded value: it parsed, now it must also satisfy the
+  // spec. Checks OCaml can't express without a regex library are dropped (and
+  // reported by droppedRefinements).
+  | Refined(inner, refs) =>
+    refs->Array.reduce(decExpr(inner, j), (acc, r) =>
+      switch checkPredicate(r, ~isInt=inner == IR.Primitive(PInt)) {
+      | Some(pred) => `Oj.check_ "${CodegenHelpers.refinementLabel(r)}" (fun v -> ${pred}) (${acc})`
+      | None => acc
+      }
+    )
   }
 }
 
@@ -391,6 +423,13 @@ module Oj = struct
     | j -> type_err "float" j
 
   let int_ = function \`Int i -> Ok i | j -> type_err "int" j
+
+  (* Validation keyword from the spec: the value decoded fine, but the schema
+     says it must also satisfy this. *)
+  let check_ name pred = function
+    | Ok v when pred v -> Ok v
+    | Ok _ -> Error (Printf.sprintf "%s: check failed" name)
+    | Error _ as e -> e
   let bool_ = function \`Bool b -> Ok b | j -> type_err "bool" j
   let unit_ = function \`Null -> Ok () | j -> type_err "unit" j
 
@@ -451,3 +490,13 @@ let print = (module_: IR.irModule): string => {
 
   [prelude, typeDecls, codecChain]->Array.join("\n")
 }
+
+// `pattern` and the string formats need a regex engine — say so instead of
+// pretending the generated decoder enforces them.
+let droppedRefinements = (m: IR.irModule): array<string> =>
+  IR.droppedRefinementWarnings(m, ~target="OCaml", ~supported=r =>
+    switch r {
+    | Pattern(_) | Format(_) => false
+    | MinLength(_) | MaxLength(_) | Gte(_) | Lte(_) | Gt(_) | Lt(_) | MultipleOf(_) => true
+    }
+  )

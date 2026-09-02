@@ -64,3 +64,55 @@ type irModule = {
   types: array<irTypeDef>, // topo-sorted
   warnings: array<string>,
 }
+
+// ─── Refinement reporting ────────────────────────────────────────────────────
+// Every Refined node in a module, tagged with the type it lives in. Backends use
+// it to say which checks they had to drop: the same spec must not silently mean
+// different things depending on the target.
+let refinedNodes = (m: irModule): array<(string, array<Schema.refinement>)> => {
+  let found = []
+  let rec walkType = (t: irType, ~typeName: string) => {
+    switch t {
+    | Refined(inner, refs) =>
+      found->Array.push((typeName, refs))->ignore
+      walkType(inner, ~typeName)
+    | Option(inner) | Nullable(inner) | Array(inner) | Dict(inner) => walkType(inner, ~typeName)
+    | InlineRecord(fields) => fields->Array.forEach(f => walkType(f.type_, ~typeName))
+    | InlineVariant(cases) => cases->Array.forEach(c => walkType(c.payload, ~typeName))
+    | Primitive(_) | Named(_) | Enum(_) | JSON => ()
+    }
+  }
+  m.types->Array.forEach(def =>
+    switch def.kind {
+    | RecordDef(fields) => fields->Array.forEach(f => walkType(f.type_, ~typeName=def.name))
+    | VariantDef(cases, _) => cases->Array.forEach(c => walkType(c.payload, ~typeName=def.name))
+    | AliasDef(t) => walkType(t, ~typeName=def.name)
+    }
+  )
+  found
+}
+
+// Warnings for checks a backend cannot express, one line per (type, check).
+let droppedRefinementWarnings = (
+  m: irModule,
+  ~target: string,
+  ~supported: Schema.refinement => bool,
+): array<string> => {
+  let seen = Dict.make()
+  let warnings = []
+  refinedNodes(m)->Array.forEach(((typeName, refs)) =>
+    refs->Array.forEach(r =>
+      if !supported(r) {
+        let label = CodegenHelpers.refinementLabel(r)
+        let key = `${typeName}#${label}`
+        if seen->Dict.get(key)->Option.isNone {
+          seen->Dict.set(key, true)
+          warnings
+          ->Array.push(`${typeName}: ${label} has no ${target} counterpart — check not enforced`)
+          ->ignore
+        }
+      }
+    )
+  )
+  warnings
+}

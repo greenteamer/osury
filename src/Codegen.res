@@ -64,33 +64,51 @@ let generateModuleWithDiagnostics = (
 
 // Generate OCaml module: types + yojson codecs (no ppx)
 // Pipeline: IRGen (SchemaAST → IR) → BackendOCaml (IR → code)
-let generateOCamlWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): result<generateResult, Errors.errors> => {
-  switch IRGen.generate(schemas, ()) {
+let generateOCamlWithDiagnostics = (
+  schemas: array<OpenAPIParser.namedSchema>,
+  ~refinements: bool=false,
+  (),
+): result<generateResult, Errors.errors> => {
+  switch IRGen.generate(schemas, ~refinements, ()) {
   | Ok(irModule) =>
     let code = BackendOCaml.print(irModule)
-    Ok({code, warnings: irModule.warnings})
+    // Checks this backend cannot express are named out loud rather than
+    // silently dropped — the same spec must not mean different things per target
+    Ok({code, warnings: Array.concat(irModule.warnings, BackendOCaml.droppedRefinements(irModule))})
   | Error(e) => Error(e)
   }
 }
 
 // Generate TypeScript module: TS types + Effect Schema v4
 // Pipeline: IRGen (SchemaAST → IR) → BackendEffectTS (IR → code)
-let generateEffectTSWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): result<generateResult, Errors.errors> => {
-  switch IRGen.generate(schemas, ()) {
+let generateEffectTSWithDiagnostics = (
+  schemas: array<OpenAPIParser.namedSchema>,
+  ~refinements: bool=false,
+  (),
+): result<generateResult, Errors.errors> => {
+  switch IRGen.generate(schemas, ~refinements, ()) {
   | Ok(irModule) =>
     let code = BackendEffectTS.print(irModule)
-    Ok({code, warnings: irModule.warnings})
+    // Checks this backend cannot express are named out loud rather than
+    // silently dropped — the same spec must not mean different things per target
+    Ok({code, warnings: Array.concat(irModule.warnings, BackendEffectTS.droppedRefinements(irModule))})
   | Error(e) => Error(e)
   }
 }
 
 // Generate Rust module: serde structs/enums
 // Pipeline: IRGen (SchemaAST → IR) → BackendRust (IR → code)
-let generateRustWithDiagnostics = (schemas: array<OpenAPIParser.namedSchema>): result<generateResult, Errors.errors> => {
-  switch IRGen.generate(schemas, ()) {
+let generateRustWithDiagnostics = (
+  schemas: array<OpenAPIParser.namedSchema>,
+  ~refinements: bool=false,
+  (),
+): result<generateResult, Errors.errors> => {
+  switch IRGen.generate(schemas, ~refinements, ()) {
   | Ok(irModule) =>
     let code = BackendRust.print(irModule)
-    Ok({code, warnings: irModule.warnings})
+    // Checks this backend cannot express are named out loud rather than
+    // silently dropped — the same spec must not mean different things per target
+    Ok({code, warnings: Array.concat(irModule.warnings, BackendRust.droppedRefinements(irModule))})
   | Error(e) => Error(e)
   }
 }

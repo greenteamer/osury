@@ -392,9 +392,9 @@ and refined_of_yojson (j : Yojson.Safe.t) : (refined, string) result =
   let* email = Oj.req_field "email" (fun j -> Oj.string_ j) j in
   let* site = Oj.req_field "site" (fun j -> Oj.string_ j) j in
   let* created_at = Oj.req_field "created_at" (fun j -> Oj.string_ j) j in
-  let* slug = Oj.req_field "slug" (fun j -> Oj.string_ j) j in
-  let* ratio = Oj.req_field "ratio" (fun j -> Oj.float_ j) j in
-  let* count = Oj.req_field "count" (fun j -> Oj.int_ j) j in
+  let* slug = Oj.req_field "slug" (fun j -> Oj.check_ "maxLength=32" (fun v -> String.length v <= 32) (Oj.check_ "minLength=3" (fun v -> String.length v >= 3) (Oj.string_ j))) j in
+  let* ratio = Oj.req_field "ratio" (fun j -> Oj.check_ "maximum=1" (fun v -> v <= 1.) (Oj.check_ "minimum=0" (fun v -> v >= 0.) (Oj.float_ j))) j in
+  let* count = Oj.req_field "count" (fun j -> Oj.check_ "multipleOf=5" (fun v -> v mod 5 = 0) (Oj.check_ "exclusiveMinimum=0" (fun v -> v > 0) (Oj.int_ j))) j in
   Ok ({ id; email; site; created_at; slug; ratio; count } : refined)
 
 and keywords_to_yojson (x : keywords) : Yojson.Safe.t =
@@ -649,7 +649,7 @@ and get_v1_widgets_params_to_yojson (x : get_v1_widgets_params) : Yojson.Safe.t 
 
 and get_v1_widgets_params_of_yojson (j : Yojson.Safe.t) : (get_v1_widgets_params, string) result =
   let open Oj in
-  let* limit = Oj.req_field "limit" (fun j -> Oj.int_ j) j in
+  let* limit = Oj.req_field "limit" (fun j -> Oj.check_ "maximum=100" (fun v -> v <= 100) (Oj.check_ "minimum=1" (fun v -> v >= 1) (Oj.int_ j))) j in
   let* cursor = Oj.opt_field "cursor" (fun j -> Oj.string_ j) j in
   let* order = Oj.opt_field "order" (fun j -> order_of_yojson j) j in
   Ok ({ limit; cursor; order } : get_v1_widgets_params)

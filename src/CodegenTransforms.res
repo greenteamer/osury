@@ -480,32 +480,7 @@ let getUnionName = (types: array<Schema.schemaType>): string => {
 // unions are the same generated type iff their keys match — names are only a
 // preference, and deduplicating by name silently retypes fields (a union named
 // after a shape it doesn't have).
-let refinementKey = (r: Schema.refinement): string => {
-  switch r {
-  | Format(f) =>
-    let name = switch f {
-    | Uuid => "uuid"
-    | Email => "email"
-    | Uri => "uri"
-    | IsoDate => "isoDate"
-    | IsoDateTime => "isoDateTime"
-    | IsoTime => "isoTime"
-    | Duration => "duration"
-    | Ipv4 => "ipv4"
-    | Ipv6 => "ipv6"
-    | Hostname => "hostname"
-    }
-    `format=${name}`
-  | MinLength(n) => `minLength=${Int.toString(n)}`
-  | MaxLength(n) => `maxLength=${Int.toString(n)}`
-  | Pattern(p) => `pattern=${p}`
-  | Gte(v) => `gte=${Float.toString(v)}`
-  | Lte(v) => `lte=${Float.toString(v)}`
-  | Gt(v) => `gt=${Float.toString(v)}`
-  | Lt(v) => `lt=${Float.toString(v)}`
-  | MultipleOf(v) => `multipleOf=${Float.toString(v)}`
-  }
-}
+let refinementKey = CodegenHelpers.refinementLabel
 
 let rec structuralKey = (t: Schema.schemaType): string => {
   switch t {

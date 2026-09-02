@@ -40,6 +40,21 @@ const SYNTHETIC_TARGETS = [
     { target: 'OCaml', golden: 'src/tests/golden/kitchen-sink.golden.ml', gen: Codegen.generateOCamlWithDiagnostics },
     { target: 'Rust', golden: 'src/tests/golden/kitchen-sink.golden.rs', gen: Codegen.generateRustWithDiagnostics },
     { target: 'Effect TS', golden: 'src/tests/golden/kitchen-sink.golden.ts', gen: Codegen.generateEffectTSWithDiagnostics },
+    {
+        target: 'OCaml --refinements',
+        golden: 'src/tests/golden/kitchen-sink.refinements.golden.ml',
+        gen: (schemas) => Codegen.generateOCamlWithDiagnostics(schemas, true, undefined),
+    },
+    {
+        target: 'Rust --refinements',
+        golden: 'src/tests/golden/kitchen-sink.refinements.golden.rs',
+        gen: (schemas) => Codegen.generateRustWithDiagnostics(schemas, true, undefined),
+    },
+    {
+        target: 'Effect TS --refinements',
+        golden: 'src/tests/golden/kitchen-sink.refinements.golden.ts',
+        gen: (schemas) => Codegen.generateEffectTSWithDiagnostics(schemas, true, undefined),
+    },
 ];
 
 describe.each(SYNTHETIC_TARGETS)('Golden synthetic: $target', ({ golden, gen }) => {

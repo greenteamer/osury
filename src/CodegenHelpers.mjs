@@ -96,6 +96,54 @@ function joinUnionParts(names) {
   return first + rest.map(n => "Or" + ucFirst(n)).join("");
 }
 
+function formatName(f) {
+  switch (f) {
+    case "Uuid" :
+      return "uuid";
+    case "Email" :
+      return "email";
+    case "Uri" :
+      return "uri";
+    case "IsoDate" :
+      return "date";
+    case "IsoDateTime" :
+      return "date-time";
+    case "IsoTime" :
+      return "time";
+    case "Duration" :
+      return "duration";
+    case "Ipv4" :
+      return "ipv4";
+    case "Ipv6" :
+      return "ipv6";
+    case "Hostname" :
+      return "hostname";
+  }
+}
+
+function refinementLabel(r) {
+  switch (r._tag) {
+    case "Format" :
+      return `format=` + formatName(r._0);
+    case "MinLength" :
+      return `minLength=` + r._0.toString();
+    case "MaxLength" :
+      return `maxLength=` + r._0.toString();
+    case "Pattern" :
+      return `pattern=` + r._0;
+    case "Gte" :
+      return `minimum=` + r._0.toString();
+    case "Lte" :
+      return `maximum=` + r._0.toString();
+    case "Gt" :
+      return `exclusiveMinimum=` + r._0.toString();
+    case "Lt" :
+      return `exclusiveMaximum=` + r._0.toString();
+    case "MultipleOf" :
+      return `multipleOf=` + r._0.toString();
+  }
+}
+
 function isOptionalType(schema) {
   if (typeof schema !== "object") {
     return false;
@@ -314,6 +362,8 @@ export {
   lcFirst,
   ucFirst,
   joinUnionParts,
+  formatName,
+  refinementLabel,
   isOptionalType,
   isNullableType,
   getTagForType,

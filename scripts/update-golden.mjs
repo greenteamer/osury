@@ -30,6 +30,18 @@ const SYNTHETIC_TARGETS = [
   { golden: "src/tests/golden/kitchen-sink.golden.ml", gen: Codegen.generateOCamlWithDiagnostics },
   { golden: "src/tests/golden/kitchen-sink.golden.rs", gen: Codegen.generateRustWithDiagnostics },
   { golden: "src/tests/golden/kitchen-sink.golden.ts", gen: Codegen.generateEffectTSWithDiagnostics },
+  {
+    golden: "src/tests/golden/kitchen-sink.refinements.golden.ml",
+    gen: (schemas) => Codegen.generateOCamlWithDiagnostics(schemas, true, undefined),
+  },
+  {
+    golden: "src/tests/golden/kitchen-sink.refinements.golden.rs",
+    gen: (schemas) => Codegen.generateRustWithDiagnostics(schemas, true, undefined),
+  },
+  {
+    golden: "src/tests/golden/kitchen-sink.refinements.golden.ts",
+    gen: (schemas) => Codegen.generateEffectTSWithDiagnostics(schemas, true, undefined),
+  },
 ];
 
 const goldenDir = path.join(root, "src/tests/golden");

@@ -9,6 +9,7 @@ import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
 import esbuild from 'esbuild';
+import { fileURLToPath } from 'url';
 
 const CHEMCORE = process.env.CHEMCORE_CONTRACTS ?? '/Users/alex/dev/chemcore/contracts';
 const hasChemcore = fs.existsSync(path.join(CHEMCORE, 'wire.schema.json'));
@@ -27,6 +28,36 @@ const FIXTURES = [
     { file: 'response_violations.json', type: 'ValidateResponse' },
     { file: 'response_violations_empty.json', type: 'ValidateResponse' },
 ];
+
+// The ReScript path on the live chemcore contract was the one target this pilot
+// never compiled — which is exactly where both backend bugs hid (an inline
+// record in a record field; a wire encoding whose missing sury schema did not
+// cascade to its consumers). Compiling here closes that gap.
+const rescriptScratch = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.rescript-pilot-check');
+
+const compileReScript = (code) => {
+    fs.rmSync(rescriptScratch, { recursive: true, force: true });
+    fs.mkdirSync(rescriptScratch, { recursive: true });
+    try {
+        fs.writeFileSync(
+            path.join(rescriptScratch, 'rescript.json'),
+            JSON.stringify({
+                name: 'osury-pilot-check',
+                sources: [{ dir: '.', subdirs: false }],
+                'package-specs': [{ module: 'esmodule', 'in-source': true }],
+                suffix: '.mjs',
+                dependencies: ['@rescript/core', 'sury'],
+                'compiler-flags': ['-open RescriptCore'],
+                'ppx-flags': ['sury-ppx/bin'],
+            }, null, 2)
+        );
+        fs.writeFileSync(path.join(rescriptScratch, 'Nullable.res'), Codegen.generateNullableModule());
+        fs.writeFileSync(path.join(rescriptScratch, 'Generated.res'), code);
+        return execSync('npx rescript build', { cwd: rescriptScratch, encoding: 'utf8', stdio: 'pipe' });
+    } finally {
+        fs.rmSync(rescriptScratch, { recursive: true, force: true });
+    }
+};
 
 const toSnake = (s) => s.replace(/[A-Z]/g, (c) => '_' + c.toLowerCase()).replace(/^_/, '');
 
@@ -187,5 +218,17 @@ path = "src/main.rs"
         } finally {
             fs.rmSync(dir, { recursive: true, force: true });
         }
+    }, 120000);
+});
+
+(hasChemcore ? describe : describe.skip)('Pilot chemcore: ReScript', () => {
+    test('the live contract generates a module that compiles with sury-ppx', () => {
+        const schemas = parseSpec();
+        const gen = Codegen.generateModuleWithDiagnostics(schemas, false, undefined);
+        expect(gen.TAG).toBe('Ok');
+
+        const out = compileReScript(gen._0.code);
+
+        expect(out).not.toMatch(/We've found a bug for you|Syntax error/);
     }, 120000);
 });

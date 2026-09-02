@@ -184,3 +184,70 @@ ${checks}
         }
     }, 30000);
 });
+
+// Refinements become explicit guards inside the generated decoders (Oj.check_).
+// Encoders are untouched: a value already in the type is by construction valid.
+const REFINED_SPEC = {
+    $defs: {
+        Bounded: {
+            type: "object",
+            properties: {
+                slug: { type: "string", minLength: 3, maxLength: 8 },
+                ratio: { type: "number", minimum: 0, maximum: 1 },
+                count: { type: "integer", exclusiveMinimum: 0, multipleOf: 5 },
+            },
+            required: ["slug", "ratio", "count"],
+        },
+    },
+};
+
+(hasOCaml ? describe : describe.skip)('BackendOCaml: refinements are enforced on decode', () => {
+    test('valid values decode, out-of-range values are rejected', () => {
+        const parsed = OpenAPIParser.parseDocument(REFINED_SPEC);
+        expect(parsed.TAG).toBe('Ok');
+        const genResult = Codegen.generateOCamlWithDiagnostics(parsed._0, true, undefined);
+        expect(genResult.TAG).toBe('Ok');
+
+        const main = `let ok name s =
+  match Generated.bounded_of_yojson (Yojson.Safe.from_string s) with
+  | Ok _ -> ()
+  | Error e -> prerr_endline (name ^ ": expected accept, got " ^ e); exit 1
+
+let rejected name s =
+  match Generated.bounded_of_yojson (Yojson.Safe.from_string s) with
+  | Ok _ -> prerr_endline (name ^ ": expected reject, got accept"); exit 1
+  | Error _ -> ()
+
+let () =
+  ok "valid" {|{"slug":"abcd","ratio":0.5,"count":10}|};
+  rejected "slug too short" {|{"slug":"ab","ratio":0.5,"count":10}|};
+  rejected "slug too long" {|{"slug":"abcdefghi","ratio":0.5,"count":10}|};
+  rejected "ratio above maximum" {|{"slug":"abcd","ratio":1.5,"count":10}|};
+  rejected "count not a multiple" {|{"slug":"abcd","ratio":0.5,"count":7}|};
+  rejected "count at exclusive minimum" {|{"slug":"abcd","ratio":0.5,"count":0}|};
+  print_endline "ALL CHECKS OK"
+`;
+
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'osury-ocaml-ref-'));
+        try {
+            fs.writeFileSync(path.join(dir, 'generated.ml'), genResult._0.code);
+            fs.writeFileSync(path.join(dir, 'main.ml'), main);
+            const out = execSync(
+                'ocamlfind ocamlc -package yojson -linkpkg generated.ml main.ml -o rt && ./rt',
+                { cwd: dir, encoding: 'utf8', shell: '/bin/zsh' }
+            );
+            expect(out).toContain('ALL CHECKS OK');
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    }, 60000);
+
+    test('pattern and formats are reported as unenforced', () => {
+        const parsed = OpenAPIParser.parseDocument({
+            $defs: { User: { type: "object", properties: { slug: { type: "string", pattern: "^a+$" } }, required: ["slug"] } },
+        });
+        const g = Codegen.generateOCamlWithDiagnostics(parsed._0, true, undefined);
+
+        expect(g._0.warnings.join('\n')).toContain('pattern=^a+$ has no OCaml counterpart');
+    });
+});

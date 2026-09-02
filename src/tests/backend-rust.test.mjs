@@ -191,3 +191,89 @@ path = "src/main.rs"
         }
     }, 120000);
 });
+
+// Refinements: serde validates shape, not values, so osury generates one
+// `deserialize_with` helper per constraint set. Compiling proves the helpers are
+// valid Rust; the round-trip proves they actually reject out-of-range data.
+const REFINED_SPEC = {
+    $defs: {
+        Bounded: {
+            type: "object",
+            properties: {
+                slug: { type: "string", minLength: 3, maxLength: 8 },
+                ratio: { type: "number", minimum: 0, maximum: 1 },
+                count: { type: "integer", exclusiveMinimum: 0, multipleOf: 5 },
+            },
+            required: ["slug", "ratio", "count"],
+        },
+    },
+};
+
+(hasCargo ? describe : describe.skip)('BackendRust: refinements are enforced on decode', () => {
+    test('valid values decode, out-of-range values are rejected', () => {
+        const parsed = OpenAPIParser.parseDocument(REFINED_SPEC);
+        expect(parsed.TAG).toBe('Ok');
+        const genResult = Codegen.generateRustWithDiagnostics(parsed._0, true, undefined);
+        expect(genResult.TAG).toBe('Ok');
+
+        const main = `mod generated;
+
+fn ok(name: &str, s: &str) {
+    if let Err(e) = serde_json::from_str::<generated::Bounded>(s) {
+        panic!("{name}: expected accept, got {e}");
+    }
+}
+
+fn rejected(name: &str, s: &str) {
+    if serde_json::from_str::<generated::Bounded>(s).is_ok() {
+        panic!("{name}: expected reject, got accept");
+    }
+}
+
+fn main() {
+    ok("valid", r#"{"slug":"abcd","ratio":0.5,"count":10}"#);
+    rejected("slug too short", r#"{"slug":"ab","ratio":0.5,"count":10}"#);
+    rejected("slug too long", r#"{"slug":"abcdefghi","ratio":0.5,"count":10}"#);
+    rejected("ratio above maximum", r#"{"slug":"abcd","ratio":1.5,"count":10}"#);
+    rejected("count not a multiple", r#"{"slug":"abcd","ratio":0.5,"count":7}"#);
+    rejected("count at exclusive minimum", r#"{"slug":"abcd","ratio":0.5,"count":0}"#);
+    println!("ALL CHECKS OK");
+}
+`;
+
+        const cargoToml = `[package]
+name = "osury-refined"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[[bin]]
+name = "rt"
+path = "src/main.rs"
+`;
+
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'osury-rust-ref-'));
+        try {
+            fs.mkdirSync(path.join(dir, 'src'));
+            fs.writeFileSync(path.join(dir, 'Cargo.toml'), cargoToml);
+            fs.writeFileSync(path.join(dir, 'src/generated.rs'), genResult._0.code);
+            fs.writeFileSync(path.join(dir, 'src/main.rs'), main);
+            const out = execSync('cargo run --quiet 2>&1', { cwd: dir, encoding: 'utf8', shell: '/bin/zsh' });
+            expect(out).toContain('ALL CHECKS OK');
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    }, 120000);
+
+    test('checks with no Rust counterpart are reported, not silently dropped', () => {
+        const parsed = OpenAPIParser.parseDocument({
+            $defs: { User: { type: "object", properties: { id: { type: "string", format: "uuid" } }, required: ["id"] } },
+        });
+        const g = Codegen.generateRustWithDiagnostics(parsed._0, true, undefined);
+
+        expect(g._0.warnings.join('\n')).toContain('format=uuid has no Rust counterpart');
+    });
+});

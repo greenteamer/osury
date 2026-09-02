@@ -53,6 +53,38 @@ let joinUnionParts = (names: array<string>): string => {
   }
 }
 
+// The name of a JSON Schema format, as the spec spells it.
+let formatName = (f: Schema.stringFormat): string => {
+  switch f {
+  | Uuid => "uuid"
+  | Email => "email"
+  | Uri => "uri"
+  | IsoDate => "date"
+  | IsoDateTime => "date-time"
+  | IsoTime => "time"
+  | Duration => "duration"
+  | Ipv4 => "ipv4"
+  | Ipv6 => "ipv6"
+  | Hostname => "hostname"
+  }
+}
+
+// One refinement in words. Used as a structural key and, by backends that
+// cannot express a given check, to say out loud what they dropped.
+let refinementLabel = (r: Schema.refinement): string => {
+  switch r {
+  | Format(f) => `format=${formatName(f)}`
+  | MinLength(n) => `minLength=${Int.toString(n)}`
+  | MaxLength(n) => `maxLength=${Int.toString(n)}`
+  | Pattern(p) => `pattern=${p}`
+  | Gte(v) => `minimum=${Float.toString(v)}`
+  | Lte(v) => `maximum=${Float.toString(v)}`
+  | Gt(v) => `exclusiveMinimum=${Float.toString(v)}`
+  | Lt(v) => `exclusiveMaximum=${Float.toString(v)}`
+  | MultipleOf(v) => `multipleOf=${Float.toString(v)}`
+  }
+}
+
 // Check if schema type is already Optional or Nullable
 let isOptionalType = (schema: Schema.schemaType): bool => {
   switch schema {

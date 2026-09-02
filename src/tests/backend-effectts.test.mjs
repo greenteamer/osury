@@ -179,3 +179,71 @@ describe('BackendEffectTS: runtime round-trip', () => {
         }
     }, 20000);
 });
+
+// Refinements become Effect's own filters via `.check(...)`. Running them
+// against the real runtime is the only proof that the emitted filter names and
+// argument shapes are the ones effect v4 actually exports.
+describe('BackendEffectTS: refinements are enforced at decode', () => {
+    test('valid values decode, out-of-range values throw', async () => {
+        const parsed = OpenAPIParser.parseDocument({
+            $defs: {
+                Bounded: {
+                    type: "object",
+                    properties: {
+                        id: { type: "string", format: "uuid" },
+                        slug: { type: "string", minLength: 3, maxLength: 8, pattern: "^[a-z]+$" },
+                        ratio: { type: "number", minimum: 0, maximum: 1 },
+                        count: { type: "integer", exclusiveMinimum: 0, multipleOf: 5 },
+                    },
+                    required: ["id", "slug", "ratio", "count"],
+                },
+            },
+        });
+        expect(parsed.TAG).toBe('Ok');
+        const genResult = Codegen.generateEffectTSWithDiagnostics(parsed._0, true, undefined);
+        expect(genResult.TAG).toBe('Ok');
+
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'osury-ts-ref-'));
+        try {
+            const modPath = path.join(dir, 'generated.mjs');
+            await esbuild.build({
+                stdin: { contents: genResult._0.code, loader: 'ts', resolveDir: path.resolve(here, '../..') },
+                bundle: true,
+                format: 'esm',
+                platform: 'node',
+                outfile: modPath,
+                logLevel: 'silent',
+            });
+            const mod = await import(modPath);
+            const { Schema } = await import('effect');
+            const decode = (v) => Schema.decodeUnknownSync(mod.Bounded)(v);
+
+            const valid = {
+                id: '3f2504e0-4f89-11d3-9a0c-0305e82c3301',
+                slug: 'abcd',
+                ratio: 0.5,
+                count: 10,
+            };
+            expect(decode(valid)).toMatchObject({ slug: 'abcd', count: 10 });
+
+            expect(() => decode({ ...valid, id: 'not-a-uuid' })).toThrow();
+            expect(() => decode({ ...valid, slug: 'ab' })).toThrow();
+            expect(() => decode({ ...valid, slug: 'abcdefghi' })).toThrow();
+            expect(() => decode({ ...valid, slug: 'ABCD' })).toThrow();
+            expect(() => decode({ ...valid, ratio: 1.5 })).toThrow();
+            expect(() => decode({ ...valid, count: 7 })).toThrow();
+            expect(() => decode({ ...valid, count: 0 })).toThrow();
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    }, 60000);
+
+    test('formats effect has no filter for are reported', () => {
+        const parsed = OpenAPIParser.parseDocument({
+            $defs: { User: { type: "object", properties: { email: { type: "string", format: "email" } }, required: ["email"] } },
+        });
+        const g = Codegen.generateEffectTSWithDiagnostics(parsed._0, true, undefined);
+
+        expect(g._0.warnings.join('\n')).toContain('format=email has no Effect Schema counterpart');
+    });
+});

@@ -295,6 +295,19 @@ opt-in: `IRGen.generate(schemas, ~refinements=true, ())` (CLI: `--refinements`).
 **Нельзя** делать печать refinements поведением по умолчанию без явного решения
 владельца контракта — это молчаливое ужесточение проверок у всех потребителей.
 
+Печатают refinements **все** бэкенды, каждый — тем, что его цель умеет:
+
+| Проверка | ReScript/sury | Effect TS | OCaml | Rust |
+|---|---|---|---|---|
+| minLength/maxLength, minimum/maximum, exclusive*, multipleOf | да | `.check(Schema.is*)` | guard в декодере (`Oj.check_`) | `#[serde(deserialize_with)]` |
+| pattern | да | `Schema.isPattern` | нет (нужен regex-модуль) | нет (нужен crate) |
+| format | да (`S.uuid`, `S.email`, ...) | только `uuid` | нет | нет |
+
+Чего цель не умеет — **не молчит**: `Backend*.droppedRefinements` возвращает
+warning на каждую (тип, проверка), и они попадают в вывод CLI. Своих регулярок
+для email/uri осознанно не пишем: они разошлись бы с тем, что реально проверяет
+sury, и одна спека начала бы значить разное на разных целях.
+
 Соответствие sury:
 - `format` → `@s.matches(S.uuid)` — **заменяет** базовую схему (не оборачивает)
 - остальные → `@s.with(S.minLength(_, 3))` — оборачивают, применяются по порядку

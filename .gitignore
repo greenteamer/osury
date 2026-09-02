@@ -66,8 +66,9 @@ TECHNICAL_DECISIONS.md
 
 # internal
 src/__generated__
-# scratch project of the "generated ReScript compiles" test (removed after each run)
+# scratch projects of the "generated ReScript compiles" tests (removed after each run)
 .rescript-compile-check/
+.rescript-pilot-check/
 # Real production specs (proprietary, local-only — golden tests read them)
 openapi.json
 openapi-core.json
