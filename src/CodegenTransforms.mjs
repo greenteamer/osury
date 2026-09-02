@@ -861,6 +861,61 @@ function getDependencies(_schema) {
   };
 }
 
+function validateRefs(schemas) {
+  let known = {};
+  schemas.forEach(s => {
+    known[s.name] = true;
+  });
+  let errors = [];
+  let walk = (_t, _path) => {
+    while (true) {
+      let path = _path;
+      let t = _t;
+      if (typeof t !== "object") {
+        return;
+      }
+      switch (t._tag) {
+        case "Object" :
+          t._0.forEach(f => walk(f.type, path.concat([f.name])));
+          return;
+        case "Array" :
+          _path = path.concat(["items"]);
+          _t = t._0;
+          continue;
+        case "Ref" :
+          let name = t._0;
+          if (Core__Option.isNone(known[name])) {
+            errors.push(Errors.invalidRef(name, path, Primitive_option.some(`"` + name + `" is referenced but not defined in the document`), undefined));
+            return;
+          } else {
+            return;
+          }
+        case "PolyVariant" :
+          t._0.forEach(c => walk(c.payload, path.concat([c._tag])));
+          return;
+        case "Dict" :
+          _path = path.concat(["additionalProperties"]);
+          _t = t._0;
+          continue;
+        case "Union" :
+        case "AllOf" :
+          break;
+        case "Optional" :
+        case "Nullable" :
+        case "Refined" :
+          _t = t._0;
+          continue;
+        default:
+          return;
+      }
+      t._0.forEach((t, i) => walk(t, path.concat([`[` + i.toString() + `]`])));
+      return;
+    };
+  };
+  schemas.forEach(s => walk(s.schema, [s.name]));
+  return errors;
+}
+
 function mergeAllOf(schemas) {
   let byName = {};
   schemas.forEach(s => {
@@ -1688,6 +1743,7 @@ export {
   replaceUnionInType,
   resolveExtractedUnionNames,
   getDependencies,
+  validateRefs,
   mergeAllOf,
   stripRefinementsInType,
   stripRefinements,

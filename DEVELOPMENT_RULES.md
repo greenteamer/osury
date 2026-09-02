@@ -124,8 +124,13 @@ let parse: JSON.t => schemaType  // может бросить исключени
 
 Каждая ошибка содержит:
 - `kind: errorKind` — что именно сломалось (типизированный вариант, не строка)
-- `location: { path, line, column }` — где сломалось
+- `location: { path }` — где сломалось, JSON-путь: `["Order", "items", "anyOf[1]"]`.
+  Строк/колонок нет: на входе распарсенный `JSON.t` без позиций
 - `hint: option<string>` — как починить (когда возможно)
+
+Все parse-функции `Schema.res` принимают `~path: array<string>` и передают его
+дальше: свойство объекта добавляет своё имя, `items`/`additionalProperties` —
+своё, арм union'а — `anyOf[i]`/`oneOf[i]`. Ошибка без пути — баг.
 
 **Нельзя** создавать ошибки со строковым сообщением без структуры. Для каждого нового класса ошибки — добавить вариант в `errorKind`.
 
@@ -136,6 +141,8 @@ let parse: JSON.t => schemaType  // может бросить исключени
 Пайплайн (IRGen.generate) выполняет трансформации в определённом порядке. Этот порядок менять нельзя:
 
 ```
+-4. validateRefs               — каждый Ref(name) должен резолвиться; иначе
+                                 InvalidRef с путём, где $ref написан
 -3. mergeAllOf                 — пересечения allOf → один Object; $ref-армы
                                  резолвятся по документу, ошибка InvalidRef /
                                  CircularReference / UnsupportedFeature иначе

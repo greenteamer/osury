@@ -677,6 +677,47 @@ let rec getDependencies = (schema: Schema.schemaType): array<string> => {
   }
 }
 
+// Every `Ref(name)` must name a schema the document actually defines. A
+// dangling $ref used to sail through and print a reference to a type that was
+// never generated — the failure surfaced as a ReScript compile error on the
+// output, with no hint of which spec node caused it.
+let validateRefs = (schemas: array<OpenAPIParser.namedSchema>): Errors.errors => {
+  let known = Dict.make()
+  schemas->Array.forEach(s => known->Dict.set(s.name, true))
+  let errors = []
+
+  let rec walk = (t: Schema.schemaType, ~path: array<string>) => {
+    switch t {
+    | Ref(name) =>
+      if known->Dict.get(name)->Option.isNone {
+        errors->Array.push(
+          Errors.invalidRef(
+            ~ref=name,
+            ~path,
+            ~hint=Some(`"${name}" is referenced but not defined in the document`),
+            (),
+          ),
+        )
+      }
+    | Object(fields) =>
+      fields->Array.forEach(f => walk(f.type_, ~path=Array.concat(path, [f.name])))
+    | Array(inner) => walk(inner, ~path=Array.concat(path, ["items"]))
+    | Dict(inner) => walk(inner, ~path=Array.concat(path, ["additionalProperties"]))
+    | Optional(inner) | Nullable(inner) | Refined(inner, _) => walk(inner, ~path)
+    | Union(types) | AllOf(types) =>
+      types->Array.forEachWithIndex((t, i) =>
+        walk(t, ~path=Array.concat(path, [`[${Int.toString(i)}]`]))
+      )
+    | PolyVariant(cases) =>
+      cases->Array.forEach(c => walk(c.payload, ~path=Array.concat(path, [c.tag])))
+    | String | Number | Integer | Boolean | Null | Enum(_) | Unknown => ()
+    }
+  }
+
+  schemas->Array.forEach(s => walk(s.schema, ~path=[s.name]))
+  errors
+}
+
 // Merge `allOf` intersections into a single object type.
 //
 // This cannot live in Schema.parse: an arm is usually a `$ref`, and resolving

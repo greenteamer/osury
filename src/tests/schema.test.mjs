@@ -3860,3 +3860,69 @@ describe('allOf merges $ref arms', () => {
         expect(parsed._0._0[0]._tag).toBe('Ref');
     });
 });
+
+// "Location first" is principle #1 of this compiler's error design, but not a
+// single parser error carried a path: on a 1000-type spec every failure read
+// "Error at #: Invalid JSON: ...". line/column were never filled by anything.
+describe('Parse errors carry a JSON path', () => {
+    test('a bad property type points at the property', () => {
+        const result = Schema.parse({
+            type: "object",
+            properties: { profile: { type: "object", properties: { age: { type: 7 } } } },
+        });
+
+        expect(result.TAG).toBe('Error');
+        expect(result._0[0].location.path).toEqual(['profile', 'age']);
+    });
+
+    test('array items and dict values are named in the path', () => {
+        const items = Schema.parse({
+            type: "object",
+            properties: { tags: { type: "array", items: { type: 7 } } },
+        });
+        expect(items._0[0].location.path).toEqual(['tags', 'items']);
+
+        const values = Schema.parse({
+            type: "object",
+            properties: { m: { type: "object", additionalProperties: { type: 7 } } },
+        });
+        expect(values._0[0].location.path).toEqual(['m', 'additionalProperties']);
+    });
+
+    test('union arms are indexed', () => {
+        const result = Schema.parse({
+            type: "object",
+            properties: { f: { anyOf: [{ type: "string" }, { type: 7 }] } },
+        });
+
+        expect(result._0[0].location.path).toEqual(['f', 'anyOf[1]']);
+    });
+
+    test('the path is rooted at the schema name when parsing a document', () => {
+        const parsed = OpenAPIParser.parseDocument({
+            $defs: { Thing: { type: "object", properties: { x: { type: 7 } } } },
+        });
+
+        expect(parsed.TAG).toBe('Error');
+        expect(parsed._0[0].location.path).toEqual(['Thing', 'x']);
+    });
+
+    test('a $ref with no target is an InvalidRef naming the field', () => {
+        const parsed = OpenAPIParser.parseDocument({
+            $defs: { Thing: { type: "object", properties: { x: { $ref: "#/$defs/Nope" } } } },
+        });
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+
+        expect(g.TAG).toBe('Error');
+        expect(g._0[0].kind.TAG).toBe('InvalidRef');
+        expect(g._0[0].kind._0).toBe('Nope');
+        expect(g._0[0].location.path).toEqual(['Thing', 'x']);
+    });
+
+    test('location has no dead line/column fields', () => {
+        const result = Schema.parse({ type: 7 });
+
+        expect(Object.keys(result._0[0].location)).toEqual(['path']);
+    });
+});

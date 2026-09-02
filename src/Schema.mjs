@@ -203,20 +203,20 @@ function refine(base, refs) {
   }
 }
 
-function parseSchema(json) {
+function parseSchema(json, path) {
   if (typeof json === "object" && json !== null && !Array.isArray(json)) {
-    return parseObject(json);
+    return parseObject(json, path);
   }
   return {
     TAG: "Error",
     _0: [Errors.makeError({
         TAG: "InvalidJson",
         _0: "expected object"
-      }, undefined, undefined, undefined)]
+      }, path, undefined, undefined)]
   };
 }
 
-function parsePrimitiveType(dict) {
+function parsePrimitiveType(dict, path) {
   let match = dict["type"];
   if (match !== undefined) {
     if (Array.isArray(match)) {
@@ -233,7 +233,7 @@ function parsePrimitiveType(dict) {
           _0: [Errors.makeError({
               TAG: "UnsupportedFeature",
               _0: "type array without null"
-            }, undefined, undefined, undefined)]
+            }, path, undefined, undefined)]
         };
       }
       if (nonNullTypes.length !== 1) {
@@ -242,7 +242,7 @@ function parsePrimitiveType(dict) {
           _0: [Errors.makeError({
               TAG: "InvalidJson",
               _0: "type array must have exactly one non-null type"
-            }, undefined, undefined, undefined)]
+            }, path, undefined, undefined)]
         };
       }
       let nonNullType = nonNullTypes[0];
@@ -260,7 +260,7 @@ function parsePrimitiveType(dict) {
           ];
         }
       }));
-      let inner = parsePrimitiveType(newDict);
+      let inner = parsePrimitiveType(newDict, path);
       if (inner.TAG === "Ok") {
         return {
           TAG: "Ok",
@@ -280,7 +280,7 @@ function parsePrimitiveType(dict) {
       case "string" :
         switch (match) {
           case "array" :
-            return parseArrayType(dict);
+            return parseArrayType(dict, path);
           case "boolean" :
             return {
               TAG: "Ok",
@@ -302,7 +302,7 @@ function parsePrimitiveType(dict) {
               _0: refine("Number", collectNumberRefinements(dict))
             };
           case "object" :
-            return parseObjectType(dict);
+            return parseObjectType(dict, path);
           case "string" :
             let match$1 = dict["const"];
             let exit = 0;
@@ -345,7 +345,7 @@ function parsePrimitiveType(dict) {
                     _0: [Errors.makeError({
                         TAG: "InvalidJson",
                         _0: "enum values must be strings"
-                      }, undefined, undefined, undefined)]
+                      }, path, undefined, undefined)]
                   };
                 }
               }
@@ -356,7 +356,7 @@ function parsePrimitiveType(dict) {
                   _0: [Errors.makeError({
                       TAG: "InvalidJson",
                       _0: "enum must be an array"
-                    }, undefined, undefined, undefined)]
+                    }, path, undefined, undefined)]
                 };
               }
             }
@@ -364,7 +364,7 @@ function parsePrimitiveType(dict) {
           default:
             return {
               TAG: "Error",
-              _0: [Errors.unknownType(match, undefined, undefined, undefined)]
+              _0: [Errors.unknownType(match, path, undefined, undefined)]
             };
         }
         break;
@@ -374,7 +374,7 @@ function parsePrimitiveType(dict) {
       _0: [Errors.makeError({
           TAG: "InvalidJson",
           _0: "type must be a string or array"
-        }, undefined, undefined, undefined)]
+        }, path, undefined, undefined)]
     };
   }
   let match$3 = dict["const"];
@@ -389,7 +389,7 @@ function parsePrimitiveType(dict) {
   }
   let match$4 = dict["properties"];
   if (match$4 !== undefined) {
-    return parseObjectType(dict);
+    return parseObjectType(dict, path);
   } else {
     return {
       TAG: "Ok",
@@ -398,15 +398,15 @@ function parsePrimitiveType(dict) {
   }
 }
 
-function parseArrayType(dict) {
+function parseArrayType(dict, path) {
   let itemSchema = dict["items"];
   if (itemSchema === undefined) {
     return {
       TAG: "Error",
-      _0: [Errors.missingField("items", undefined, "array type requires items schema", undefined)]
+      _0: [Errors.missingField("items", path, "array type requires items schema", undefined)]
     };
   }
-  let itemType = parseSchema(itemSchema);
+  let itemType = parseSchema(itemSchema, path.concat(["items"]));
   if (itemType.TAG === "Ok") {
     return {
       TAG: "Ok",
@@ -423,7 +423,8 @@ function parseArrayType(dict) {
   }
 }
 
-function parseAnyOf(items) {
+function parseAnyOf(items, path, keywordOpt) {
+  let keyword = keywordOpt !== undefined ? keywordOpt : "anyOf";
   let hasNull = items.some(isNullType);
   let nonNullItems = items.filter(item => !isNullType(item));
   if (hasNull && nonNullItems.length === 1) {
@@ -433,12 +434,12 @@ function parseAnyOf(items) {
         TAG: "Error",
         _0: [Errors.makeError({
             TAG: "InvalidJson",
-            _0: "anyOf with only null types"
-          }, undefined, undefined, undefined)]
+            _0: keyword + ` with only null types`
+          }, path, undefined, undefined)]
       };
     }
     if (typeof match === "object" && match !== null && !Array.isArray(match)) {
-      let innerType = parseObject(match);
+      let innerType = parseObject(match, path.concat([keyword + `[0]`]));
       if (innerType.TAG === "Ok") {
         return {
           TAG: "Ok",
@@ -458,8 +459,8 @@ function parseAnyOf(items) {
       TAG: "Error",
       _0: [Errors.makeError({
           TAG: "InvalidJson",
-          _0: "anyOf item must be object"
-        }, undefined, undefined, undefined)]
+          _0: keyword + ` item must be object`
+        }, path, undefined, undefined)]
     };
   }
   if (nonNullItems.length < 2) {
@@ -467,11 +468,11 @@ function parseAnyOf(items) {
       TAG: "Error",
       _0: [Errors.makeError({
           TAG: "InvalidJson",
-          _0: "anyOf must have at least 2 items"
-        }, undefined, undefined, undefined)]
+          _0: keyword + ` must have at least 2 items`
+        }, path, undefined, undefined)]
     };
   }
-  let results = nonNullItems.map(parseSchema);
+  let results = nonNullItems.map((item, i) => parseSchema(item, path.concat([keyword + `[` + i.toString() + `]`])));
   let errors = Core__Array.filterMap(results, r => {
     if (r.TAG === "Ok") {
       return;
@@ -504,7 +505,7 @@ function parseAnyOf(items) {
   };
 }
 
-function parseObjectType(dict) {
+function parseObjectType(dict, path) {
   let match = dict["properties"];
   let hasDeclaredFields = typeof match === "object" && match !== null && !Array.isArray(match) ? Object.entries(match).length > 0 : false;
   let valueSchema = dict["additionalProperties"];
@@ -531,7 +532,7 @@ function parseObjectType(dict) {
         if (hasDeclaredFields) {
           exit = 1;
         } else {
-          let valueType = parseSchema(valueSchema);
+          let valueType = parseSchema(valueSchema, path.concat(["additionalProperties"]));
           if (valueType.TAG === "Ok") {
             return {
               TAG: "Ok",
@@ -578,7 +579,7 @@ function parseObjectType(dict) {
       let entries = Object.entries(match$2).filter(param => param[0] !== "_tag");
       let results = entries.map(param => {
         let name = param[0];
-        let propType = parseSchema(param[1]);
+        let propType = parseSchema(param[1], path.concat([name]));
         if (propType.TAG === "Ok") {
           return {
             TAG: "Ok",
@@ -628,14 +629,14 @@ function parseObjectType(dict) {
         _0: [Errors.makeError({
             TAG: "InvalidJson",
             _0: "properties must be an object"
-          }, undefined, undefined, undefined)]
+          }, path, undefined, undefined)]
       };
     }
   }
 }
 
-function parseAllOf(items) {
-  let results = items.map(parseSchema);
+function parseAllOf(items, path) {
+  let results = items.map((item, i) => parseSchema(item, path.concat([`allOf[` + i.toString() + `]`])));
   let errors = Core__Array.filterMap(results, r => {
     if (r.TAG === "Ok") {
       return;
@@ -716,8 +717,9 @@ function detectExternalTagging(items) {
   }
 }
 
-function parseExternalOneOf(items) {
-  let caseResults = items.map(item => {
+function parseExternalOneOf(items, path) {
+  let caseResults = items.map((item, i) => {
+    let path$1 = path.concat([`oneOf[` + i.toString() + `]`]);
     let match = externalWrapperKey(item);
     if (typeof item === "object" && item !== null && !Array.isArray(item) && match !== undefined) {
       let match$1 = item["properties"];
@@ -728,10 +730,10 @@ function parseExternalOneOf(items) {
           _0: [Errors.makeError({
               TAG: "InvalidJson",
               _0: "externally-tagged wrapper has no payload schema"
-            }, undefined, undefined, undefined)]
+            }, path$1, undefined, undefined)]
         };
       }
-      let payload = parseSchema(inner);
+      let payload = parseSchema(inner, path$1.concat([match]));
       if (payload.TAG === "Ok") {
         return {
           TAG: "Ok",
@@ -752,7 +754,7 @@ function parseExternalOneOf(items) {
       _0: [Errors.makeError({
           TAG: "InvalidJson",
           _0: "oneOf item is not an externally-tagged wrapper"
-        }, undefined, undefined, undefined)]
+        }, path$1, undefined, undefined)]
     };
   });
   let errors = Core__Array.filterMap(caseResults, r => {
@@ -792,10 +794,11 @@ function hasScalarOneOfItem(items) {
   });
 }
 
-function parseOneOf(items, discriminatorPropertyNameOpt) {
+function parseOneOf(items, path, discriminatorPropertyNameOpt) {
   let discriminatorPropertyName = discriminatorPropertyNameOpt !== undefined ? Primitive_option.valFromOption(discriminatorPropertyNameOpt) : undefined;
   let propName = Core__Option.getOr(discriminatorPropertyName, "_tag");
-  let caseResults = items.map(item => {
+  let caseResults = items.map((item, i) => {
+    let path$1 = path.concat([`oneOf[` + i.toString() + `]`]);
     if (typeof item === "object" && item !== null && !Array.isArray(item)) {
       let match = item["$ref"];
       let exit = 0;
@@ -829,7 +832,7 @@ function parseOneOf(items, discriminatorPropertyNameOpt) {
                 _0: [Errors.makeError({
                     TAG: "MissingRequiredField",
                     _0: propName + " with const"
-                  }, undefined, undefined, undefined)]
+                  }, path$1, undefined, undefined)]
               };
             }
             let match$2 = item["required"];
@@ -843,7 +846,7 @@ function parseOneOf(items, discriminatorPropertyNameOpt) {
             let entries = Object.entries(match$1).filter(param => param[0] !== propName);
             let fieldResults = entries.map(param => {
               let name = param[0];
-              let propType = parseSchema(param[1]);
+              let propType = parseSchema(param[1], path$1.concat([name]));
               if (propType.TAG === "Ok") {
                 return {
                   TAG: "Ok",
@@ -899,7 +902,7 @@ function parseOneOf(items, discriminatorPropertyNameOpt) {
             _0: [Errors.makeError({
                 TAG: "InvalidJson",
                 _0: "oneOf item must have properties"
-              }, undefined, undefined, undefined)]
+              }, path$1, undefined, undefined)]
           };
         }
       }
@@ -909,7 +912,7 @@ function parseOneOf(items, discriminatorPropertyNameOpt) {
       _0: [Errors.makeError({
           TAG: "InvalidJson",
           _0: "oneOf item must be object"
-        }, undefined, undefined, undefined)]
+        }, path$1, undefined, undefined)]
     };
   });
   let errors = Core__Array.filterMap(caseResults, r => {
@@ -970,7 +973,7 @@ function applyNullable(dict, result) {
   }
 }
 
-function parseObject(dict) {
+function parseObject(dict, path) {
   let match = dict["$ref"];
   if (match !== undefined) {
     if (typeof match === "string") {
@@ -987,14 +990,14 @@ function parseObject(dict) {
       _0: [Errors.makeError({
           TAG: "InvalidJson",
           _0: "$ref must be a string"
-        }, undefined, undefined, undefined)]
+        }, path, undefined, undefined)]
     };
   }
   let match$1 = dict["oneOf"];
   if (match$1 !== undefined) {
     if (Array.isArray(match$1)) {
       if (hasScalarOneOfItem(match$1)) {
-        return parseAnyOf(match$1);
+        return parseAnyOf(match$1, path, "oneOf");
       }
       let hasNull = match$1.some(isNullType);
       let nonNullItems = match$1.filter(item => !isNullType(item));
@@ -1006,12 +1009,12 @@ function parseObject(dict) {
             _0: [Errors.makeError({
                 TAG: "InvalidJson",
                 _0: "oneOf with only null types"
-              }, undefined, undefined, undefined)]
+              }, path, undefined, undefined)]
           };
         }
         let exit = 0;
         if (typeof match$2 === "object" && match$2 !== null && !Array.isArray(match$2)) {
-          let innerType = parseObject(match$2);
+          let innerType = parseObject(match$2, path.concat(["oneOf[0]"]));
           if (innerType.TAG === "Ok") {
             return {
               TAG: "Ok",
@@ -1034,13 +1037,13 @@ function parseObject(dict) {
             _0: [Errors.makeError({
                 TAG: "InvalidJson",
                 _0: "oneOf item must be object"
-              }, undefined, undefined, undefined)]
+              }, path, undefined, undefined)]
           };
         }
       } else {
         if (hasNull && nonNullItems.length >= 2) {
           let discriminatorPropName = extractDiscriminatorPropertyName(dict);
-          let inner = parseOneOf(nonNullItems, Primitive_option.some(discriminatorPropName));
+          let inner = parseOneOf(nonNullItems, path, Primitive_option.some(discriminatorPropName));
           if (inner.TAG === "Ok") {
             return {
               TAG: "Ok",
@@ -1062,9 +1065,9 @@ function parseObject(dict) {
         if (typeof match$3 === "string") {
           switch (match$3) {
             case "external" :
-              return parseExternalOneOf(match$1);
+              return parseExternalOneOf(match$1, path);
             case "internal" :
-              return parseOneOf(match$1, Primitive_option.some(discriminatorPropName$1));
+              return parseOneOf(match$1, path, Primitive_option.some(discriminatorPropName$1));
             default:
               exit$1 = 2;
           }
@@ -1073,9 +1076,9 @@ function parseObject(dict) {
         }
         if (exit$1 === 2) {
           if (Core__Option.isNone(discriminatorPropName$1) && detectExternalTagging(match$1)) {
-            return parseExternalOneOf(match$1);
+            return parseExternalOneOf(match$1, path);
           } else {
-            return parseOneOf(match$1, Primitive_option.some(discriminatorPropName$1));
+            return parseOneOf(match$1, path, Primitive_option.some(discriminatorPropName$1));
           }
         }
       }
@@ -1085,35 +1088,35 @@ function parseObject(dict) {
       _0: [Errors.makeError({
           TAG: "InvalidJson",
           _0: "oneOf must be an array"
-        }, undefined, undefined, undefined)]
+        }, path, undefined, undefined)]
     };
   }
   let match$4 = dict["allOf"];
   if (match$4 !== undefined) {
     if (Array.isArray(match$4)) {
-      return parseAllOf(match$4);
+      return parseAllOf(match$4, path);
     }
     return {
       TAG: "Error",
       _0: [Errors.makeError({
           TAG: "InvalidJson",
           _0: "allOf must be an array"
-        }, undefined, undefined, undefined)]
+        }, path, undefined, undefined)]
     };
   }
   let match$5 = dict["anyOf"];
   if (match$5 === undefined) {
-    return applyNullable(dict, parsePrimitiveType(dict));
+    return applyNullable(dict, parsePrimitiveType(dict, path));
   }
   if (Array.isArray(match$5)) {
-    return parseAnyOf(match$5);
+    return parseAnyOf(match$5, path, undefined);
   }
   return {
     TAG: "Error",
     _0: [Errors.makeError({
         TAG: "InvalidJson",
         _0: "anyOf must be an array"
-      }, undefined, undefined, undefined)]
+      }, path, undefined, undefined)]
   };
 }
 
@@ -1155,7 +1158,11 @@ function variantEncodingOfJson(json) {
   }
 }
 
-let parse = parseSchema;
+let parseAt = parseSchema;
+
+function parse(json) {
+  return parseSchema(json, []);
+}
 
 export {
   isNullType,
@@ -1184,6 +1191,7 @@ export {
   applyNullable,
   parseObject,
   variantEncodingOfJson,
+  parseAt,
   parse,
 }
 /* No side effect */

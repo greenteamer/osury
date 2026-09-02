@@ -237,6 +237,13 @@ let generate = (
   ~refinements: bool=false,
   (),
 ): result<IR.irModule, Errors.errors> => {
+  // Step -4: Every $ref must resolve. Checked before anything rewrites the AST,
+  // so the reported path is the one the user wrote.
+  let refErrors = CodegenTransforms.validateRefs(schemas)
+  if Array.length(refErrors) > 0 {
+    Error(refErrors)
+  } else {
+
   // Step -3: Merge `allOf` intersections. First, because every later step
   // assumes plain object types — and because a dropped `$ref` arm here means
   // silently losing every inherited field.
@@ -379,6 +386,7 @@ let generate = (
     types: irTypes,
     warnings,
   })
+  }
   }
   }
   }

@@ -2,14 +2,10 @@
 
 import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
 
-function makeLocation(pathOpt, lineOpt, columnOpt, param) {
+function makeLocation(pathOpt, param) {
   let path = pathOpt !== undefined ? pathOpt : [];
-  let line = lineOpt !== undefined ? Primitive_option.valFromOption(lineOpt) : undefined;
-  let column = columnOpt !== undefined ? Primitive_option.valFromOption(columnOpt) : undefined;
   return {
-    path: path,
-    line: line,
-    column: column
+    path: path
   };
 }
 
@@ -18,7 +14,7 @@ function makeError(kind, pathOpt, hintOpt, param) {
   let hint = hintOpt !== undefined ? Primitive_option.valFromOption(hintOpt) : undefined;
   return {
     kind: kind,
-    location: makeLocation(path, undefined, undefined, undefined),
+    location: makeLocation(path, undefined),
     hint: hint
   };
 }
@@ -55,44 +51,37 @@ function formatError(error) {
   let pathStr = parts.length !== 0 ? "#/" + parts.join("/") : "#";
   let value = error.kind;
   let kindStr;
-  if (typeof value !== "object") {
-    kindStr = "Ambiguous union (anyOf/oneOf cannot be distinguished)";
-  } else {
-    switch (value.TAG) {
-      case "UnknownType" :
-        kindStr = `Unknown type "` + value._0 + `"`;
-        break;
-      case "MissingRequiredField" :
-        kindStr = `Missing required field "` + value._0 + `"`;
-        break;
-      case "InvalidRef" :
-        kindStr = `Invalid reference "` + value._0 + `"`;
-        break;
-      case "UnsupportedFeature" :
-        kindStr = `Unsupported feature "` + value._0 + `"`;
-        break;
-      case "InvalidFormat" :
-        kindStr = `Invalid format "` + value._0 + `"`;
-        break;
-      case "CircularReference" :
-        kindStr = `Circular reference detected: "` + value._0 + `"`;
-        break;
-      case "MissingDiscriminator" :
-        kindStr = `Missing discriminator for union "` + value._0 + `"`;
-        break;
-      case "DuplicateTypeName" :
-        kindStr = `Duplicate type name "` + value._0 + `"`;
-        break;
-      case "DuplicateConstructor" :
-        kindStr = `Union "` + value._0 + `" produces the constructor "` + value._1 + `" more than once`;
-        break;
-      case "ConflictingInlineEnums" :
-        kindStr = `Conflicting inline enums at field "` + value._0 + `" (different value sets on the same field path)`;
-        break;
-      case "InvalidJson" :
-        kindStr = `Invalid JSON: ` + value._0;
-        break;
-    }
+  switch (value.TAG) {
+    case "UnknownType" :
+      kindStr = `Unknown type "` + value._0 + `"`;
+      break;
+    case "MissingRequiredField" :
+      kindStr = `Missing required field "` + value._0 + `"`;
+      break;
+    case "InvalidRef" :
+      kindStr = `Invalid reference "` + value._0 + `"`;
+      break;
+    case "UnsupportedFeature" :
+      kindStr = `Unsupported feature "` + value._0 + `"`;
+      break;
+    case "CircularReference" :
+      kindStr = `Circular reference detected: "` + value._0 + `"`;
+      break;
+    case "MissingDiscriminator" :
+      kindStr = `Missing discriminator for union "` + value._0 + `"`;
+      break;
+    case "DuplicateTypeName" :
+      kindStr = `Duplicate type name "` + value._0 + `"`;
+      break;
+    case "DuplicateConstructor" :
+      kindStr = `Union "` + value._0 + `" produces the constructor "` + value._1 + `" more than once`;
+      break;
+    case "ConflictingInlineEnums" :
+      kindStr = `Conflicting inline enums at field "` + value._0 + `" (different value sets on the same field path)`;
+      break;
+    case "InvalidJson" :
+      kindStr = `Invalid JSON: ` + value._0;
+      break;
   }
   let hint = error.hint;
   let hintStr = hint !== undefined ? `\n  Hint: ` + hint : "";

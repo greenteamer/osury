@@ -229,15 +229,18 @@ let collectNumberRefinements = (dict: Dict.t<JSON.t>): array<refinement> => {
 let refine = (base: schemaType, refs: array<refinement>): schemaType =>
   Array.length(refs) == 0 ? base : Refined(base, refs)
 
-let rec parseSchema = (json: JSON.t): result<schemaType, Errors.errors> => {
+// Every parse function threads ~path — the JSON path of the node it is looking
+// at. Principle #1 of this compiler's error design is "location first", and an
+// error without one is unusable on a spec with a thousand types.
+let rec parseSchema = (json: JSON.t, ~path: array<string>): result<schemaType, Errors.errors> => {
   switch json {
-  | Object(dict) => parseObject(dict)
-  | _ => Error([Errors.makeError(~kind=InvalidJson("expected object"), ())])
+  | Object(dict) => parseObject(dict, ~path)
+  | _ => Error([Errors.makeError(~kind=InvalidJson("expected object"), ~path, ())])
   }
 }
 
 // Helper: parse primitive type from object
-and parsePrimitiveType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
+and parsePrimitiveType = (dict: Dict.t<JSON.t>, ~path: array<string>): result<schemaType, Errors.errors> => {
   switch dict->Dict.get("type") {
   | Some(String("string")) =>
     // Check for const first (single-value literal, e.g. _tag)
@@ -249,9 +252,9 @@ and parsePrimitiveType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.error
       | Some(Array(enumValues)) =>
         switch parseEnumValues(enumValues) {
         | Some(values) => Ok(Enum(values))
-        | None => Error([Errors.makeError(~kind=InvalidJson("enum values must be strings"), ())])
+        | None => Error([Errors.makeError(~kind=InvalidJson("enum values must be strings"), ~path, ())])
         }
-      | Some(_) => Error([Errors.makeError(~kind=InvalidJson("enum must be an array"), ())])
+      | Some(_) => Error([Errors.makeError(~kind=InvalidJson("enum must be an array"), ~path, ())])
       // Constraints apply to a free-form string only: an enum or const already
       // pins the value down, and refining a literal set says nothing extra.
       | None => Ok(refine(String, collectStringRefinements(dict)))
@@ -261,9 +264,9 @@ and parsePrimitiveType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.error
   | Some(String("integer")) => Ok(refine(Integer, collectNumberRefinements(dict)))
   | Some(String("boolean")) => Ok(Boolean)
   | Some(String("null")) => Ok(Null)
-  | Some(String("object")) => parseObjectType(dict)
-  | Some(String("array")) => parseArrayType(dict)
-  | Some(String(unknown)) => Error([Errors.unknownType(~value=unknown, ())])
+  | Some(String("object")) => parseObjectType(dict, ~path)
+  | Some(String("array")) => parseArrayType(dict, ~path)
+  | Some(String(unknown)) => Error([Errors.unknownType(~value=unknown, ~path, ())])
   | Some(Array(typeArr)) =>
     // OpenAPI 3.1: type as array, e.g. ["string", "null"]
     let typeStrings = typeArr->Array.filterMap(t =>
@@ -281,17 +284,17 @@ and parsePrimitiveType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.error
       let newDict = Dict.fromArray(dict->Dict.toArray->Array.map(((k, v)) =>
         if k == "type" { (k, JSON.String(nonNullType)) } else { (k, v) }
       ))
-      switch parsePrimitiveType(newDict) {
+      switch parsePrimitiveType(newDict, ~path) {
       | Ok(inner) => Ok(Nullable(inner))
       | Error(e) => Error(e)
       }
     | (false, _) =>
       // No null in array — unsupported multi-type union via type array
-      Error([Errors.makeError(~kind=UnsupportedFeature("type array without null"), ())])
+      Error([Errors.makeError(~kind=UnsupportedFeature("type array without null"), ~path, ())])
     | _ =>
-      Error([Errors.makeError(~kind=InvalidJson("type array must have exactly one non-null type"), ())])
+      Error([Errors.makeError(~kind=InvalidJson("type array must have exactly one non-null type"), ~path, ())])
     }
-  | Some(_) => Error([Errors.makeError(~kind=InvalidJson("type must be a string or array"), ())])
+  | Some(_) => Error([Errors.makeError(~kind=InvalidJson("type must be a string or array"), ~path, ())])
   | None =>
     // No `type` field. JSON Schema lets the value speak for itself: `const`
     // implies the type, and `properties` implies an object. Only when nothing
@@ -300,7 +303,7 @@ and parsePrimitiveType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.error
     | Some(String(constValue)) => Ok(Enum([constValue]))
     | _ =>
       switch dict->Dict.get("properties") {
-      | Some(_) => parseObjectType(dict)
+      | Some(_) => parseObjectType(dict, ~path)
       | None => Ok(Unknown)
       }
     }
@@ -308,20 +311,20 @@ and parsePrimitiveType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.error
 }
 
 // Helper: parse array type
-and parseArrayType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
+and parseArrayType = (dict: Dict.t<JSON.t>, ~path: array<string>): result<schemaType, Errors.errors> => {
   switch dict->Dict.get("items") {
   | Some(itemSchema) =>
-    switch parseSchema(itemSchema) {
+    switch parseSchema(itemSchema, ~path=Array.concat(path, ["items"])) {
     | Ok(itemType) => Ok(Array(itemType))
     | Error(e) => Error(e)
     }
   | None =>
-    Error([Errors.missingField(~field="items", ~hint=Some("array type requires items schema"), ())])
+    Error([Errors.missingField(~field="items", ~path, ~hint=Some("array type requires items schema"), ())])
   }
 }
 
 // Helper: parse anyOf (nullable pattern or union type)
-and parseAnyOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
+and parseAnyOf = (items: array<JSON.t>, ~path: array<string>, ~keyword: string="anyOf"): result<schemaType, Errors.errors> => {
   let hasNull = items->Array.some(isNullType)
   let nonNullItems = items->Array.filter(item => !isNullType(item))
 
@@ -329,17 +332,19 @@ and parseAnyOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
     // Nullable pattern: [T, null] → Nullable(T) for JSON null support
     switch nonNullItems->Array.get(0) {
     | Some(Object(dict)) =>
-      switch parseObject(dict) {
+      switch parseObject(dict, ~path=Array.concat(path, [`${keyword}[0]`])) {
       | Ok(innerType) => Ok(Nullable(innerType))
       | Error(e) => Error(e)
       }
-    | Some(_) => Error([Errors.makeError(~kind=InvalidJson("anyOf item must be object"), ())])
-    | None => Error([Errors.makeError(~kind=InvalidJson("anyOf with only null types"), ())])
+    | Some(_) => Error([Errors.makeError(~kind=InvalidJson(`${keyword} item must be object`), ~path, ())])
+    | None => Error([Errors.makeError(~kind=InvalidJson(`${keyword} with only null types`), ~path, ())])
     }
   } else if Array.length(nonNullItems) >= 2 {
     // Union type: [A, B, ...] → Union([A, B, ...]), wrapped in Nullable if a
     // null arm was present
-    let results = nonNullItems->Array.map(parseSchema)
+    let results = nonNullItems->Array.mapWithIndex((item, i) =>
+      parseSchema(item, ~path=Array.concat(path, [`${keyword}[${Int.toString(i)}]`]))
+    )
     let errors = results->Array.filterMap(r =>
       switch r {
       | Error(e) => Some(e)
@@ -369,12 +374,12 @@ and parseAnyOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
       Ok(hasNull ? Nullable(inner) : inner)
     }
   } else {
-    Error([Errors.makeError(~kind=InvalidJson("anyOf must have at least 2 items"), ())])
+    Error([Errors.makeError(~kind=InvalidJson(`${keyword} must have at least 2 items`), ~path, ())])
   }
 }
 
 // Helper: parse object type with properties
-and parseObjectType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
+and parseObjectType = (dict: Dict.t<JSON.t>, ~path: array<string>): result<schemaType, Errors.errors> => {
   // additionalProperties makes a Dict only for pure map objects. When declared
   // properties are present too (Pydantic's extra="allow" emits both), the
   // record shape wins — collapsing to Dict would silently drop every field.
@@ -384,7 +389,7 @@ and parseObjectType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> 
   }
   switch dict->Dict.get("additionalProperties") {
   | Some(Object(_) as valueSchema) if !hasDeclaredFields =>
-    switch parseSchema(valueSchema) {
+    switch parseSchema(valueSchema, ~path=Array.concat(path, ["additionalProperties"])) {
     | Ok(valueType) => Ok(Dict(valueType))
     | Error(e) => Error(e)
     }
@@ -410,7 +415,7 @@ and parseObjectType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> 
       // Filter out _tag field - it will be added automatically via @tag annotation on variants
       let entries = propsDict->Dict.toArray->Array.filter(((name, _)) => name != "_tag")
       let results = entries->Array.map(((name, propSchema)) => {
-        switch parseSchema(propSchema) {
+        switch parseSchema(propSchema, ~path=Array.concat(path, [name])) {
         | Ok(propType) =>
           Ok({
             name,
@@ -444,16 +449,18 @@ and parseObjectType = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> 
         )
         Ok(Object(fields))
       }
-    | Some(_) => Error([Errors.makeError(~kind=InvalidJson("properties must be an object"), ())])
+    | Some(_) => Error([Errors.makeError(~kind=InvalidJson("properties must be an object"), ~path, ())])
     | None => Ok(Object([]))
     }
   }
 }
 
 // Helper: parse allOf (merge object schemas)
-and parseAllOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
+and parseAllOf = (items: array<JSON.t>, ~path: array<string>): result<schemaType, Errors.errors> => {
   // Parse each schema
-  let results = items->Array.map(parseSchema)
+  let results = items->Array.mapWithIndex((item, i) =>
+    parseSchema(item, ~path=Array.concat(path, [`allOf[${Int.toString(i)}]`]))
+  )
 
   // Collect errors
   let errors = results->Array.filterMap(r =>
@@ -518,8 +525,9 @@ and detectExternalTagging = (items: array<JSON.t>): bool => {
 }
 
 // Parse externally-tagged oneOf: tag = wrapper key, payload = inner schema
-and parseExternalOneOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
-  let caseResults = items->Array.map(item => {
+and parseExternalOneOf = (items: array<JSON.t>, ~path: array<string>): result<schemaType, Errors.errors> => {
+  let caseResults = items->Array.mapWithIndex((item, i) => {
+    let path = Array.concat(path, [`oneOf[${Int.toString(i)}]`])
     switch (item, externalWrapperKey(item)) {
     | (Object(dict), Some(key)) =>
       let inner = switch dict->Dict.get("properties") {
@@ -528,13 +536,13 @@ and parseExternalOneOf = (items: array<JSON.t>): result<schemaType, Errors.error
       }
       switch inner {
       | Some(innerJson) =>
-        switch parseSchema(innerJson) {
+        switch parseSchema(innerJson, ~path=Array.concat(path, [key])) {
         | Ok(payload) => Ok({tag: key, payload})
         | Error(e) => Error(e)
         }
-      | None => Error([Errors.makeError(~kind=InvalidJson("externally-tagged wrapper has no payload schema"), ())])
+      | None => Error([Errors.makeError(~kind=InvalidJson("externally-tagged wrapper has no payload schema"), ~path, ())])
       }
-    | _ => Error([Errors.makeError(~kind=InvalidJson("oneOf item is not an externally-tagged wrapper"), ())])
+    | _ => Error([Errors.makeError(~kind=InvalidJson("oneOf item is not an externally-tagged wrapper"), ~path, ())])
     }
   })
 
@@ -575,9 +583,10 @@ and hasScalarOneOfItem = (items: array<JSON.t>): bool => {
 }
 
 // Helper: parse oneOf (discriminated union with _tag or discriminator.propertyName)
-and parseOneOf = (items: array<JSON.t>, ~discriminatorPropertyName: option<string>=None): result<schemaType, Errors.errors> => {
+and parseOneOf = (items: array<JSON.t>, ~path: array<string>, ~discriminatorPropertyName: option<string>=None): result<schemaType, Errors.errors> => {
   let propName = discriminatorPropertyName->Option.getOr("_tag")
-  let caseResults = items->Array.map(item => {
+  let caseResults = items->Array.mapWithIndex((item, i) => {
+    let path = Array.concat(path, [`oneOf[${Int.toString(i)}]`])
     switch item {
     | Object(dict) =>
       // Check for $ref first
@@ -607,7 +616,7 @@ and parseOneOf = (items: array<JSON.t>, ~discriminatorPropertyName: option<strin
             // Parse properties excluding discriminator property
             let entries = propsDict->Dict.toArray->Array.filter(((name, _)) => name != propName)
             let fieldResults = entries->Array.map(((name, propSchema)) => {
-              switch parseSchema(propSchema) {
+              switch parseSchema(propSchema, ~path=Array.concat(path, [name])) {
               | Ok(propType) =>
                 Ok({
                   name,
@@ -638,14 +647,14 @@ and parseOneOf = (items: array<JSON.t>, ~discriminatorPropertyName: option<strin
               Ok({tag, payload: Object(fields)})
             }
           | None =>
-            Error([Errors.makeError(~kind=MissingRequiredField(propName ++ " with const"), ())])
+            Error([Errors.makeError(~kind=MissingRequiredField(propName ++ " with const"), ~path, ())])
           }
         | _ =>
-          Error([Errors.makeError(~kind=InvalidJson("oneOf item must have properties"), ())])
+          Error([Errors.makeError(~kind=InvalidJson("oneOf item must have properties"), ~path, ())])
         }
       }
     | _ =>
-      Error([Errors.makeError(~kind=InvalidJson("oneOf item must be object"), ())])
+      Error([Errors.makeError(~kind=InvalidJson("oneOf item must be object"), ~path, ())])
     }
   })
 
@@ -681,19 +690,19 @@ and applyNullable = (dict: Dict.t<JSON.t>, result: result<schemaType, Errors.err
 }
 
 // Main parse object dispatcher
-and parseObject = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
+and parseObject = (dict: Dict.t<JSON.t>, ~path: array<string>): result<schemaType, Errors.errors> => {
   // Check for $ref first
   switch dict->Dict.get("$ref") {
   | Some(String(refPath)) =>
     applyNullable(dict, Ok(Ref(extractRefName(refPath))))
-  | Some(_) => Error([Errors.makeError(~kind=InvalidJson("$ref must be a string"), ())])
+  | Some(_) => Error([Errors.makeError(~kind=InvalidJson("$ref must be a string"), ~path, ())])
   | None =>
     // Check for oneOf (discriminated union or nullable)
     switch dict->Dict.get("oneOf") {
     | Some(Array(items)) if hasScalarOneOfItem(items) =>
       // Scalar arms (enum/const/primitive) can't be discriminated — union
       // semantics; parseAnyOf also handles a null arm (nullable pattern)
-      parseAnyOf(items)
+      parseAnyOf(items, ~path, ~keyword="oneOf")
     | Some(Array(items)) =>
       // Check if oneOf contains null type — nullable pattern
       let hasNull = items->Array.some(isNullType)
@@ -702,17 +711,17 @@ and parseObject = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
         // oneOf: [T, {type: "null"}] → Nullable(T)
         switch nonNullItems->Array.get(0) {
         | Some(Object(innerDict)) =>
-          switch parseObject(innerDict) {
+          switch parseObject(innerDict, ~path=Array.concat(path, ["oneOf[0]"])) {
           | Ok(innerType) => Ok(Nullable(innerType))
           | Error(e) => Error(e)
           }
-        | Some(_) => Error([Errors.makeError(~kind=InvalidJson("oneOf item must be object"), ())])
-        | None => Error([Errors.makeError(~kind=InvalidJson("oneOf with only null types"), ())])
+        | Some(_) => Error([Errors.makeError(~kind=InvalidJson("oneOf item must be object"), ~path, ())])
+        | None => Error([Errors.makeError(~kind=InvalidJson("oneOf with only null types"), ~path, ())])
         }
       } else if hasNull && Array.length(nonNullItems) >= 2 {
         // oneOf: [A, B, {type: "null"}] → Nullable(parseOneOf([A, B]))
         let discriminatorPropName = extractDiscriminatorPropertyName(dict)
-        switch parseOneOf(nonNullItems, ~discriminatorPropertyName=discriminatorPropName) {
+        switch parseOneOf(nonNullItems, ~path, ~discriminatorPropertyName=discriminatorPropName) {
         | Ok(inner) => Ok(Nullable(inner))
         | Error(e) => Error(e)
         }
@@ -724,28 +733,29 @@ and parseObject = (dict: Dict.t<JSON.t>): result<schemaType, Errors.errors> => {
         // 4. default → internally-tagged (legacy parseOneOf)
         let discriminatorPropName = extractDiscriminatorPropertyName(dict)
         switch dict->Dict.get("x-variant-encoding") {
-        | Some(String("external")) => parseExternalOneOf(items)
-        | Some(String("internal")) => parseOneOf(items, ~discriminatorPropertyName=discriminatorPropName)
+        | Some(String("external")) => parseExternalOneOf(items, ~path)
+        | Some(String("internal")) =>
+          parseOneOf(items, ~path, ~discriminatorPropertyName=discriminatorPropName)
         | _ =>
           if discriminatorPropName->Option.isNone && detectExternalTagging(items) {
-            parseExternalOneOf(items)
+            parseExternalOneOf(items, ~path)
           } else {
-            parseOneOf(items, ~discriminatorPropertyName=discriminatorPropName)
+            parseOneOf(items, ~path, ~discriminatorPropertyName=discriminatorPropName)
           }
         }
       }
-    | Some(_) => Error([Errors.makeError(~kind=InvalidJson("oneOf must be an array"), ())])
+    | Some(_) => Error([Errors.makeError(~kind=InvalidJson("oneOf must be an array"), ~path, ())])
     | None =>
       // Check for allOf
       switch dict->Dict.get("allOf") {
-      | Some(Array(items)) => parseAllOf(items)
-      | Some(_) => Error([Errors.makeError(~kind=InvalidJson("allOf must be an array"), ())])
+      | Some(Array(items)) => parseAllOf(items, ~path)
+      | Some(_) => Error([Errors.makeError(~kind=InvalidJson("allOf must be an array"), ~path, ())])
       | None =>
         // Check for anyOf (already handles nullable internally)
         switch dict->Dict.get("anyOf") {
-        | Some(Array(items)) => parseAnyOf(items)
-        | Some(_) => Error([Errors.makeError(~kind=InvalidJson("anyOf must be an array"), ())])
-        | None => applyNullable(dict, parsePrimitiveType(dict))
+        | Some(Array(items)) => parseAnyOf(items, ~path)
+        | Some(_) => Error([Errors.makeError(~kind=InvalidJson("anyOf must be an array"), ~path, ())])
+        | None => applyNullable(dict, parsePrimitiveType(dict, ~path))
         }
       }
     }
@@ -789,5 +799,7 @@ let variantEncodingOfJson = (json: JSON.t): option<variantEncoding> => {
   }
 }
 
-// Public API
-let parse = parseSchema
+// Public API. `parse` starts at the document root; callers that know the name
+// of the schema they are parsing seed the path with it (OpenAPIParser does).
+let parseAt = (json: JSON.t, ~path: array<string>) => parseSchema(json, ~path)
+let parse = (json: JSON.t) => parseSchema(json, ~path=[])

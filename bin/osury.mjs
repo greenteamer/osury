@@ -227,12 +227,8 @@ function formatErrorKind(kind) {
       return `Invalid reference ${c.bold(`"${kind._0}"`)}`;
     case "UnsupportedFeature":
       return `Unsupported feature ${c.bold(`"${kind._0}"`)}`;
-    case "InvalidFormat":
-      return `Invalid format ${c.bold(`"${kind._0}"`)}`;
     case "CircularReference":
       return `Circular reference ${c.bold(`"${kind._0}"`)}`;
-    case "AmbiguousUnion":
-      return `Ambiguous union (anyOf/oneOf cannot be distinguished)`;
     case "MissingDiscriminator":
       return `Missing discriminator for union ${c.bold(`"${kind._0}"`)}`;
     case "DuplicateTypeName":

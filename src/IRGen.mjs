@@ -373,6 +373,13 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet, r
 
 function generate(schemas, refinementsOpt, param) {
   let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
+  let refErrors = CodegenTransforms.validateRefs(schemas);
+  if (refErrors.length > 0) {
+    return {
+      TAG: "Error",
+      _0: refErrors
+    };
+  }
   let errs = CodegenTransforms.mergeAllOf(schemas);
   if (errs.TAG !== "Ok") {
     return {

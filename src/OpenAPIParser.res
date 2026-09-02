@@ -76,7 +76,7 @@ let parsePathResponses = (pathsJson: JSON.t): result<array<namedSchema>, Errors.
                       switch jsonContent->Dict.get("schema") {
                       | Some(schemaJson) =>
                         let name = ucFirst(method) ++ pathToName(path) ++ "Response"
-                        switch Schema.parse(schemaJson) {
+                        switch Schema.parseAt(schemaJson, ~path=[name]) {
                         | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None, discriminatorPropertyName: None, fieldDiscriminators: None, variantEncoding: Schema.variantEncodingOfJson(schemaJson)}))
                         | Error(e) => Some(Error(e))
                         }
@@ -252,7 +252,7 @@ let parseSchemaDict = (schemas: Dict.t<JSON.t>): result<array<namedSchema>, Erro
     } else {
       None
     }
-    switch Schema.parse(schemaJson) {
+    switch Schema.parseAt(schemaJson, ~path=[name]) {
     | Ok(schemaType) => Ok({name, schema: schemaType, discriminatorTag, discriminatorPropertyName, fieldDiscriminators, variantEncoding: Schema.variantEncodingOfJson(schemaJson)})
     | Error(e) => Error(e)
     }
@@ -373,7 +373,7 @@ let parsePathParameters = (pathsJson: JSON.t): result<array<namedSchema>, Errors
                 switch buildParamsObjectJson(params) {
                 | Some(objJson) =>
                   let name = ucFirst(method) ++ pathToName(path) ++ "Params"
-                  switch Schema.parse(objJson) {
+                  switch Schema.parseAt(objJson, ~path=[name]) {
                   | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None, discriminatorPropertyName: None, fieldDiscriminators: None, variantEncoding: None}))
                   | Error(e) => Some(Error(e))
                   }

@@ -1,19 +1,17 @@
 // Errors.res - Structured error types for OpenAPI codegen
 
-type location = {
-  path: array<string>,
-  line: option<int>,
-  column: option<int>,
-}
+// Where the error is, as a JSON path through the document:
+// ["Order", "items", "anyOf[1]"]. There is no line/column — the input is a
+// parsed JSON.t with no source positions, and carrying always-None fields
+// only made the type look richer than it was.
+type location = {path: array<string>}
 
 type errorKind =
   | UnknownType(string)
   | MissingRequiredField(string)
   | InvalidRef(string)
   | UnsupportedFeature(string)
-  | InvalidFormat(string)
   | CircularReference(string)
-  | AmbiguousUnion
   | MissingDiscriminator(string)
   | DuplicateTypeName(string)
   // (type, constructor) — two union arms lower to the same constructor name,
@@ -31,11 +29,7 @@ type error = {
 type errors = array<error>
 
 // Helper constructors
-let makeLocation = (~path=[], ~line=None, ~column=None, ()): location => {
-  path,
-  line,
-  column,
-}
+let makeLocation = (~path=[], ()): location => {path: path}
 
 let makeError = (~kind, ~path=[], ~hint=None, ()): error => {
   kind,
@@ -67,9 +61,7 @@ let formatError = (error: error): string => {
   | MissingRequiredField(field) => `Missing required field "${field}"`
   | InvalidRef(ref) => `Invalid reference "${ref}"`
   | UnsupportedFeature(feature) => `Unsupported feature "${feature}"`
-  | InvalidFormat(format) => `Invalid format "${format}"`
   | CircularReference(ref) => `Circular reference detected: "${ref}"`
-  | AmbiguousUnion => "Ambiguous union (anyOf/oneOf cannot be distinguished)"
   | MissingDiscriminator(union) => `Missing discriminator for union "${union}"`
   | DuplicateConstructor(type_, ctor) =>
     `Union "${type_}" produces the constructor "${ctor}" more than once`

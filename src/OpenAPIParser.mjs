@@ -86,7 +86,7 @@ function parsePathResponses(pathsJson) {
           return;
         }
         let name = ucFirst(method) + pathToName(path) + "Response";
-        let schemaType = Schema.parse(schemaJson);
+        let schemaType = Schema.parseAt(schemaJson, [name]);
         if (schemaType.TAG === "Ok") {
           return {
             TAG: "Ok",
@@ -264,16 +264,17 @@ function parseSchemaDict(schemas) {
   let entries = Object.entries(schemas);
   let results = entries.map(param => {
     let schemaJson = param[1];
+    let name = param[0];
     let discriminatorTag = extractDiscriminatorTag(schemaJson);
     let discriminatorPropertyName = extractDiscriminatorPropertyName(schemaJson);
     let fieldDiscs = extractFieldDiscriminators(schemaJson);
     let fieldDiscriminators = Object.entries(fieldDiscs).length > 0 ? fieldDiscs : undefined;
-    let schemaType = Schema.parse(schemaJson);
+    let schemaType = Schema.parseAt(schemaJson, [name]);
     if (schemaType.TAG === "Ok") {
       return {
         TAG: "Ok",
         _0: {
-          name: param[0],
+          name: name,
           schema: schemaType._0,
           discriminatorTag: discriminatorTag,
           discriminatorPropertyName: discriminatorPropertyName,
@@ -459,7 +460,7 @@ function parsePathParameters(pathsJson) {
           return;
         }
         let name = ucFirst(method) + pathToName(path) + "Params";
-        let schemaType = Schema.parse(objJson);
+        let schemaType = Schema.parseAt(objJson, [name]);
         if (schemaType.TAG === "Ok") {
           return {
             TAG: "Ok",
