@@ -371,6 +371,12 @@ let extractNamedUnions = (
 // Everything after warning collection.
 let expandStages: array<stage> = [
   {name: "promoteInlineEnums", run: promoteInlineEnums},
+  {
+    // Lift nested objects out of record fields, array items and dict values —
+    // ReScript takes an inline record only as a variant payload.
+    name: "extractInlineRecords",
+    run: CodegenTransforms.extractInlineRecords,
+  },
   {name: "extractNamedUnions", run: extractNamedUnions},
 ]
 

@@ -14,6 +14,12 @@ type stringOrArrayBool = String(string) | ArrayBool(array<bool>)
 
 @genType
 @schema
+type containersNested = {
+  deep: array<Dict.t<string>>
+}
+
+@genType
+@schema
 type inlineEnum = [#on | #off]
 
 @genType
@@ -55,18 +61,6 @@ type refined = {
   slug: string,
   ratio: float,
   count: int
-}
-
-@genType
-@schema
-type containers = {
-  tags: array<string>,
-  matrix: array<array<int>>,
-  by_key: Dict.t<float>,
-  free_form: Dict.t<@s.matches(S.json) JSON.t>,
-  nested: {
-  deep: array<Dict.t<string>>
-}
 }
 
 @genType
@@ -147,6 +141,16 @@ type patchV1Widgets_widget_idRequest = {
 @genType
 @schema
 type mixedAlias = array<stringOrArrayBool>
+
+@genType
+@schema
+type containers = {
+  tags: array<string>,
+  matrix: array<array<int>>,
+  by_key: Dict.t<float>,
+  free_form: Dict.t<@s.matches(S.json) JSON.t>,
+  nested: containersNested
+}
 
 @genType
 @schema
@@ -262,7 +266,6 @@ type shapeDistinct = {
 }
 
 @genType
-@schema
 type envelope = {
   payload: issueLoopOrIssueBrokenLink,
   event: event,

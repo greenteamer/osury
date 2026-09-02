@@ -17,6 +17,11 @@ pub enum StringOrArrayBool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContainersNested {
+    pub deep: Vec<std::collections::HashMap<String, String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum InlineEnum {
     #[serde(rename = "on")]
     On,
@@ -75,15 +80,6 @@ pub struct Refined {
     pub slug: String,
     pub ratio: f64,
     pub count: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Containers {
-    pub tags: Vec<String>,
-    pub matrix: Vec<Vec<i64>>,
-    pub by_key: std::collections::HashMap<String, f64>,
-    pub free_form: std::collections::HashMap<String, serde_json::Value>,
-    pub nested: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -192,6 +188,15 @@ pub struct PatchV1Widgets_widget_idRequest {
 }
 
 pub type MixedAlias = Vec<StringOrArrayBool>;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Containers {
+    pub tags: Vec<String>,
+    pub matrix: Vec<Vec<i64>>,
+    pub by_key: std::collections::HashMap<String, f64>,
+    pub free_form: std::collections::HashMap<String, serde_json::Value>,
+    pub nested: ContainersNested,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueLoop {

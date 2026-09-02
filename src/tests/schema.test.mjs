@@ -4005,6 +4005,7 @@ describe('Pipeline order', () => {
             'collapseLiteralUnions',
             'validateUnions',
             'promoteInlineEnums',
+            'extractInlineRecords',
             'extractNamedUnions',
         ]);
     });
@@ -4074,5 +4075,132 @@ describe('Request bodies and non-primary 2xx responses', () => {
         const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
 
         expect(g._0.code).not.toContain('Request');
+    });
+});
+
+// ReScript allows an inline record only as a variant constructor payload. A
+// nested object in a record FIELD printed as `field: { ... }`, which the
+// compiler rejects with a misleading "the module or file X can't be found".
+describe('Nested inline records are extracted into named types', () => {
+    const gen = (defs) => {
+        const parsed = OpenAPIParser.parseDocument({ $defs: defs });
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+        expect(g.TAG).toBe('Ok');
+        return g._0.code;
+    };
+
+    test('an object in a record field becomes its own type', () => {
+        const code = gen({
+            NeedStructureResponse: {
+                type: "object",
+                properties: {
+                    need_structure: {
+                        type: "object",
+                        properties: { program_id: { type: "string" }, version: { type: "string" } },
+                        required: ["program_id", "version"],
+                    },
+                },
+                required: ["need_structure"],
+            },
+        });
+
+        expect(code).toContain('type needStructureResponseNeedStructure = {');
+        expect(code).toContain('need_structure: needStructureResponseNeedStructure');
+    });
+
+    test('objects inside arrays, dicts and options are extracted too', () => {
+        const code = gen({
+            Holder: {
+                type: "object",
+                properties: {
+                    rows: { type: "array", items: { type: "object", properties: { a: { type: "string" } }, required: ["a"] } },
+                    index: { type: "object", additionalProperties: { type: "object", properties: { b: { type: "string" } }, required: ["b"] } },
+                    maybe: { type: "object", properties: { c: { type: "string" } }, required: ["c"] },
+                },
+                required: ["rows", "index"],
+            },
+        });
+
+        expect(code).toContain('rows: array<holderRows>');
+        expect(code).toContain('index: Dict.t<holderIndex>');
+        expect(code).toContain('maybe: option<holderMaybe>');
+    });
+
+    test('a variant payload keeps its inline record — that is where ReScript wants one', () => {
+        const code = gen({
+            A: { type: "object", properties: { _tag: { const: "A" }, x: { type: "string" } }, required: ["_tag", "x"] },
+            B: { type: "object", properties: { _tag: { const: "B" }, y: { type: "string" } }, required: ["_tag", "y"] },
+            Either: { oneOf: [{ $ref: "#/$defs/A" }, { $ref: "#/$defs/B" }] },
+        });
+
+        expect(code).toContain('type either = A({');
+    });
+
+    test('deeply nested objects each get a name', () => {
+        const code = gen({
+            Root: {
+                type: "object",
+                properties: {
+                    outer: {
+                        type: "object",
+                        properties: { inner: { type: "object", properties: { v: { type: "integer" } }, required: ["v"] } },
+                        required: ["inner"],
+                    },
+                },
+                required: ["outer"],
+            },
+        });
+
+        expect(code).toContain('type rootOuterInner = {');
+        expect(code).toContain('inner: rootOuterInner');
+        expect(code).toContain('outer: rootOuter');
+    });
+});
+
+// A type without a sury schema poisons everything that references it: sury-ppx
+// still emits `markSchema` at the use site. External/list wire encodings dropped
+// @schema directly in IRGen, past buildSkipSchemaSet's transitive pass, so the
+// consumers kept @schema and the output stopped compiling.
+describe('Missing sury schema propagates to consumers', () => {
+    const blockOf = (code, typeName) =>
+        code.split('\n\n').find(b => b.includes(`type ${typeName} `)) ?? '';
+
+    const code = () => {
+        const parsed = OpenAPIParser.parseDocument({
+            $defs: {
+                Mark: {
+                    oneOf: [
+                        { type: "object", properties: { Shine: { type: "object", properties: { target: { type: "string" } }, required: ["target"] } }, required: ["Shine"], additionalProperties: false },
+                        { type: "object", properties: { Tint: { type: "object", properties: { level: { type: "integer" } }, required: ["level"] } }, required: ["Tint"], additionalProperties: false },
+                    ],
+                },
+                Phase: { type: "string", enum: ["Draft", "Done"], "x-variant-encoding": "list" },
+                Holder: {
+                    type: "object",
+                    properties: { mark: { $ref: "#/$defs/Mark" }, phase: { $ref: "#/$defs/Phase" } },
+                    required: ["mark", "phase"],
+                },
+                Outer: { type: "object", properties: { holder: { $ref: "#/$defs/Holder" } }, required: ["holder"] },
+            },
+        });
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+        expect(g.TAG).toBe('Ok');
+        return g._0.code;
+    };
+
+    test('the externally-tagged union and the list-encoded enum have no @schema', () => {
+        const c = code();
+        expect(blockOf(c, 'mark')).not.toContain('@schema');
+        expect(blockOf(c, 'phase')).not.toContain('@schema');
+    });
+
+    test('a direct consumer loses @schema too', () => {
+        expect(blockOf(code(), 'holder')).not.toContain('@schema');
+    });
+
+    test('and so does a consumer of the consumer', () => {
+        expect(blockOf(code(), 'outer')).not.toContain('@schema');
     });
 });

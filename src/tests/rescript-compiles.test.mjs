@@ -1,0 +1,68 @@
+// The generated ReScript must actually compile — with sury-ppx, which is where
+// the interesting failures live (a missing `<name>Schema`, an inline record in a
+// position ReScript forbids). Byte-golden tests pin the output; this one proves
+// the output is a program.
+//
+// The synthetic spec exercises every construct, so this is the cheapest place to
+// catch "we emit something the compiler rejects" — a class of bug that used to
+// surface only in a consumer's repo.
+import * as OpenAPIParser from '../OpenAPIParser.mjs';
+import * as Codegen from '../Codegen.mjs';
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(here, '../..');
+
+// The scratch project lives inside the repo so ReScript resolves @rescript/core,
+// sury and sury-ppx from the root node_modules. It is not part of the root
+// build: rescript.json lists only src and scripts.
+const scratch = path.join(root, '.rescript-compile-check');
+
+const projectConfig = {
+    name: 'osury-compile-check',
+    sources: [{ dir: '.', subdirs: false }],
+    'package-specs': [{ module: 'esmodule', 'in-source': true }],
+    suffix: '.mjs',
+    dependencies: ['@rescript/core', 'sury'],
+    'compiler-flags': ['-open RescriptCore'],
+    'ppx-flags': ['sury-ppx/bin'],
+};
+
+const compile = (code) => {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.mkdirSync(scratch, { recursive: true });
+    try {
+        fs.writeFileSync(path.join(scratch, 'rescript.json'), JSON.stringify(projectConfig, null, 2));
+        fs.writeFileSync(path.join(scratch, 'Nullable.res'), Codegen.generateNullableModule());
+        fs.writeFileSync(path.join(scratch, 'Generated.res'), code);
+        return execSync('npx rescript build', { cwd: scratch, encoding: 'utf8', stdio: 'pipe' });
+    } finally {
+        fs.rmSync(scratch, { recursive: true, force: true });
+    }
+};
+
+describe('Generated ReScript compiles', () => {
+    const genFrom = (specPath, refinements) => {
+        const doc = JSON.parse(fs.readFileSync(specPath, 'utf8'));
+        const parsed = OpenAPIParser.parseDocument(doc);
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, refinements, undefined);
+        expect(g.TAG).toBe('Ok');
+        return g._0.code;
+    };
+
+    test('the synthetic kitchen-sink spec produces a compiling module', () => {
+        const out = compile(genFrom(path.join(here, 'fixtures/kitchen-sink.openapi.json'), false));
+
+        expect(out).not.toMatch(/We've found a bug for you|Syntax error/);
+    }, 120000);
+
+    test('and so does the same spec with --refinements', () => {
+        const out = compile(genFrom(path.join(here, 'fixtures/kitchen-sink.openapi.json'), true));
+
+        expect(out).not.toMatch(/We've found a bug for you|Syntax error/);
+    }, 120000);
+});

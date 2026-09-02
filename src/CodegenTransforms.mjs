@@ -962,6 +962,127 @@ function validateRefs(schemas) {
   return errors;
 }
 
+function inlineRecordName(parentType, fieldPath) {
+  let suffix = fieldPath.map(seg => CodegenHelpers.ucFirst(camelize(seg))).join("");
+  let base = CodegenHelpers.lcFirst(parentType) + (
+    suffix === "" ? "Body" : suffix
+  );
+  if (CodegenHelpers.isReservedKeyword(base)) {
+    return base + "_";
+  } else {
+    return base;
+  }
+}
+
+function extractInlineRecords(schemas) {
+  let used = {};
+  schemas.forEach(s => {
+    used[CodegenHelpers.lcFirst(s.name)] = true;
+  });
+  let extracted = [];
+  let claim = base => {
+    let next = (_candidate, _attempt) => {
+      while (true) {
+        let attempt = _attempt;
+        let candidate = _candidate;
+        if (!Core__Option.isSome(used[CodegenHelpers.lcFirst(candidate)])) {
+          return candidate;
+        }
+        _attempt = attempt + 1 | 0;
+        _candidate = base + attempt.toString();
+        continue;
+      };
+    };
+    let name = next(base, 2);
+    used[CodegenHelpers.lcFirst(name)] = true;
+    return name;
+  };
+  let walk = (t, parentType, fieldPath, inlineOk) => {
+    if (typeof t !== "object") {
+      return t;
+    }
+    switch (t._tag) {
+      case "Optional" :
+        return {
+          _tag: "Optional",
+          _0: walk(t._0, parentType, fieldPath, false)
+        };
+      case "Nullable" :
+        return {
+          _tag: "Nullable",
+          _0: walk(t._0, parentType, fieldPath, false)
+        };
+      case "Object" :
+        let fields = t._0;
+        let rewritten = {
+          _tag: "Object",
+          _0: fields.map(f => ({
+            name: f.name,
+            type: walk(f.type, parentType, fieldPath.concat([f.name]), false),
+            required: f.required
+          }))
+        };
+        if (inlineOk || fields.length === 0) {
+          return rewritten;
+        }
+        let name = claim(inlineRecordName(parentType, fieldPath));
+        extracted.push(OpenAPIParser.make(name, rewritten, undefined, undefined, undefined, undefined, undefined));
+        return {
+          _tag: "Ref",
+          _0: name
+        };
+      case "Array" :
+        return {
+          _tag: "Array",
+          _0: walk(t._0, parentType, fieldPath, false)
+        };
+      case "PolyVariant" :
+        return {
+          _tag: "PolyVariant",
+          _0: t._0.map(c => ({
+            _tag: c._tag,
+            payload: walk(c.payload, parentType, fieldPath, true)
+          }))
+        };
+      case "Dict" :
+        return {
+          _tag: "Dict",
+          _0: walk(t._0, parentType, fieldPath, false)
+        };
+      case "Union" :
+        return {
+          _tag: "Union",
+          _0: t._0.map(t => walk(t, parentType, fieldPath, true))
+        };
+      case "AllOf" :
+        return {
+          _tag: "AllOf",
+          _0: t._0.map(t => walk(t, parentType, fieldPath, inlineOk))
+        };
+      case "Refined" :
+        return {
+          _tag: "Refined",
+          _0: walk(t._0, parentType, fieldPath, inlineOk),
+          _1: t._1
+        };
+      default:
+        return t;
+    }
+  };
+  let rewritten = schemas.map(s => ({
+    name: s.name,
+    schema: walk(s.schema, s.name, [], true),
+    discriminatorTag: s.discriminatorTag,
+    discriminatorPropertyName: s.discriminatorPropertyName,
+    fieldDiscriminators: s.fieldDiscriminators,
+    variantEncoding: s.variantEncoding
+  }));
+  return {
+    TAG: "Ok",
+    _0: extracted.concat(rewritten)
+  };
+}
+
 function mergeAllOf(schemas) {
   let byName = {};
   schemas.forEach(s => {
@@ -1589,7 +1710,22 @@ function buildSkipSchemaSet(schemas) {
           hasInlineProblem = CodegenHelpers.hasUnion(s.schema);
       }
     }
-    if (hasInlineProblem) {
+    let match = s.variantEncoding;
+    let noSuryCodec;
+    if (match !== undefined) {
+      switch (match) {
+        case "Internal" :
+          noSuryCodec = false;
+          break;
+        case "External" :
+        case "List" :
+          noSuryCodec = true;
+          break;
+      }
+    } else {
+      noSuryCodec = false;
+    }
+    if (hasInlineProblem || noSuryCodec) {
       skipSet[s.name] = true;
       return;
     }
@@ -1802,6 +1938,8 @@ export {
   resolveExtractedUnionNames,
   getDependencies,
   validateRefs,
+  inlineRecordName,
+  extractInlineRecords,
   mergeAllOf,
   stripRefinementsInType,
   stripRefinements,

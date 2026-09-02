@@ -6,6 +6,11 @@ export type StringOrInt = Schema.Schema.Type<typeof StringOrInt>
 export const StringOrArrayBool = Schema.Union([Schema.String, Schema.Array(Schema.Boolean)])
 export type StringOrArrayBool = Schema.Schema.Type<typeof StringOrArrayBool>
 
+export const ContainersNested = Schema.Struct({
+  deep: Schema.Array(Schema.Record(Schema.String, Schema.String)),
+})
+export type ContainersNested = Schema.Schema.Type<typeof ContainersNested>
+
 export const InlineEnum = Schema.Literals(['on', 'off'])
 export type InlineEnum = Schema.Schema.Type<typeof InlineEnum>
 
@@ -43,17 +48,6 @@ export const Refined = Schema.Struct({
   count: Schema.Int,
 })
 export type Refined = Schema.Schema.Type<typeof Refined>
-
-export const Containers = Schema.Struct({
-  tags: Schema.Array(Schema.String),
-  matrix: Schema.Array(Schema.Array(Schema.Int)),
-  by_key: Schema.Record(Schema.String, Schema.Number),
-  free_form: Schema.Record(Schema.String, Schema.Unknown),
-  nested: Schema.Struct({
-    deep: Schema.Array(Schema.Record(Schema.String, Schema.String)),
-  }),
-})
-export type Containers = Schema.Schema.Type<typeof Containers>
 
 export const Keywords = Schema.Struct({
   type: Schema.String,
@@ -160,6 +154,15 @@ export type PatchV1Widgets_widget_idRequest = Schema.Schema.Type<typeof PatchV1W
 
 export const MixedAlias = Schema.Array(StringOrArrayBool)
 export type MixedAlias = Schema.Schema.Type<typeof MixedAlias>
+
+export const Containers = Schema.Struct({
+  tags: Schema.Array(Schema.String),
+  matrix: Schema.Array(Schema.Array(Schema.Int)),
+  by_key: Schema.Record(Schema.String, Schema.Number),
+  free_form: Schema.Record(Schema.String, Schema.Unknown),
+  nested: ContainersNested,
+})
+export type Containers = Schema.Schema.Type<typeof Containers>
 
 export const IssueLoop = Schema.Struct({
   kind: IssueLoopKind,

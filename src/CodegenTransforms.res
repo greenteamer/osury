@@ -734,6 +734,97 @@ let validateRefs = (schemas: array<OpenAPIParser.namedSchema>): Errors.errors =>
   errors
 }
 
+// ── Inline record extraction ──────────────────────────────────────────────
+// ReScript accepts an inline record ONLY as a variant constructor payload.
+// Anywhere else — a record field, an array element, a dict value — the printed
+// `{ ... }` is a syntax the compiler rejects, with the singularly unhelpful
+// "The module or file <field> can't be found". So every object that is not the
+// body of a named type and not a variant payload is lifted into its own type.
+
+// `Holder.rows` → "holderRows"; a nested `Holder.a.b` → "holderAB".
+let inlineRecordName = (~parentType: string, ~fieldPath: array<string>): string => {
+  let suffix =
+    fieldPath->Array.map(seg => CodegenHelpers.ucFirst(camelize(seg)))->Array.join("")
+  let base = CodegenHelpers.lcFirst(parentType) ++ (suffix == "" ? "Body" : suffix)
+  CodegenHelpers.isReservedKeyword(base) ? base ++ "_" : base
+}
+
+let extractInlineRecords = (
+  schemas: array<OpenAPIParser.namedSchema>,
+): result<array<OpenAPIParser.namedSchema>, Errors.errors> => {
+  let used = Dict.make()
+  schemas->Array.forEach(s => used->Dict.set(CodegenHelpers.lcFirst(s.name), true))
+  let extracted = []
+
+  let claim = (base: string): string => {
+    let rec next = (candidate, attempt) =>
+      if used->Dict.get(CodegenHelpers.lcFirst(candidate))->Option.isSome {
+        next(base ++ Int.toString(attempt), attempt + 1)
+      } else {
+        candidate
+      }
+    let name = next(base, 2)
+    used->Dict.set(CodegenHelpers.lcFirst(name), true)
+    name
+  }
+
+  // `inlineOk` marks the two positions where ReScript is happy with an inline
+  // record: the body of a named type, and a variant/union arm payload.
+  let rec walk = (
+    t: Schema.schemaType,
+    ~parentType: string,
+    ~fieldPath: array<string>,
+    ~inlineOk: bool,
+  ): Schema.schemaType => {
+    switch t {
+    | Object(fields) =>
+      let rewritten: Schema.schemaType = Object(
+        fields->Array.map((f: Schema.field) => {
+          ...f,
+          type_: walk(
+            f.type_,
+            ~parentType,
+            ~fieldPath=Array.concat(fieldPath, [f.name]),
+            ~inlineOk=false,
+          ),
+        }),
+      )
+      // An empty object lowers to JSON.t, which is legal in every position
+      if inlineOk || Array.length(fields) == 0 {
+        rewritten
+      } else {
+        let name = claim(inlineRecordName(~parentType, ~fieldPath))
+        extracted->Array.push(OpenAPIParser.make(~name, ~schema=rewritten, ()))->ignore
+        Ref(name)
+      }
+    | Union(types) =>
+      Union(types->Array.map(t => walk(t, ~parentType, ~fieldPath, ~inlineOk=true)))
+    | PolyVariant(cases) =>
+      PolyVariant(
+        cases->Array.map(c => {
+          ...c,
+          Schema.payload: walk(c.payload, ~parentType, ~fieldPath, ~inlineOk=true),
+        }),
+      )
+    | Array(inner) => Array(walk(inner, ~parentType, ~fieldPath, ~inlineOk=false))
+    | Dict(inner) => Dict(walk(inner, ~parentType, ~fieldPath, ~inlineOk=false))
+    | Optional(inner) => Optional(walk(inner, ~parentType, ~fieldPath, ~inlineOk=false))
+    | Nullable(inner) => Nullable(walk(inner, ~parentType, ~fieldPath, ~inlineOk=false))
+    | Refined(inner, refs) =>
+      Refined(walk(inner, ~parentType, ~fieldPath, ~inlineOk), refs)
+    | AllOf(types) =>
+      AllOf(types->Array.map(t => walk(t, ~parentType, ~fieldPath, ~inlineOk)))
+    | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => t
+    }
+  }
+
+  let rewritten = schemas->Array.map(s => {
+    ...s,
+    OpenAPIParser.schema: walk(s.schema, ~parentType=s.name, ~fieldPath=[], ~inlineOk=true),
+  })
+  Ok(Array.concat(extracted, rewritten))
+}
+
 // Merge `allOf` intersections into a single object type.
 //
 // This cannot live in Schema.parse: an arm is usually a `$ref`, and resolving
@@ -1243,9 +1334,32 @@ let buildSkipSchemaSet = (schemas: array<OpenAPIParser.namedSchema>): Dict.t<boo
     let hasInlineProblem = switch s.schema {
     | Union(types) => types->Array.some(t => CodegenHelpers.hasUnion(t))
     | PolyVariant(cases) => cases->Array.some(c => CodegenHelpers.hasUnion(c.payload))
-    | _ => CodegenHelpers.hasUnion(s.schema)
+    | Object(_)
+    | Array(_)
+    | Dict(_)
+    | Optional(_)
+    | Nullable(_)
+    | Refined(_, _)
+    | AllOf(_)
+    | String
+    | Number
+    | Integer
+    | Boolean
+    | Null
+    | Ref(_)
+    | Enum(_)
+    | Unknown =>
+      CodegenHelpers.hasUnion(s.schema)
     }
-    if hasInlineProblem {
+    // A wire encoding sury-ppx cannot express means no `<name>Schema` value
+    // exists at all. That has to be registered HERE, before the transitive
+    // pass — deciding it later in IRGen left every consumer with a @schema
+    // that references a schema which was never generated.
+    let noSuryCodec = switch s.variantEncoding {
+    | Some(Schema.External) | Some(Schema.List) => true
+    | Some(Schema.Internal) | None => false
+    }
+    if hasInlineProblem || noSuryCodec {
       skipSet->Dict.set(s.name, true)
     }
   })

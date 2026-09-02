@@ -483,6 +483,10 @@ let expandStages = [
     run: promoteInlineEnums
   },
   {
+    name: "extractInlineRecords",
+    run: CodegenTransforms.extractInlineRecords
+  },
+  {
     name: "extractNamedUnions",
     run: extractNamedUnions
   }

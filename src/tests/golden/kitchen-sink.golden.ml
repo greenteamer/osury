@@ -66,6 +66,10 @@ type string_or_array_bool =
   | String of string
   | ArrayBool of bool list
 
+type containers_nested = {
+  deep : (string * string) list list;
+}
+
 type inline_enum =
   | On
   | Off
@@ -103,14 +107,6 @@ type refined = {
   slug : string;
   ratio : float;
   count : int;
-}
-
-type containers = {
-  tags : string list;
-  matrix : int list list;
-  by_key : (string * float) list;
-  free_form : (string * Yojson.Safe.t) list;
-  nested : Yojson.Safe.t;
 }
 
 type keywords = {
@@ -170,6 +166,14 @@ type patch_v1_widgets_widget_id_request = {
 }
 
 type mixed_alias = string_or_array_bool list
+
+type containers = {
+  tags : string list;
+  matrix : int list list;
+  by_key : (string * float) list;
+  free_form : (string * Yojson.Safe.t) list;
+  nested : containers_nested;
+}
 
 type issue_loop = {
   kind : issue_loop_kind;
@@ -273,6 +277,18 @@ and string_or_array_bool_of_yojson (j : Yojson.Safe.t) : (string_or_array_bool, 
      | Ok v -> Ok (ArrayBool v)
      | Error _ -> Error ("string_or_array_bool: no variant matched")))
 
+and containers_nested_to_yojson (x : containers_nested) : Yojson.Safe.t =
+  `Assoc
+    (List.concat
+    [
+      [ ("deep", `List (List.map (fun x -> `Assoc (List.map (fun (k, x) -> (k, `String x)) x)) x.deep)) ];
+    ])
+
+and containers_nested_of_yojson (j : Yojson.Safe.t) : (containers_nested, string) result =
+  let open Oj in
+  let* deep = Oj.req_field "deep" (fun j -> Oj.list_ (fun j -> Oj.dict_ (fun j -> Oj.string_ j) j) j) j in
+  Ok ({ deep } : containers_nested)
+
 and inline_enum_to_yojson (v : inline_enum) : Yojson.Safe.t =
   match v with
   | On -> `String "on"
@@ -373,26 +389,6 @@ and refined_of_yojson (j : Yojson.Safe.t) : (refined, string) result =
   let* ratio = Oj.req_field "ratio" (fun j -> Oj.float_ j) j in
   let* count = Oj.req_field "count" (fun j -> Oj.int_ j) j in
   Ok ({ id; email; site; created_at; slug; ratio; count } : refined)
-
-and containers_to_yojson (x : containers) : Yojson.Safe.t =
-  `Assoc
-    (List.concat
-    [
-      [ ("tags", `List (List.map (fun x -> `String x) x.tags)) ];
-      [ ("matrix", `List (List.map (fun x -> `List (List.map (fun x -> `Int x) x)) x.matrix)) ];
-      [ ("by_key", `Assoc (List.map (fun (k, x) -> (k, `Float x)) x.by_key)) ];
-      [ ("free_form", `Assoc (List.map (fun (k, x) -> (k, x)) x.free_form)) ];
-      [ ("nested", x.nested) ];
-    ])
-
-and containers_of_yojson (j : Yojson.Safe.t) : (containers, string) result =
-  let open Oj in
-  let* tags = Oj.req_field "tags" (fun j -> Oj.list_ (fun j -> Oj.string_ j) j) j in
-  let* matrix = Oj.req_field "matrix" (fun j -> Oj.list_ (fun j -> Oj.list_ (fun j -> Oj.int_ j) j) j) j in
-  let* by_key = Oj.req_field "by_key" (fun j -> Oj.dict_ (fun j -> Oj.float_ j) j) j in
-  let* free_form = Oj.req_field "free_form" (fun j -> Oj.dict_ (fun j -> Ok j) j) j in
-  let* nested = Oj.req_field "nested" (fun j -> Ok j) j in
-  Ok ({ tags; matrix; by_key; free_form; nested } : containers)
 
 and keywords_to_yojson (x : keywords) : Yojson.Safe.t =
   `Assoc
@@ -584,6 +580,26 @@ and patch_v1_widgets_widget_id_request_of_yojson (j : Yojson.Safe.t) : (patch_v1
 and mixed_alias_to_yojson (v : mixed_alias) : Yojson.Safe.t = `List (List.map (fun x -> string_or_array_bool_to_yojson x) v)
 
 and mixed_alias_of_yojson (j : Yojson.Safe.t) : (mixed_alias, string) result = Oj.list_ (fun j -> string_or_array_bool_of_yojson j) j
+
+and containers_to_yojson (x : containers) : Yojson.Safe.t =
+  `Assoc
+    (List.concat
+    [
+      [ ("tags", `List (List.map (fun x -> `String x) x.tags)) ];
+      [ ("matrix", `List (List.map (fun x -> `List (List.map (fun x -> `Int x) x)) x.matrix)) ];
+      [ ("by_key", `Assoc (List.map (fun (k, x) -> (k, `Float x)) x.by_key)) ];
+      [ ("free_form", `Assoc (List.map (fun (k, x) -> (k, x)) x.free_form)) ];
+      [ ("nested", containers_nested_to_yojson x.nested) ];
+    ])
+
+and containers_of_yojson (j : Yojson.Safe.t) : (containers, string) result =
+  let open Oj in
+  let* tags = Oj.req_field "tags" (fun j -> Oj.list_ (fun j -> Oj.string_ j) j) j in
+  let* matrix = Oj.req_field "matrix" (fun j -> Oj.list_ (fun j -> Oj.list_ (fun j -> Oj.int_ j) j) j) j in
+  let* by_key = Oj.req_field "by_key" (fun j -> Oj.dict_ (fun j -> Oj.float_ j) j) j in
+  let* free_form = Oj.req_field "free_form" (fun j -> Oj.dict_ (fun j -> Ok j) j) j in
+  let* nested = Oj.req_field "nested" (fun j -> containers_nested_of_yojson j) j in
+  Ok ({ tags; matrix; by_key; free_form; nested } : containers)
 
 and issue_loop_to_yojson (x : issue_loop) : Yojson.Safe.t =
   `Assoc
