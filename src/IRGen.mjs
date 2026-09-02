@@ -373,35 +373,140 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet, r
   }
 }
 
-function generate(schemas, refinementsOpt, param) {
-  let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
-  let refErrors = CodegenTransforms.validateRefs(schemas);
-  if (refErrors.length > 0) {
+function ok(schemas) {
+  return {
+    TAG: "Ok",
+    _0: schemas
+  };
+}
+
+function checking(check, schemas) {
+  let errors = check(schemas);
+  if (errors.length > 0) {
     return {
       TAG: "Error",
-      _0: refErrors
+      _0: errors
+    };
+  } else {
+    return {
+      TAG: "Ok",
+      _0: schemas
     };
   }
-  let errs = CodegenTransforms.mergeAllOf(schemas);
-  if (errs.TAG !== "Ok") {
+}
+
+function normalizeStages(refinements) {
+  return [
+    {
+      name: "validateRefs",
+      run: extra => checking(CodegenTransforms.validateRefs, extra)
+    },
+    {
+      name: "mergeAllOf",
+      run: CodegenTransforms.mergeAllOf
+    },
+    {
+      name: "stripRefinements",
+      run: schemas => ({
+        TAG: "Ok",
+        _0: refinements ? schemas : CodegenTransforms.stripRefinements(schemas)
+      })
+    },
+    {
+      name: "dedupeUnions",
+      run: schemas => ({
+        TAG: "Ok",
+        _0: CodegenTransforms.dedupeUnions(schemas)
+      })
+    },
+    {
+      name: "collapseLiteralUnions",
+      run: schemas => ({
+        TAG: "Ok",
+        _0: CodegenTransforms.collapseLiteralUnions(schemas)
+      })
+    },
+    {
+      name: "validateUnions",
+      run: extra => checking(schemas => CodegenTransforms.validateUnionDiscriminators(schemas).concat(CodegenTransforms.validateDistinctConstructors(schemas)), extra)
+    }
+  ];
+}
+
+function promoteInlineEnums(schemas) {
+  let occurrences = CodegenTransforms.collectInlineEnums(schemas);
+  let conflicts = CodegenTransforms.findConflictingEnumOccurrences(occurrences);
+  if (conflicts.length > 0) {
     return {
       TAG: "Error",
-      _0: errs._0
+      _0: conflicts.map(occ => {
+        let fieldPathStr = occ.fieldPath.join("/");
+        return Errors.makeError({
+          TAG: "ConflictingInlineEnums",
+          _0: fieldPathStr
+        }, [occ.parentType].concat(occ.fieldPath), "Union arms mix string literals with structural types, and the literal arms have different value sets. Extract the literals into one named enum ($ref), or split the field into separate properties", undefined);
+      })
     };
   }
-  let schemas$1 = errs._0;
-  let schemas$2 = refinements ? schemas$1 : CodegenTransforms.stripRefinements(schemas$1);
-  let schemas$3 = CodegenTransforms.dedupeUnions(schemas$2);
-  let schemas$4 = CodegenTransforms.collapseLiteralUnions(schemas$3);
-  let validationErrors = CodegenTransforms.validateUnionDiscriminators(schemas$4).concat(CodegenTransforms.validateDistinctConstructors(schemas$4));
-  if (validationErrors.length > 0) {
-    return {
-      TAG: "Error",
-      _0: validationErrors
-    };
+  let names = CodegenTransforms.resolveEnumNames(occurrences, schemas.map(s => s.name));
+  return {
+    TAG: "Ok",
+    _0: CodegenTransforms.buildExtractedEnumSchemas(occurrences, names).concat(CodegenTransforms.replaceInlineEnums(schemas, names))
+  };
+}
+
+function extractNamedUnions(schemas) {
+  let extracted = schemas.flatMap(s => CodegenTransforms.extractUnions(s.name, s.schema).map(extracted => {
+    let dict = s.fieldDiscriminators;
+    let discriminatorPropertyName = dict !== undefined ? dict[extracted.name] : undefined;
+    return OpenAPIParser.make(extracted.name, extracted.schema, undefined, Primitive_option.some(discriminatorPropertyName), undefined, undefined, undefined);
+  }));
+  let match = CodegenTransforms.resolveExtractedUnionNames(extracted, schemas.map(s => s.name));
+  let unionNames = match[1];
+  let replaced = schemas.map(s => ({
+    name: s.name,
+    schema: CodegenTransforms.replaceUnions(unionNames, s.name, s.schema),
+    discriminatorTag: s.discriminatorTag,
+    discriminatorPropertyName: s.discriminatorPropertyName,
+    fieldDiscriminators: s.fieldDiscriminators,
+    variantEncoding: s.variantEncoding
+  }));
+  return {
+    TAG: "Ok",
+    _0: match[0].concat(replaced)
+  };
+}
+
+let expandStages = [
+  {
+    name: "promoteInlineEnums",
+    run: promoteInlineEnums
+  },
+  {
+    name: "extractNamedUnions",
+    run: extractNamedUnions
   }
-  let unionWarnings = CodegenTransforms.collectUnionWarnings(schemas$4);
-  let encodingWarnings = Core__Array.filterMap(schemas$4, s => {
+];
+
+function runStages(schemas, stages) {
+  return Core__Array.reduce(stages, {
+    TAG: "Ok",
+    _0: schemas
+  }, (acc, stage) => {
+    if (acc.TAG === "Ok") {
+      return stage.run(acc._0);
+    } else {
+      return acc;
+    }
+  });
+}
+
+function stageNames(refinements) {
+  return normalizeStages(refinements).concat(expandStages).map(s => s.name);
+}
+
+function encodingWarnings(schemas) {
+  return Core__Array.filterMap(schemas, s => {
     let match = s.variantEncoding;
     if (match === undefined) {
       return;
@@ -415,42 +520,27 @@ function generate(schemas, refinementsOpt, param) {
         return CodegenHelpers.lcFirst(s.name) + `: list-encoded enum (["A"] wire form) — @schema skipped (sury-ppx can't express it)`;
     }
   });
-  let warnings = unionWarnings.concat(encodingWarnings);
-  let enumOccurrences = CodegenTransforms.collectInlineEnums(schemas$4);
-  let enumConflicts = CodegenTransforms.findConflictingEnumOccurrences(enumOccurrences);
-  if (enumConflicts.length > 0) {
+}
+
+function generate(schemas, refinementsOpt, param) {
+  let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
+  let errs = runStages(schemas, normalizeStages(refinements));
+  if (errs.TAG !== "Ok") {
     return {
       TAG: "Error",
-      _0: enumConflicts.map(occ => {
-        let fieldPathStr = occ.fieldPath.join("/");
-        return Errors.makeError({
-          TAG: "ConflictingInlineEnums",
-          _0: fieldPathStr
-        }, [occ.parentType].concat(occ.fieldPath), "Union arms mix string literals with structural types, and the literal arms have different value sets. Extract the literals into one named enum ($ref), or split the field into separate properties", undefined);
-      })
+      _0: errs._0
     };
   }
-  let topLevelNames = schemas$4.map(s => s.name);
-  let enumNames = CodegenTransforms.resolveEnumNames(enumOccurrences, topLevelNames);
-  let enumSchemas = CodegenTransforms.buildExtractedEnumSchemas(enumOccurrences, enumNames);
-  let schemasAfterEnumPromotion = CodegenTransforms.replaceInlineEnums(schemas$4, enumNames);
-  let schemas$5 = enumSchemas.concat(schemasAfterEnumPromotion);
-  let extractedUnions = schemas$5.flatMap(s => CodegenTransforms.extractUnions(s.name, s.schema).map(extracted => {
-    let dict = s.fieldDiscriminators;
-    let discriminatorPropertyName = dict !== undefined ? dict[extracted.name] : undefined;
-    return OpenAPIParser.make(extracted.name, extracted.schema, undefined, Primitive_option.some(discriminatorPropertyName), undefined, undefined, undefined);
-  }));
-  let match = CodegenTransforms.resolveExtractedUnionNames(extractedUnions, schemas$5.map(s => s.name));
-  let unionNames = match[1];
-  let modifiedSchemas = schemas$5.map(s => ({
-    name: s.name,
-    schema: CodegenTransforms.replaceUnions(unionNames, s.name, s.schema),
-    discriminatorTag: s.discriminatorTag,
-    discriminatorPropertyName: s.discriminatorPropertyName,
-    fieldDiscriminators: s.fieldDiscriminators,
-    variantEncoding: s.variantEncoding
-  }));
-  let allSchemas = match[0].concat(modifiedSchemas);
+  let normalized = errs._0;
+  let warnings = CodegenTransforms.collectUnionWarnings(normalized).concat(encodingWarnings(normalized));
+  let errs$1 = runStages(normalized, expandStages);
+  if (errs$1.TAG !== "Ok") {
+    return {
+      TAG: "Error",
+      _0: errs$1._0
+    };
+  }
+  let allSchemas = errs$1._0;
   let schemasDict = {};
   let tagsDict = {};
   allSchemas.forEach(s => {
@@ -463,8 +553,7 @@ function generate(schemas, refinementsOpt, param) {
   });
   let skipSchemaSet = CodegenTransforms.buildSkipSchemaSet(allSchemas);
   let recursiveSet = CodegenTransforms.recursiveTypeNames(allSchemas);
-  let sorted = CodegenTransforms.topologicalSort(allSchemas);
-  let irTypes = sorted.map(s => convertToIrTypeDef(s, schemasDict, tagsDict, skipSchemaSet, recursiveSet));
+  let irTypes = CodegenTransforms.topologicalSort(allSchemas).map(s => convertToIrTypeDef(s, schemasDict, tagsDict, skipSchemaSet, recursiveSet));
   return {
     TAG: "Ok",
     _0: {
@@ -480,6 +569,15 @@ export {
   convertType,
   convertField,
   convertToIrTypeDef,
+  ok,
+  checking,
+  normalizeStages,
+  promoteInlineEnums,
+  extractNamedUnions,
+  expandStages,
+  runStages,
+  stageNames,
+  encodingWarnings,
   generate,
 }
 /* No side effect */

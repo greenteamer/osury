@@ -228,83 +228,87 @@ let convertToIrTypeDef = (
   )
 }
 
-// Main pipeline: array<namedSchema> → result<IR.irModule, Errors.errors>
-// `refinements` trails `schemas` (and is closed by unit) so the JS-facing
-// signature stays (schemas, refinements) — callers that pass only schemas keep
-// working, which the CLI and scripts rely on.
-let generate = (
+// One AST-to-AST transform of the whole document. Named, so the pipeline order
+// is data a test can read instead of prose in a comment (Rule 6).
+type stage = {
+  name: string,
+  run: array<OpenAPIParser.namedSchema> => result<array<OpenAPIParser.namedSchema>, Errors.errors>,
+}
+
+let ok = (schemas): result<array<OpenAPIParser.namedSchema>, Errors.errors> => Ok(schemas)
+
+// A validation-only stage: errors, or the schemas untouched.
+let checking = (
+  check: array<OpenAPIParser.namedSchema> => Errors.errors,
   schemas: array<OpenAPIParser.namedSchema>,
-  ~refinements: bool=false,
-  (),
-): result<IR.irModule, Errors.errors> => {
-  // Step -4: Every $ref must resolve. Checked before anything rewrites the AST,
-  // so the reported path is the one the user wrote.
-  let refErrors = CodegenTransforms.validateRefs(schemas)
-  if Array.length(refErrors) > 0 {
-    Error(refErrors)
-  } else {
+): result<array<OpenAPIParser.namedSchema>, Errors.errors> => {
+  let errors = check(schemas)
+  Array.length(errors) > 0 ? Error(errors) : Ok(schemas)
+}
 
-  // Step -3: Merge `allOf` intersections. First, because every later step
-  // assumes plain object types — and because a dropped `$ref` arm here means
-  // silently losing every inherited field.
-  switch CodegenTransforms.mergeAllOf(schemas) {
-  | Error(errs) => Error(errs)
-  | Ok(schemas) =>
-
-  // Step -2: Drop value constraints unless the caller asked for them. Printing
-  // them makes generated code reject data it used to accept, so it is opt-in.
-  let schemas = refinements ? schemas : CodegenTransforms.stripRefinements(schemas)
-
-  // Step -1a: Normalize — collapse union arms that lower to the same ReScript
-  // type. Must precede validation and extraction: a union left with a single
-  // arm is not a union at all and needs no discriminator.
-  let schemas = CodegenTransforms.dedupeUnions(schemas)
-
-  // Step -1: Normalize — collapse unions of string literals into merged enums.
-  // Must run BEFORE discriminator validation: literal unions have no property
-  // to key a discriminator on, and after the collapse they don't need one.
-  let schemas = CodegenTransforms.collapseLiteralUnions(schemas)
-
-  // Step 0: Validate — discriminators must exist AND actually distinguish
-  let validationErrors = Array.concat(
-    CodegenTransforms.validateUnionDiscriminators(schemas),
-    CodegenTransforms.validateDistinctConstructors(schemas),
-  )
-  if Array.length(validationErrors) > 0 {
-    Error(validationErrors)
-  } else {
-
-  // Step 1: Diagnose — collect warnings for problematic unions
-  let unionWarnings = CodegenTransforms.collectUnionWarnings(schemas)
-
-  // Externally-tagged unions and list-encoded enums get a type but no sury
-  // codec — tell the user why
-  let encodingWarnings = schemas->Array.filterMap(s =>
-    switch s.variantEncoding {
-    | Some(Schema.External) =>
-      Some(
-        `${CodegenHelpers.lcFirst(s.name)}: externally-tagged union — @schema skipped (sury-ppx supports internally-tagged only)`,
+// Everything up to (and not including) enum promotion. Warnings are collected
+// between the two halves — on the normalized AST, before promotion rewrites
+// inline enums into refs.
+let normalizeStages = (~refinements: bool): array<stage> => [
+  {
+    // Every $ref must resolve. First, so the reported path is the one the user
+    // wrote, before any transform rewrites the tree.
+    name: "validateRefs",
+    run: checking(CodegenTransforms.validateRefs, ...),
+  },
+  {
+    // Merge `allOf` intersections. Before everything else: later stages assume
+    // plain object types, and a dropped `$ref` arm silently loses every
+    // inherited field.
+    name: "mergeAllOf",
+    run: CodegenTransforms.mergeAllOf,
+  },
+  {
+    // Drop value constraints unless the caller asked for them. Printing them
+    // makes generated code reject data it used to accept, so it is opt-in.
+    name: "stripRefinements",
+    run: schemas => ok(refinements ? schemas : CodegenTransforms.stripRefinements(schemas)),
+  },
+  {
+    // Collapse union arms that lower to the same ReScript type. Must precede
+    // validation and extraction: a union left with a single arm is not a union
+    // and needs no discriminator.
+    name: "dedupeUnions",
+    run: schemas => ok(CodegenTransforms.dedupeUnions(schemas)),
+  },
+  {
+    // Collapse unions of string literals into merged enums. Must run BEFORE
+    // discriminator validation: literal unions have no property to key a
+    // discriminator on, and after the collapse they don't need one.
+    name: "collapseLiteralUnions",
+    run: schemas => ok(CodegenTransforms.collapseLiteralUnions(schemas)),
+  },
+  {
+    // Discriminators must exist AND actually distinguish.
+    name: "validateUnions",
+    run: checking(schemas =>
+      Array.concat(
+        CodegenTransforms.validateUnionDiscriminators(schemas),
+        CodegenTransforms.validateDistinctConstructors(schemas),
       )
-    | Some(Schema.List) =>
-      Some(
-        `${CodegenHelpers.lcFirst(s.name)}: list-encoded enum (["A"] wire form) — @schema skipped (sury-ppx can't express it)`,
-      )
-    | _ => None
-    }
-  )
-  let warnings = Array.concat(unionWarnings, encodingWarnings)
+    , ...),
+  },
+]
 
-  // Step 1.5: Extract inline string enums into named top-level types.
-  // Runs BEFORE union extraction so subsequent passes see Ref(...) instead of
-  // raw Enum(...) inside Union/PolyVariant payloads.
-  let enumOccurrences = CodegenTransforms.collectInlineEnums(schemas)
+// Extract inline string enums into named top-level types. Runs BEFORE union
+// extraction so subsequent passes see Ref(...) instead of raw Enum(...) inside
+// Union/PolyVariant payloads.
+let promoteInlineEnums = (
+  schemas: array<OpenAPIParser.namedSchema>,
+): result<array<OpenAPIParser.namedSchema>, Errors.errors> => {
+  let occurrences = CodegenTransforms.collectInlineEnums(schemas)
   // Guard: same field path carrying different value sets (only possible inside
   // a union/variant that survived the literal collapse) — promotion would
   // silently drop one set, so refuse with a structured error.
-  let enumConflicts = CodegenTransforms.findConflictingEnumOccurrences(enumOccurrences)
-  if Array.length(enumConflicts) > 0 {
+  let conflicts = CodegenTransforms.findConflictingEnumOccurrences(occurrences)
+  if Array.length(conflicts) > 0 {
     Error(
-      enumConflicts->Array.map(occ => {
+      conflicts->Array.map(occ => {
         let fieldPathStr = occ.fieldPath->Array.join("/")
         Errors.makeError(
           ~kind=ConflictingInlineEnums(fieldPathStr),
@@ -317,15 +321,24 @@ let generate = (
       }),
     )
   } else {
+    let names = CodegenTransforms.resolveEnumNames(occurrences, schemas->Array.map(s => s.name))
+    Ok(
+      Array.concat(
+        CodegenTransforms.buildExtractedEnumSchemas(occurrences, ~names),
+        CodegenTransforms.replaceInlineEnums(schemas, ~names),
+      ),
+    )
+  }
+}
 
-  let topLevelNames = schemas->Array.map(s => s.name)
-  let enumNames = CodegenTransforms.resolveEnumNames(enumOccurrences, topLevelNames)
-  let enumSchemas = CodegenTransforms.buildExtractedEnumSchemas(enumOccurrences, ~names=enumNames)
-  let schemasAfterEnumPromotion = CodegenTransforms.replaceInlineEnums(schemas, ~names=enumNames)
-  let schemas = Array.concat(enumSchemas, schemasAfterEnumPromotion)
-
-  // Step 2: Extract — find all inline unions in each schema
-  let extractedUnions = schemas->Array.flatMap(s => {
+// Lift every inline union into its own named type and point the original
+// position at it. Extraction, structural de-duplication and replacement are one
+// stage because the name registry is shared: replacement has to use the very
+// names de-duplication assigned.
+let extractNamedUnions = (
+  schemas: array<OpenAPIParser.namedSchema>,
+): result<array<OpenAPIParser.namedSchema>, Errors.errors> => {
+  let extracted = schemas->Array.flatMap(s =>
     CodegenTransforms.extractUnions(s.name, s.schema)->Array.map(extracted => {
       let discriminatorPropertyName = switch s.fieldDiscriminators {
       | Some(dict) => dict->Dict.get(extracted.name)
@@ -338,64 +351,114 @@ let generate = (
         (),
       )
     })
-  })
+  )
 
-  // Step 3: Deduplicate — by structure, not by name. Two unions that merely
-  // want the same structural name are different types; merging them by name
-  // retyped one of the fields silently.
+  // De-duplicate by STRUCTURE, not by name: two unions that merely want the
+  // same structural name are different types, and merging them by name retyped
+  // one of the fields silently.
   let (uniqueUnions, unionNames) = CodegenTransforms.resolveExtractedUnionNames(
-    extractedUnions,
+    extracted,
     ~taken=schemas->Array.map(s => s.name),
   )
 
-  // Step 4: Replace — unions with refs in original schemas
-  let modifiedSchemas = schemas->Array.map(s => {
-    {
-      ...s,
-      OpenAPIParser.schema: CodegenTransforms.replaceUnions(~names=unionNames, s.name, s.schema),
+  let replaced = schemas->Array.map(s => {
+    ...s,
+    OpenAPIParser.schema: CodegenTransforms.replaceUnions(~names=unionNames, s.name, s.schema),
+  })
+  Ok(Array.concat(uniqueUnions, replaced))
+}
+
+// Everything after warning collection.
+let expandStages: array<stage> = [
+  {name: "promoteInlineEnums", run: promoteInlineEnums},
+  {name: "extractNamedUnions", run: extractNamedUnions},
+]
+
+let runStages = (schemas: array<OpenAPIParser.namedSchema>, stages: array<stage>) =>
+  stages->Array.reduce(Ok(schemas), (acc, stage) =>
+    switch acc {
+    | Ok(schemas) => stage.run(schemas)
+    | Error(_) as e => e
     }
-  })
+  )
 
-  // Step 5: Combine — unique unions + modified originals
-  let allSchemas = Array.concat(uniqueUnions, modifiedSchemas)
+// The pipeline order, as names — Rule 6 in executable form.
+let stageNames = (~refinements: bool): array<string> =>
+  Array.concat(normalizeStages(~refinements), expandStages)->Array.map(s => s.name)
 
-  // Step 6: Build dicts for inline record lookups
-  let schemasDict = Dict.make()
-  let tagsDict = Dict.make()
-  allSchemas->Array.forEach(s => {
-    schemasDict->Dict.set(s.name, s.schema)
-    switch s.discriminatorTag {
-    | Some(tag) => tagsDict->Dict.set(s.name, tag)
-    | None => ()
+// Externally-tagged unions and list-encoded enums get a type but no sury codec
+// — tell the user why.
+let encodingWarnings = (schemas: array<OpenAPIParser.namedSchema>): array<string> =>
+  schemas->Array.filterMap(s =>
+    switch s.variantEncoding {
+    | Some(Schema.External) =>
+      Some(
+        `${CodegenHelpers.lcFirst(s.name)}: externally-tagged union — @schema skipped (sury-ppx supports internally-tagged only)`,
+      )
+    | Some(Schema.List) =>
+      Some(
+        `${CodegenHelpers.lcFirst(s.name)}: list-encoded enum (["A"] wire form) — @schema skipped (sury-ppx can't express it)`,
+      )
+    | Some(Schema.Internal) | None => None
     }
-  })
+  )
 
-  // Step 7: Build skip-schema set (propagates through refs)
-  let skipSchemaSet = CodegenTransforms.buildSkipSchemaSet(allSchemas)
+// Main pipeline: array<namedSchema> → result<IR.irModule, Errors.errors>
+// `refinements` trails `schemas` (and is closed by unit) so the JS-facing
+// signature stays (schemas, refinements) — callers that pass only schemas keep
+// working, which the CLI and scripts rely on.
+let generate = (
+  schemas: array<OpenAPIParser.namedSchema>,
+  ~refinements: bool=false,
+  (),
+): result<IR.irModule, Errors.errors> => {
+  switch runStages(schemas, normalizeStages(~refinements)) {
+  | Error(errs) => Error(errs)
+  | Ok(normalized) =>
+    // Diagnostics are collected here, between the halves: on the normalized AST
+    // (so collapsed unions no longer warn) but before promotion and extraction
+    // turn inline constructs into refs.
+    let warnings = Array.concat(
+      CodegenTransforms.collectUnionWarnings(normalized),
+      encodingWarnings(normalized),
+    )
 
-  // Step 7.5: Detect recursive (cyclic) types — they need `type rec` and a
-  // hand-written S.recursive schema instead of @schema.
-  let recursiveSet = CodegenTransforms.recursiveTypeNames(allSchemas)
+    switch runStages(normalized, expandStages) {
+    | Error(errs) => Error(errs)
+    | Ok(allSchemas) =>
+      // Lookup tables for inline-record resolution and discriminator tags
+      let schemasDict = Dict.make()
+      let tagsDict = Dict.make()
+      allSchemas->Array.forEach(s => {
+        schemasDict->Dict.set(s.name, s.schema)
+        switch s.discriminatorTag {
+        | Some(tag) => tagsDict->Dict.set(s.name, tag)
+        | None => ()
+        }
+      })
 
-  // Step 8: Topo sort
-  let sorted = CodegenTransforms.topologicalSort(allSchemas)
+      // Types whose @schema must be skipped (propagates through refs)
+      let skipSchemaSet = CodegenTransforms.buildSkipSchemaSet(allSchemas)
 
-  // Step 9: Convert to IR
-  let irTypes = sorted->Array.map(s => convertToIrTypeDef(s, schemasDict, tagsDict, skipSchemaSet, recursiveSet))
+      // Recursive (cyclic) types need `type rec`
+      let recursiveSet = CodegenTransforms.recursiveTypeNames(allSchemas)
 
-  Ok({
-    // sury 11.0.0-alpha.7+ exposes `S` and `JSONSchema` as top-level public
-    // modules (namespace: false). `S.float`, `S.string`, etc. are eager
-    // `t<float>` bindings. Aliasing `module S = Sury` here would shadow that
-    // and force every call to take a `unit` argument (`Sury.float` is now
-    // `unit => t<float>`). Leave the preamble empty so sury-ppx-generated
-    // references to `S.*` resolve to sury's own `S` module.
-    IR.preamble: "",
-    types: irTypes,
-    warnings,
-  })
-  }
-  }
-  }
+      let irTypes =
+        CodegenTransforms.topologicalSort(allSchemas)->Array.map(s =>
+          convertToIrTypeDef(s, schemasDict, tagsDict, skipSchemaSet, recursiveSet)
+        )
+
+      Ok({
+        // sury 11.0.0-alpha.7+ exposes `S` and `JSONSchema` as top-level public
+        // modules (namespace: false). `S.float`, `S.string`, etc. are eager
+        // `t<float>` bindings. Aliasing `module S = Sury` here would shadow that
+        // and force every call to take a `unit` argument (`Sury.float` is now
+        // `unit => t<float>`). Leave the preamble empty so sury-ppx-generated
+        // references to `S.*` resolve to sury's own `S` module.
+        IR.preamble: "",
+        types: irTypes,
+        warnings,
+      })
+    }
   }
 }

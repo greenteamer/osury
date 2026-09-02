@@ -3991,3 +3991,25 @@ describe('Nested unions are validated too', () => {
         expect(g._0.some(e => e.kind.TAG === 'MissingDiscriminator' && e.kind._0 === 'aOrB')).toBe(true);
     });
 });
+
+// Rule 6 (transform order) used to live only in a comment above a 150-line
+// function. It is now the stage arrays in IRGen — this test is what makes
+// reordering them a deliberate act.
+describe('Pipeline order', () => {
+    test('stages run in the documented order', () => {
+        expect(IRGen.stageNames(false)).toEqual([
+            'validateRefs',
+            'mergeAllOf',
+            'stripRefinements',
+            'dedupeUnions',
+            'collapseLiteralUnions',
+            'validateUnions',
+            'promoteInlineEnums',
+            'extractNamedUnions',
+        ]);
+    });
+
+    test('the order does not depend on the refinements flag', () => {
+        expect(IRGen.stageNames(true)).toEqual(IRGen.stageNames(false));
+    });
+});
