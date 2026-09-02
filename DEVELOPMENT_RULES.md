@@ -71,17 +71,21 @@ String | Number | Integer | Boolean | Null
 - `hasUnion` — рекурсивный поиск Union в дереве типов
 - `isPrimitiveOnlyUnion` — проверка что union содержит только примитивы
 
-**CodegenTypes.res** (генерация кода):
-- `generateType` — генерация ReScript-типа
-- `generateRecord` — генерация полей записи
-- `generateUnion` — генерация union как poly variant
+**IRGen.res** (SchemaAST → IR):
+- `convertType` — перевод варианта в `IR.irType`
+- `generate` — оркестратор пайплайна (Правило 6)
 
 **CodegenTransforms.res** (трансформации AST):
 - `extractUnionsFromType` — извлечение Union для выделения в отдельный тип
 - `replaceUnionInType` — замена Union на Ref после извлечения
 - `getDependencies` — сбор Ref-зависимостей для топологической сортировки
-- `getUnionName` — структурное имя для union
+- `typeNamePart` / `getUnionName` — структурное имя для union
+- `structuralKey` — каноничный ключ структуры (дедуп извлечённых union-ов)
+- `validateRefs`, `mergeAllOf`, `stripRefinementsInType`, `dedupeUnionsInType`
 - `collectUnionWarnings` → `findUnions` — поиск union для диагностики
+
+**Backend*.res** (IR → код): `BackendReScript`, `BackendOCaml`, `BackendRust`,
+`BackendEffectTS` — печатают `IR.irType`, по schemaType не матчатся.
 
 **Codegen.res** (фасад):
 - Реэкспортирует всё из подмодулей, содержит `generateModule` оркестратор
@@ -95,7 +99,7 @@ String | Number | Integer | Boolean | Null
 **Чеклист добавления нового варианта:**
 1. [ ] Добавить вариант в `schemaType` (Schema.res)
 2. [ ] Реализовать парсинг из JSON (Schema.res)
-3. [ ] Добавить генерацию ReScript-кода (CodegenTypes.generateType)
+3. [ ] Добавить перевод в IR (`IRGen.convertType`) и печать в бэкендах
 4. [ ] Обновить утилиты: hasUnion, getTagForType, isPrimitiveOnlyUnion (CodegenHelpers.res)
 5. [ ] Обновить трансформации: extractUnionsFromType, replaceUnionInType, getDependencies, getUnionName (CodegenTransforms.res)
 6. [ ] Добавить тест парсинга + тест генерации кода

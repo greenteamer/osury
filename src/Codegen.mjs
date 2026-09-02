@@ -5,7 +5,6 @@ import * as Errors from "./Errors.mjs";
 import * as BackendRust from "./BackendRust.mjs";
 import * as BackendOCaml from "./BackendOCaml.mjs";
 import * as CodegenShims from "./CodegenShims.mjs";
-import * as CodegenTypes from "./CodegenTypes.mjs";
 import * as CodegenHelpers from "./CodegenHelpers.mjs";
 import * as BackendEffectTS from "./BackendEffectTS.mjs";
 import * as BackendReScript from "./BackendReScript.mjs";
@@ -157,18 +156,6 @@ let collectUnionWarnings = CodegenTransforms.collectUnionWarnings;
 
 let validateUnionDiscriminators = CodegenTransforms.validateUnionDiscriminators;
 
-let generateType = CodegenTypes.generateType;
-
-let generateTypeDef = CodegenTypes.generateTypeDef;
-
-let generateTypeDefWithSkipSet = CodegenTypes.generateTypeDefWithSkipSet;
-
-let generateVariantBody = CodegenTypes.generateVariantBody;
-
-let generateInlineVariantBody = CodegenTypes.generateInlineVariantBody;
-
-let generateInlineRecord = CodegenTypes.generateInlineRecord;
-
 let generateDictShim = CodegenShims.generateDictShim;
 
 let generateJsonShim = CodegenShims.generateJsonShim;
@@ -205,12 +192,6 @@ export {
   buildSkipSchemaSet,
   collectUnionWarnings,
   validateUnionDiscriminators,
-  generateType,
-  generateTypeDef,
-  generateTypeDefWithSkipSet,
-  generateVariantBody,
-  generateInlineVariantBody,
-  generateInlineRecord,
   generateDictShim,
   generateJsonShim,
   generateNullableShim,

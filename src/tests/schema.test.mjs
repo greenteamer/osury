@@ -1606,153 +1606,96 @@ describe('Schema Parser', () => {
 });
 
 describe('Code Generator', () => {
-    test('generate primitive types', () => {
-        expect(Codegen.generateType('String')).toBe('string');
-        expect(Codegen.generateType('Number')).toBe('float');
-        expect(Codegen.generateType('Integer')).toBe('int');
-        expect(Codegen.generateType('Boolean')).toBe('bool');
+    // These went through CodegenTypes — a second, legacy printer that the real
+    // pipeline stopped using when the IR layer landed. They were green no
+    // matter what the shipped generator did. Everything here now runs the
+    // public pipeline.
+    const genCode = (defs) => {
+        const parsed = OpenAPIParser.parseDocument({ $defs: defs });
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+        expect(g.TAG).toBe('Ok');
+        return g._0.code;
+    };
+
+    test('primitives, containers and refs lower to ReScript types', () => {
+        const code = genCode({
+            User: { type: "object", properties: { id: { type: "integer" } }, required: ["id"] },
+            All: {
+                type: "object",
+                properties: {
+                    s: { type: "string" },
+                    f: { type: "number" },
+                    i: { type: "integer" },
+                    b: { type: "boolean" },
+                    arr: { type: "array", items: { type: "string" } },
+                    opt: { type: "number" },
+                    d: { type: "object", additionalProperties: { type: "string" } },
+                    r: { $ref: "#/$defs/User" },
+                },
+                required: ["s", "f", "i", "b", "arr", "d", "r"],
+            },
+        });
+
+        expect(code).toContain('s: string');
+        expect(code).toContain('f: float');
+        expect(code).toContain('i: int');
+        expect(code).toContain('b: bool');
+        expect(code).toContain('arr: array<string>');
+        expect(code).toContain('opt: option<float>');
+        expect(code).toContain('d: Dict.t<string>');
+        expect(code).toContain('r: user');
     });
 
-    test('generate array type', () => {
-        // Using _tag for Effect TS compatibility
-        const arrayType = { _tag: 'Array', _0: 'String' };
-        expect(Codegen.generateType(arrayType)).toBe('array<string>');
+    test('a string enum lowers to a poly variant', () => {
+        const code = genCode({
+            Status: { type: "string", enum: ["active", "inactive"] },
+        });
+
+        expect(code).toContain('type status = [#active | #inactive]');
     });
 
-    test('generate optional type', () => {
-        const optType = { _tag: 'Optional', _0: 'Number' };
-        expect(Codegen.generateType(optType)).toBe('option<float>');
+    test('a record type is annotated @genType and @schema', () => {
+        const code = genCode({
+            User: {
+                type: "object",
+                properties: { id: { type: "integer" }, name: { type: "string" } },
+                required: ["id", "name"],
+            },
+        });
+
+        expect(code).toContain('@genType');
+        expect(code).toContain('@schema');
+        expect(code).toContain('type user = {');
+        expect(code).toContain('id: int');
+        expect(code).toContain('name: string');
     });
 
-    test('generate ref type', () => {
-        const refType = { _tag: 'Ref', _0: 'User' };
-        expect(Codegen.generateType(refType)).toBe('user');
-    });
+    test('a union field becomes a named tagged variant, and the record keeps @schema', () => {
+        const code = genCode({
+            Cat: { type: "object", properties: { meow: { type: "string" } }, required: ["meow"] },
+            Dog: { type: "object", properties: { bark: { type: "string" } }, required: ["bark"] },
+            Animal: {
+                type: "object",
+                properties: {
+                    id: { type: "integer" },
+                    pet: {
+                        anyOf: [{ $ref: "#/$defs/Cat" }, { $ref: "#/$defs/Dog" }],
+                        discriminator: { propertyName: "_tag" },
+                    },
+                },
+                required: ["id", "pet"],
+            },
+        });
 
-    test('generate enum type', () => {
-        const enumType = { _tag: 'Enum', _0: ['active', 'inactive'] };
-        expect(Codegen.generateType(enumType)).toBe('[#active | #inactive]');
-    });
-
-    test('generate dict type', () => {
-        const dictType = { _tag: 'Dict', _0: 'String' };
-        expect(Codegen.generateType(dictType)).toBe('Dict.t<string>');
-    });
-
-    test('generate object type (record)', () => {
-        const objectType = {
-            _tag: 'Object',
-            _0: [
-                { name: 'id', type: 'Integer', required: true },
-                { name: 'email', type: 'String', required: false }
-            ]
-        };
-        const result = Codegen.generateType(objectType);
-        expect(result).toContain('id: int');
-        expect(result).toContain('email: option<string>');
-    });
-
-    test('generate poly variant type', () => {
-        const polyType = {
-            _tag: 'PolyVariant',
-            _0: [
-                { _tag: 'Success', payload: { _tag: 'Object', _0: [{ name: 'data', type: 'String', required: true }] } },
-                { _tag: 'Error', payload: { _tag: 'Object', _0: [{ name: 'message', type: 'String', required: true }] } }
-            ]
-        };
-        const result = Codegen.generateType(polyType);
-        expect(result).toContain('#Success');
-        expect(result).toContain('#Error');
-    });
-
-    test('generate union type', () => {
-        const unionType = {
-            _tag: 'Union',
-            _0: [
-                { _tag: 'Ref', _0: 'Cat' },
-                { _tag: 'Ref', _0: 'Dog' }
-            ]
-        };
-        const result = Codegen.generateType(unionType);
-        // Union generates poly variant with type name as tag: [#Cat(cat) | #Dog(dog)]
-        expect(result).toContain('#Cat');
-        expect(result).toContain('#Dog');
-        expect(result).toContain('cat');
-        expect(result).toContain('dog');
-    });
-
-    test('generate type definition', () => {
-        const schema = {
-            name: 'User',
-            schema: {
-                _tag: 'Object',
-                _0: [
-                    { name: 'id', type: 'Integer', required: true },
-                    { name: 'name', type: 'String', required: true }
-                ]
-            }
-        };
-        const result = Codegen.generateTypeDef(schema);
-        expect(result).toContain('type user = {');
-        expect(result).toContain('id: int');
-        expect(result).toContain('name: string');
-    });
-
-    test('generate type with @genType and @schema annotations', () => {
-        const schema = {
-            name: 'User',
-            schema: {
-                _tag: 'Object',
-                _0: [
-                    { name: 'id', type: 'Integer', required: true }
-                ]
-            }
-        };
-        const result = Codegen.generateTypeDef(schema);
-        expect(result).toContain('@genType');
-        expect(result).toContain('@schema');
-    });
-
-    test('skip @schema for types with inline Union (incompatible with Sury PPX)', () => {
-        const schema = {
-            name: 'Animal',
-            schema: {
-                _tag: 'Object',
-                _0: [
-                    { name: 'id', type: 'Integer', required: true },
-                    {
-                        name: 'pet',
-                        type: {
-                            _tag: 'Union',
-                            _0: [
-                                { _tag: 'Ref', _0: 'Cat' },
-                                { _tag: 'Ref', _0: 'Dog' }
-                            ]
-                        },
-                        required: true
-                    }
-                ]
-            }
-        };
-        const result = Codegen.generateTypeDef(schema);
-        expect(result).toContain('@genType');
-        expect(result).not.toContain('@schema');
-    });
-
-    test('include @schema for types without Union', () => {
-        const schema = {
-            name: 'User',
-            schema: {
-                _tag: 'Object',
-                _0: [
-                    { name: 'id', type: 'Integer', required: true },
-                    { name: 'name', type: 'String', required: true }
-                ]
-            }
-        };
-        const result = Codegen.generateTypeDef(schema);
-        expect(result).toContain('@genType');
-        expect(result).toContain('@schema');
+        expect(code).toContain('@tag("_tag")');
+        // A @tag'd variant carries inline records: the discriminator lives in
+        // the same object as the payload fields, which a named record can't do.
+        expect(code).toContain('type catOrDog = Cat({');
+        expect(code).toContain('}) | Dog({');
+        expect(code).toContain('pet: catOrDog');
+        // No inline union is left in the record, so it is sury-ppx compatible
+        expect(code.split('type animal = ')[0]).toContain('@schema');
     });
 
     test('extractUnions finds Union in object field', () => {
@@ -1806,20 +1749,6 @@ describe('Code Generator', () => {
         expect(field.type._tag).toBe('Ref');
         // Structural name based on union members
         expect(field.type._0).toBe('aOrB');
-    });
-
-    test('generate variant type with @tag annotation', () => {
-        const schema = {
-            name: 'myUnion',
-            schema: { _tag: 'Union', _0: [{ _tag: 'Ref', _0: 'A' }, { _tag: 'Ref', _0: 'B' }] },
-            isExtractedUnion: true
-        };
-        const result = Codegen.generateTypeDef(schema);
-
-        expect(result).toContain('@genType');
-        expect(result).toContain('@tag("_tag")');
-        expect(result).toContain('@schema');
-        expect(result).toContain('type myUnion = A(a) | B(b)');
     });
 
     test('generate full module from OpenAPI doc', () => {

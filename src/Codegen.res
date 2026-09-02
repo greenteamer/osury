@@ -1,5 +1,5 @@
 // Codegen.res - Facade and orchestrator for code generation pipeline
-// Coordinates: CodegenTransforms (AST transforms) → CodegenTypes (code generation)
+// Coordinates: CodegenTransforms (AST transforms) → IRGen (AST → IR) → Backend* (IR → code)
 // See DEVELOPMENT_RULES.md Rule 6 for pipeline order
 
 // Re-export helpers for backward compatibility
@@ -34,14 +34,6 @@ let topologicalSort = CodegenTransforms.topologicalSort
 let buildSkipSchemaSet = CodegenTransforms.buildSkipSchemaSet
 let collectUnionWarnings = CodegenTransforms.collectUnionWarnings
 let validateUnionDiscriminators = CodegenTransforms.validateUnionDiscriminators
-
-// Re-export code generation for backward compatibility
-let generateType = CodegenTypes.generateType
-let generateTypeDef = CodegenTypes.generateTypeDef
-let generateTypeDefWithSkipSet = CodegenTypes.generateTypeDefWithSkipSet
-let generateVariantBody = CodegenTypes.generateVariantBody
-let generateInlineVariantBody = CodegenTypes.generateInlineVariantBody
-let generateInlineRecord = CodegenTypes.generateInlineRecord
 
 // Re-export shims for backward compatibility
 let generateDictShim = CodegenShims.generateDictShim
