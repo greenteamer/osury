@@ -5,6 +5,7 @@ import * as Schema from "./Schema.mjs";
 import * as Core__Array from "@rescript/core/src/Core__Array.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
 import * as CodegenHelpers from "./CodegenHelpers.mjs";
+import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js";
 import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
 
 function make(name, schema, discriminatorTagOpt, discriminatorPropertyNameOpt, fieldDiscriminatorsOpt, variantEncodingOpt, param) {
@@ -36,67 +37,150 @@ function pathToName(path) {
   }).join("")).join("");
 }
 
-function parsePathResponses(pathsJson) {
-  if (typeof pathsJson !== "object" || pathsJson === null || Array.isArray(pathsJson)) {
+function operations(pathsJson) {
+  let httpMethods = [
+    "get",
+    "post",
+    "put",
+    "patch",
+    "delete"
+  ];
+  if (typeof pathsJson === "object" && pathsJson !== null && !Array.isArray(pathsJson)) {
+    return Object.entries(pathsJson).flatMap(param => {
+      let methodsJson = param[1];
+      let path = param[0];
+      if (typeof methodsJson === "object" && methodsJson !== null && !Array.isArray(methodsJson)) {
+        return Core__Array.filterMap(Object.entries(methodsJson), param => {
+          let opJson = param[1];
+          let method = param[0];
+          let match = httpMethods.includes(method);
+          if (match && typeof opJson === "object" && opJson !== null && !Array.isArray(opJson)) {
+            return [
+              method,
+              path,
+              opJson
+            ];
+          }
+        });
+      } else {
+        return [];
+      }
+    });
+  } else {
+    return [];
+  }
+}
+
+function jsonBodySchema(holder) {
+  let match = holder["content"];
+  if (match === undefined) {
+    return;
+  }
+  if (typeof match !== "object" || match === null || Array.isArray(match)) {
+    return;
+  }
+  let match$1 = match["application/json"];
+  if (typeof match$1 === "object" && match$1 !== null && !Array.isArray(match$1)) {
+    return match$1["schema"];
+  }
+}
+
+function collectResults(results) {
+  let errors = Core__Array.filterMap(results, r => {
+    if (r.TAG === "Ok") {
+      return;
+    } else {
+      return r._0;
+    }
+  }).flat();
+  if (errors.length > 0) {
+    return {
+      TAG: "Error",
+      _0: errors
+    };
+  } else {
     return {
       TAG: "Ok",
-      _0: []
+      _0: Core__Array.filterMap(results, r => {
+        if (r.TAG === "Ok") {
+          return r._0;
+        }
+      })
     };
   }
-  let results = Object.entries(pathsJson).flatMap(param => {
-    let methodsJson = param[1];
-    let path = param[0];
-    if (typeof methodsJson === "object" && methodsJson !== null && !Array.isArray(methodsJson)) {
-      return Core__Array.filterMap(Object.entries(methodsJson), param => {
-        let opJson = param[1];
-        let method = param[0];
-        let httpMethods = [
-          "get",
-          "post",
-          "put",
-          "patch",
-          "delete"
-        ];
-        if (!httpMethods.includes(method)) {
-          return;
-        }
-        if (typeof opJson !== "object" || opJson === null || Array.isArray(opJson)) {
-          return;
-        }
-        let match = opJson["responses"];
-        if (match === undefined) {
-          return;
-        }
-        if (typeof match !== "object" || match === null || Array.isArray(match)) {
-          return;
-        }
-        let r = match["200"];
-        let responseJson = r !== undefined ? r : match["201"];
-        if (responseJson === undefined) {
-          return;
-        }
-        if (typeof responseJson !== "object" || responseJson === null || Array.isArray(responseJson)) {
-          return;
-        }
-        let match$1 = responseJson["content"];
-        if (match$1 === undefined) {
-          return;
-        }
-        if (typeof match$1 !== "object" || match$1 === null || Array.isArray(match$1)) {
-          return;
-        }
-        let match$2 = match$1["application/json"];
-        if (match$2 === undefined) {
-          return;
-        }
-        if (typeof match$2 !== "object" || match$2 === null || Array.isArray(match$2)) {
-          return;
-        }
-        let schemaJson = match$2["schema"];
-        if (schemaJson === undefined) {
-          return;
-        }
-        let name = CodegenHelpers.ucFirst(method) + pathToName(path) + "Response";
+}
+
+function successResponses(op) {
+  let match = op["responses"];
+  if (match === undefined) {
+    return [];
+  }
+  if (typeof match !== "object" || match === null || Array.isArray(match)) {
+    return [];
+  }
+  let withBody = Core__Array.filterMap(Object.entries(match), param => {
+    let respJson = param[1];
+    let code = param[0];
+    let match = code.startsWith("2");
+    if (!match) {
+      return;
+    }
+    if (typeof respJson !== "object" || respJson === null || Array.isArray(respJson)) {
+      return;
+    }
+    let schemaJson = jsonBodySchema(respJson);
+    if (schemaJson !== undefined) {
+      return [
+        code,
+        schemaJson
+      ];
+    }
+  });
+  let primaryCode = [
+    "200",
+    "201"
+  ].find(c => withBody.some(param => param[0] === c));
+  let primaryCode$1 = primaryCode !== undefined ? primaryCode : Core__Option.map(withBody[0], param => param[0]);
+  return withBody.map(param => {
+    let code = param[0];
+    return [
+      Primitive_object.equal(code, primaryCode$1) ? "Response" : "Response" + code,
+      param[1]
+    ];
+  });
+}
+
+function parsePathResponses(pathsJson) {
+  return collectResults(operations(pathsJson).flatMap(param => {
+    let path = param[1];
+    let method = param[0];
+    return successResponses(param[2]).map(param => {
+      let schemaJson = param[1];
+      let name = CodegenHelpers.ucFirst(method) + pathToName(path) + param[0];
+      let schemaType = Schema.parseAt(schemaJson, [name]);
+      if (schemaType.TAG === "Ok") {
+        return {
+          TAG: "Ok",
+          _0: make(name, schemaType._0, undefined, undefined, undefined, Primitive_option.some(Schema.variantEncodingOfJson(schemaJson)), undefined)
+        };
+      } else {
+        return {
+          TAG: "Error",
+          _0: schemaType._0
+        };
+      }
+    });
+  }));
+}
+
+function parsePathRequestBodies(pathsJson) {
+  return collectResults(Core__Array.filterMap(operations(pathsJson), param => {
+    let path = param[1];
+    let method = param[0];
+    let match = param[2]["requestBody"];
+    if (typeof match === "object" && match !== null && !Array.isArray(match)) {
+      return Core__Option.map(jsonBodySchema(match), schemaJson => {
+        let name = CodegenHelpers.ucFirst(method) + pathToName(path) + "Request";
         let schemaType = Schema.parseAt(schemaJson, [name]);
         if (schemaType.TAG === "Ok") {
           return {
@@ -110,32 +194,8 @@ function parsePathResponses(pathsJson) {
           };
         }
       });
-    } else {
-      return [];
     }
-  });
-  let errors = Core__Array.filterMap(results, r => {
-    if (r.TAG === "Ok") {
-      return;
-    } else {
-      return r._0;
-    }
-  }).flat();
-  if (errors.length > 0) {
-    return {
-      TAG: "Error",
-      _0: errors
-    };
-  }
-  let schemas = Core__Array.filterMap(results, r => {
-    if (r.TAG === "Ok") {
-      return r._0;
-    }
-  });
-  return {
-    TAG: "Ok",
-    _0: schemas
-  };
+  }));
 }
 
 function extractDiscriminatorFromPair(items, discDict) {
@@ -623,16 +683,22 @@ function parseDocument(json) {
         TAG: "Ok",
         _0: []
       });
+    let pathsJson$2 = json["paths"];
+    let requestSchemas = pathsJson$2 !== undefined ? parsePathRequestBodies(pathsJson$2) : ({
+        TAG: "Ok",
+        _0: []
+      });
     let mappingByRef = extractAllDiscriminatorMappings(json);
     let exit = 0;
-    if (componentSchemas.TAG === "Ok" && defsSchemas.TAG === "Ok" && definitionsSchemas.TAG === "Ok" && pathSchemas.TAG === "Ok") {
-      if (paramSchemas.TAG === "Ok") {
+    if (componentSchemas.TAG === "Ok" && defsSchemas.TAG === "Ok" && definitionsSchemas.TAG === "Ok" && pathSchemas.TAG === "Ok" && paramSchemas.TAG === "Ok") {
+      if (requestSchemas.TAG === "Ok") {
         let all = [
           componentSchemas._0,
           defsSchemas._0,
           definitionsSchemas._0,
           pathSchemas._0,
-          paramSchemas._0
+          paramSchemas._0,
+          requestSchemas._0
         ].flat();
         let seen = {};
         let duplicateErrors = Core__Array.filterMap(all, s => {
@@ -668,7 +734,8 @@ function parseDocument(json) {
         defsSchemas,
         definitionsSchemas,
         pathSchemas,
-        paramSchemas
+        paramSchemas,
+        requestSchemas
       ], r => {
         if (r.TAG === "Ok") {
           return;
@@ -697,7 +764,12 @@ export {
   make,
   pathToName,
   ucFirst,
+  operations,
+  jsonBodySchema,
+  collectResults,
+  successResponses,
   parsePathResponses,
+  parsePathRequestBodies,
   extractDiscriminatorFromPair,
   extractFieldDiscriminators,
   extractDiscriminatorPropertyName,

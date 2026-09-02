@@ -157,8 +157,16 @@ type mark =
   | Shine of { target : string }
   | Tint of { level : int }
 
+type post_v1_widgets_response202 = {
+  job_id : string;
+}
+
 type get_v1_widgets_widget_id_params = {
   widget_id : string;
+}
+
+type patch_v1_widgets_widget_id_request = {
+  weight : float option;
 }
 
 type mixed_alias = string_or_array_bool list
@@ -216,9 +224,15 @@ type widget_alias = widget
 
 type get_v1_widgets_response = widget list
 
+type post_v1_widgets_response = widget
+
 type get_v1_widgets_widget_id_response = widget
 
 type post_v1_widgets_widget_id_response = widget
+
+type patch_v1_widgets_widget_id_response = widget
+
+type post_v1_widgets_request = widget
 
 type shape_distinct = {
   amount : measure_or_float;
@@ -531,6 +545,18 @@ and mark_of_yojson (j : Yojson.Safe.t) : (mark, string) result =
      | other -> Error ("mark: unknown variant: " ^ other))
   | _ -> Error ("mark: expected single-key object")
 
+and post_v1_widgets_response202_to_yojson (x : post_v1_widgets_response202) : Yojson.Safe.t =
+  `Assoc
+    (List.concat
+    [
+      [ ("job_id", `String x.job_id) ];
+    ])
+
+and post_v1_widgets_response202_of_yojson (j : Yojson.Safe.t) : (post_v1_widgets_response202, string) result =
+  let open Oj in
+  let* job_id = Oj.req_field "job_id" (fun j -> Oj.string_ j) j in
+  Ok ({ job_id } : post_v1_widgets_response202)
+
 and get_v1_widgets_widget_id_params_to_yojson (x : get_v1_widgets_widget_id_params) : Yojson.Safe.t =
   `Assoc
     (List.concat
@@ -542,6 +568,18 @@ and get_v1_widgets_widget_id_params_of_yojson (j : Yojson.Safe.t) : (get_v1_widg
   let open Oj in
   let* widget_id = Oj.req_field "widget_id" (fun j -> Oj.string_ j) j in
   Ok ({ widget_id } : get_v1_widgets_widget_id_params)
+
+and patch_v1_widgets_widget_id_request_to_yojson (x : patch_v1_widgets_widget_id_request) : Yojson.Safe.t =
+  `Assoc
+    (List.concat
+    [
+      (match x.weight with Some v -> [ ("weight", `Float v) ] | None -> []);
+    ])
+
+and patch_v1_widgets_widget_id_request_of_yojson (j : Yojson.Safe.t) : (patch_v1_widgets_widget_id_request, string) result =
+  let open Oj in
+  let* weight = Oj.opt_field "weight" (fun j -> Oj.float_ j) j in
+  Ok ({ weight } : patch_v1_widgets_widget_id_request)
 
 and mixed_alias_to_yojson (v : mixed_alias) : Yojson.Safe.t = `List (List.map (fun x -> string_or_array_bool_to_yojson x) v)
 
@@ -746,6 +784,10 @@ and get_v1_widgets_response_to_yojson (v : get_v1_widgets_response) : Yojson.Saf
 
 and get_v1_widgets_response_of_yojson (j : Yojson.Safe.t) : (get_v1_widgets_response, string) result = Oj.list_ (fun j -> widget_of_yojson j) j
 
+and post_v1_widgets_response_to_yojson (v : post_v1_widgets_response) : Yojson.Safe.t = widget_to_yojson v
+
+and post_v1_widgets_response_of_yojson (j : Yojson.Safe.t) : (post_v1_widgets_response, string) result = widget_of_yojson j
+
 and get_v1_widgets_widget_id_response_to_yojson (v : get_v1_widgets_widget_id_response) : Yojson.Safe.t = widget_to_yojson v
 
 and get_v1_widgets_widget_id_response_of_yojson (j : Yojson.Safe.t) : (get_v1_widgets_widget_id_response, string) result = widget_of_yojson j
@@ -753,6 +795,14 @@ and get_v1_widgets_widget_id_response_of_yojson (j : Yojson.Safe.t) : (get_v1_wi
 and post_v1_widgets_widget_id_response_to_yojson (v : post_v1_widgets_widget_id_response) : Yojson.Safe.t = widget_to_yojson v
 
 and post_v1_widgets_widget_id_response_of_yojson (j : Yojson.Safe.t) : (post_v1_widgets_widget_id_response, string) result = widget_of_yojson j
+
+and patch_v1_widgets_widget_id_response_to_yojson (v : patch_v1_widgets_widget_id_response) : Yojson.Safe.t = widget_to_yojson v
+
+and patch_v1_widgets_widget_id_response_of_yojson (j : Yojson.Safe.t) : (patch_v1_widgets_widget_id_response, string) result = widget_of_yojson j
+
+and post_v1_widgets_request_to_yojson (v : post_v1_widgets_request) : Yojson.Safe.t = widget_to_yojson v
+
+and post_v1_widgets_request_of_yojson (j : Yojson.Safe.t) : (post_v1_widgets_request, string) result = widget_of_yojson j
 
 and shape_distinct_to_yojson (x : shape_distinct) : Yojson.Safe.t =
   `Assoc

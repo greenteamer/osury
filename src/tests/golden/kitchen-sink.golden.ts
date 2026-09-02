@@ -143,10 +143,20 @@ const _MarkTint = Schema.Struct({
 export const Mark = Schema.Union([_MarkShine, _MarkTint])
 export type Mark = Schema.Schema.Type<typeof Mark>
 
+export const PostV1WidgetsResponse202 = Schema.Struct({
+  job_id: Schema.String,
+})
+export type PostV1WidgetsResponse202 = Schema.Schema.Type<typeof PostV1WidgetsResponse202>
+
 export const GetV1Widgets_widget_idParams = Schema.Struct({
   widget_id: Schema.String,
 })
 export type GetV1Widgets_widget_idParams = Schema.Schema.Type<typeof GetV1Widgets_widget_idParams>
+
+export const PatchV1Widgets_widget_idRequest = Schema.Struct({
+  weight: Schema.optionalKey(Schema.NullOr(Schema.Number)),
+})
+export type PatchV1Widgets_widget_idRequest = Schema.Schema.Type<typeof PatchV1Widgets_widget_idRequest>
 
 export const MixedAlias = Schema.Array(StringOrArrayBool)
 export type MixedAlias = Schema.Schema.Type<typeof MixedAlias>
@@ -285,11 +295,20 @@ export type WidgetAlias = Schema.Schema.Type<typeof WidgetAlias>
 export const GetV1WidgetsResponse = Schema.Array(Widget)
 export type GetV1WidgetsResponse = Schema.Schema.Type<typeof GetV1WidgetsResponse>
 
+export const PostV1WidgetsResponse = Widget
+export type PostV1WidgetsResponse = Schema.Schema.Type<typeof PostV1WidgetsResponse>
+
 export const GetV1Widgets_widget_idResponse = Widget
 export type GetV1Widgets_widget_idResponse = Schema.Schema.Type<typeof GetV1Widgets_widget_idResponse>
 
 export const PostV1Widgets_widget_idResponse = Widget
 export type PostV1Widgets_widget_idResponse = Schema.Schema.Type<typeof PostV1Widgets_widget_idResponse>
+
+export const PatchV1Widgets_widget_idResponse = Widget
+export type PatchV1Widgets_widget_idResponse = Schema.Schema.Type<typeof PatchV1Widgets_widget_idResponse>
+
+export const PostV1WidgetsRequest = Widget
+export type PostV1WidgetsRequest = Schema.Schema.Type<typeof PostV1WidgetsRequest>
 
 export const ShapeDistinct = Schema.Struct({
   amount: MeasureOrFloat,

@@ -176,8 +176,19 @@ pub enum Mark {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostV1WidgetsResponse202 {
+    pub job_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetV1Widgets_widget_idParams {
     pub widget_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchV1Widgets_widget_idRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight: Option<f64>,
 }
 
 pub type MixedAlias = Vec<StringOrArrayBool>;
@@ -270,9 +281,15 @@ pub type WidgetAlias = Widget;
 
 pub type GetV1WidgetsResponse = Vec<Widget>;
 
+pub type PostV1WidgetsResponse = Widget;
+
 pub type GetV1Widgets_widget_idResponse = Widget;
 
 pub type PostV1Widgets_widget_idResponse = Widget;
+
+pub type PatchV1Widgets_widget_idResponse = Widget;
+
+pub type PostV1WidgetsRequest = Widget;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShapeDistinct {

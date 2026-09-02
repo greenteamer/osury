@@ -128,8 +128,20 @@ type mark = Shine({
 
 @genType
 @schema
+type postV1WidgetsResponse202 = {
+  job_id: string
+}
+
+@genType
+@schema
 type getV1Widgets_widget_idParams = {
   widget_id: @s.matches(S.uuid) string
+}
+
+@genType
+@schema
+type patchV1Widgets_widget_idRequest = {
+  weight: option<float>
 }
 
 @genType
@@ -224,11 +236,23 @@ type getV1WidgetsResponse = array<widget>
 
 @genType
 @schema
+type postV1WidgetsResponse = widget
+
+@genType
+@schema
 type getV1Widgets_widget_idResponse = widget
 
 @genType
 @schema
 type postV1Widgets_widget_idResponse = widget
+
+@genType
+@schema
+type patchV1Widgets_widget_idResponse = widget
+
+@genType
+@schema
+type postV1WidgetsRequest = widget
 
 @genType
 @schema

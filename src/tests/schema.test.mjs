@@ -4013,3 +4013,66 @@ describe('Pipeline order', () => {
         expect(IRGen.stageNames(true)).toEqual(IRGen.stageNames(false));
     });
 });
+
+// Only responses 200/201 were ever typed: the request body — half the contract
+// of every POST/PUT/PATCH — produced no type at all, and a 202 or 206 response
+// silently vanished.
+describe('Request bodies and non-primary 2xx responses', () => {
+    const DOC = {
+        openapi: "3.1.0",
+        paths: {
+            "/v1/things": {
+                post: {
+                    requestBody: {
+                        content: { "application/json": { schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } } },
+                    },
+                    responses: {
+                        "201": { content: { "application/json": { schema: { $ref: "#/components/schemas/Thing" } } } },
+                        "202": { content: { "application/json": { schema: { type: "object", properties: { job: { type: "string" } }, required: ["job"] } } } },
+                        "204": { description: "no body" },
+                        "422": { content: { "application/json": { schema: { type: "string" } } } },
+                    },
+                },
+            },
+        },
+        components: {
+            schemas: { Thing: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
+        },
+    };
+
+    const code = () => {
+        const parsed = OpenAPIParser.parseDocument(DOC);
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+        expect(g.TAG).toBe('Ok');
+        return g._0.code;
+    };
+
+    test('the JSON request body becomes a {Method}{Path}Request type', () => {
+        expect(code()).toContain('type postV1ThingsRequest = {\n  name: string\n}');
+    });
+
+    test('the primary success response keeps the plain Response name', () => {
+        expect(code()).toContain('type postV1ThingsResponse = thing');
+    });
+
+    test('a second 2xx response is named after its status code', () => {
+        expect(code()).toContain('type postV1ThingsResponse202 = {\n  job: string\n}');
+    });
+
+    test('a 204 without a body and a 4xx produce no type', () => {
+        const c = code();
+        expect(c).not.toContain('Response204');
+        expect(c).not.toContain('Response422');
+    });
+
+    test('an operation with no requestBody produces no Request type', () => {
+        const parsed = OpenAPIParser.parseDocument({
+            openapi: "3.1.0",
+            paths: { "/v1/things": { get: { responses: { "200": { content: { "application/json": { schema: { type: "string" } } } } } } } },
+        });
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+
+        expect(g._0.code).not.toContain('Request');
+    });
+});

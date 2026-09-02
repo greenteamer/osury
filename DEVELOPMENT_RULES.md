@@ -332,6 +332,19 @@ switch json {
 
 ---
 
+## Правило 16. Из paths типизируется весь JSON-контракт
+
+Для каждой операции извлекаются:
+- `requestBody.content.application/json.schema` → `{Method}{Path}Request`
+- каждый 2xx-ответ с JSON-телом → `{Method}{Path}Response` (200, иначе 201,
+  иначе первый по документу) и `{Method}{Path}Response{код}` для остальных
+- `parameters` (query + path, без headers) → `{Method}{Path}Params`
+
+Ответы без тела (204) и не-JSON media types типов не дают. 4xx не типизируются:
+форма ошибок — отдельный контракт, его нужно обсуждать с владельцем API.
+
+---
+
 ## Checklist перед merge
 
 Проверяется при каждом изменении:

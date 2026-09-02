@@ -61,89 +61,148 @@ let pathToName = (path: string): string => {
 // Capitalize first letter
 let ucFirst = CodegenHelpers.ucFirst
 
-// Parse response schemas from paths
-let parsePathResponses = (pathsJson: JSON.t): result<array<namedSchema>, Errors.errors> => {
+// Every (method, path, operation) in `paths`. One walker, used by the response,
+// request-body and parameter parsers alike.
+let operations = (pathsJson: JSON.t): array<(string, string, Dict.t<JSON.t>)> => {
+  let httpMethods = ["get", "post", "put", "patch", "delete"]
   switch pathsJson {
   | Object(paths) =>
-    let results = paths->Dict.toArray->Array.flatMap(((path, methodsJson)) => {
+    paths
+    ->Dict.toArray
+    ->Array.flatMap(((path, methodsJson)) =>
       switch methodsJson {
       | Object(methods) =>
-        methods->Dict.toArray->Array.filterMap(((method, opJson)) => {
-          // Skip non-HTTP methods like "parameters"
-          let httpMethods = ["get", "post", "put", "patch", "delete"]
-          if !(httpMethods->Array.includes(method)) {
-            None
-          } else {
-            switch opJson {
-            | Object(op) =>
-              switch op->Dict.get("responses") {
-              | Some(Object(responses)) =>
-                // Get 200 or 201 response
-                let responseJson = switch responses->Dict.get("200") {
-                | Some(r) => Some(r)
-                | None => responses->Dict.get("201")
-                }
-                switch responseJson {
-                | Some(Object(response)) =>
-                  switch response->Dict.get("content") {
-                  | Some(Object(content)) =>
-                    switch content->Dict.get("application/json") {
-                    | Some(Object(jsonContent)) =>
-                      switch jsonContent->Dict.get("schema") {
-                      | Some(schemaJson) =>
-                        let name = ucFirst(method) ++ pathToName(path) ++ "Response"
-                        switch Schema.parseAt(schemaJson, ~path=[name]) {
-                        | Ok(schemaType) =>
-                          Some(
-                            Ok(
-                              make(
-                                ~name,
-                                ~schema=schemaType,
-                                ~variantEncoding=Schema.variantEncodingOfJson(schemaJson),
-                                (),
-                              ),
-                            ),
-                          )
-                        | Error(e) => Some(Error(e))
-                        }
-                      | None => None
-                      }
-                    | _ => None
-                    }
-                  | _ => None
-                  }
-                | _ => None
-                }
-              | _ => None
-              }
-            | _ => None
-            }
+        methods
+        ->Dict.toArray
+        ->Array.filterMap(((method, opJson)) =>
+          switch (httpMethods->Array.includes(method), opJson) {
+          | (true, Object(op)) => Some((method, path, op))
+          | _ => None
           }
-        })
+        )
       | _ => []
       }
-    })
+    )
+  | _ => []
+  }
+}
 
-    let errors = results->Array.filterMap(r =>
-      switch r {
-      | Error(e) => Some(e)
-      | Ok(_) => None
-      }
-    )->Array.flat
+// The application/json schema of a requestBody or a response, if it has one.
+// A body with no content (204) or a non-JSON media type yields no type.
+let jsonBodySchema = (holder: Dict.t<JSON.t>): option<JSON.t> => {
+  switch holder->Dict.get("content") {
+  | Some(Object(content)) =>
+    switch content->Dict.get("application/json") {
+    | Some(Object(jsonContent)) => jsonContent->Dict.get("schema")
+    | _ => None
+    }
+  | _ => None
+  }
+}
 
-    if Array.length(errors) > 0 {
-      Error(errors)
-    } else {
-      let schemas = results->Array.filterMap(r =>
+let collectResults = (
+  results: array<result<namedSchema, Errors.errors>>,
+): result<array<namedSchema>, Errors.errors> => {
+  let errors = results->Array.filterMap(r =>
+    switch r {
+    | Error(e) => Some(e)
+    | Ok(_) => None
+    }
+  )->Array.flat
+  if Array.length(errors) > 0 {
+    Error(errors)
+  } else {
+    Ok(
+      results->Array.filterMap(r =>
         switch r {
         | Ok(s) => Some(s)
         | Error(_) => None
         }
-      )
-      Ok(schemas)
-    }
-  | _ => Ok([])
+      ),
+    )
   }
+}
+
+// Which 2xx responses of one operation carry a JSON body, and what each type is
+// called. The primary success response (200, else 201, else the first 2xx in
+// document order) keeps the plain `...Response` name; the rest carry their
+// status code, so a 206 no longer disappears.
+let successResponses = (op: Dict.t<JSON.t>): array<(string, JSON.t)> => {
+  switch op->Dict.get("responses") {
+  | Some(Object(responses)) =>
+    let withBody = responses
+      ->Dict.toArray
+      ->Array.filterMap(((code, respJson)) =>
+        switch (String.startsWith(code, "2"), respJson) {
+        | (true, Object(resp)) =>
+          switch jsonBodySchema(resp) {
+          | Some(schemaJson) => Some((code, schemaJson))
+          | None => None
+          }
+        | _ => None
+        }
+      )
+    let primaryCode = ["200", "201"]->Array.find(c =>
+      withBody->Array.some(((code, _)) => code == c)
+    )
+    let primaryCode = switch primaryCode {
+    | Some(c) => Some(c)
+    | None => withBody->Array.get(0)->Option.map(((code, _)) => code)
+    }
+    withBody->Array.map(((code, schemaJson)) => (
+      Some(code) == primaryCode ? "Response" : "Response" ++ code,
+      schemaJson,
+    ))
+  | _ => []
+  }
+}
+
+// Parse response schemas from paths
+let parsePathResponses = (pathsJson: JSON.t): result<array<namedSchema>, Errors.errors> => {
+  pathsJson
+  ->operations
+  ->Array.flatMap(((method, path, op)) =>
+    successResponses(op)->Array.map(((suffix, schemaJson)) => {
+      let name = ucFirst(method) ++ pathToName(path) ++ suffix
+      switch Schema.parseAt(schemaJson, ~path=[name]) {
+      | Ok(schemaType) =>
+        Ok(
+          make(~name, ~schema=schemaType, ~variantEncoding=Schema.variantEncodingOfJson(schemaJson), ()),
+        )
+      | Error(e) => Error(e)
+      }
+    })
+  )
+  ->collectResults
+}
+
+// Parse request bodies from paths. Half the contract of a POST/PUT/PATCH lives
+// here and used to be dropped on the floor — only responses were typed.
+let parsePathRequestBodies = (pathsJson: JSON.t): result<array<namedSchema>, Errors.errors> => {
+  pathsJson
+  ->operations
+  ->Array.filterMap(((method, path, op)) =>
+    switch op->Dict.get("requestBody") {
+    | Some(Object(requestBody)) =>
+      jsonBodySchema(requestBody)->Option.map(schemaJson => {
+        let name = ucFirst(method) ++ pathToName(path) ++ "Request"
+        switch Schema.parseAt(schemaJson, ~path=[name]) {
+        | Ok(schemaType) =>
+          Ok(
+            make(
+              ~name,
+              ~schema=schemaType,
+              ~variantEncoding=Schema.variantEncodingOfJson(schemaJson),
+              (),
+            ),
+          )
+        | Error(e) => Error(e)
+        }
+      })
+    | _ => None
+    }
+  )
+  ->collectResults
 }
 
 // Extract field-level discriminators from a schema's raw JSON
@@ -568,14 +627,20 @@ let parseDocument = (json: JSON.t): result<array<namedSchema>, Errors.errors> =>
     | None => Ok([])
     }
 
+    // Parse request bodies (POST/PUT/PATCH → Request types)
+    let requestSchemas = switch doc->Dict.get("paths") {
+    | Some(pathsJson) => parsePathRequestBodies(pathsJson)
+    | None => Ok([])
+    }
+
     // Harvest discriminator.mapping from the raw document — works for any
     // discriminator propertyName, not just `_tag`.
     let mappingByRef = extractAllDiscriminatorMappings(json)
 
     // Combine results
-    switch (componentSchemas, defsSchemas, definitionsSchemas, pathSchemas, paramSchemas) {
-    | (Ok(cs), Ok(ds), Ok(defs), Ok(ps), Ok(qs)) =>
-      let all = [cs, ds, defs, ps, qs]->Array.flat
+    switch (componentSchemas, defsSchemas, definitionsSchemas, pathSchemas, paramSchemas, requestSchemas) {
+    | (Ok(cs), Ok(ds), Ok(defs), Ok(ps), Ok(qs), Ok(rs)) =>
+      let all = [cs, ds, defs, ps, qs, rs]->Array.flat
       // Downstream passes key schemas by name (topologicalSort's schemaMap),
       // so a duplicate silently overwrites its sibling — fail loudly instead.
       let seen = Dict.make()
@@ -604,8 +669,8 @@ let parseDocument = (json: JSON.t): result<array<namedSchema>, Errors.errors> =>
         // falling back to _tag.const for schemas without explicit mapping.
         Ok(resolveRefTagsInPolyVariants(all, ~mappingByRef))
       }
-    | (cs, ds, defs, ps, qs) =>
-      let errs = [cs, ds, defs, ps, qs]->Array.filterMap(r =>
+    | (cs, ds, defs, ps, qs, rs) =>
+      let errs = [cs, ds, defs, ps, qs, rs]->Array.filterMap(r =>
         switch r {
         | Error(e) => Some(e)
         | Ok(_) => None

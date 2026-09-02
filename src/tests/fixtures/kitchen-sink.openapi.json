@@ -1,19 +1,120 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "osury kitchen sink", "version": "1.0.0" },
+  "info": {
+    "title": "osury kitchen sink",
+    "version": "1.0.0"
+  },
   "paths": {
     "/v1/widgets": {
       "get": {
         "parameters": [
-          { "name": "limit", "in": "query", "required": true, "schema": { "type": "integer", "minimum": 1, "maximum": 100 } },
-          { "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "order", "in": "query", "required": false, "schema": { "type": "string", "enum": ["asc", "desc"] } },
-          { "name": "x-trace", "in": "header", "required": false, "schema": { "type": "string" } }
+          {
+            "name": "limit",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "x-trace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "ok",
-            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Widget" } } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Widget"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Widget"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Widget"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "job_id"
+                  ]
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "no body"
+          },
+          "422": {
+            "description": "validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issue"
+                }
+              }
+            }
           }
         }
       }
@@ -21,15 +122,69 @@
     "/v1/widgets/{widget_id}": {
       "get": {
         "parameters": [
-          { "name": "widget_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+          {
+            "name": "widget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "ok", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Widget" } } } }
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Widget"
+                }
+              }
+            }
+          }
         }
       },
       "post": {
         "responses": {
-          "201": { "description": "created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Widget" } } } }
+          "201": {
+            "description": "created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Widget"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "weight": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Widget"
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -40,150 +195,487 @@
         "type": "object",
         "description": "every primitive, required and optional",
         "properties": {
-          "s": { "type": "string" },
-          "f": { "type": "number" },
-          "i": { "type": "integer" },
-          "b": { "type": "boolean" },
-          "nothing": { "type": "null" },
+          "s": {
+            "type": "string"
+          },
+          "f": {
+            "type": "number"
+          },
+          "i": {
+            "type": "integer"
+          },
+          "b": {
+            "type": "boolean"
+          },
+          "nothing": {
+            "type": "null"
+          },
           "anything": {},
-          "opt": { "type": "string" },
-          "with_default": { "type": "integer", "default": 7 }
+          "opt": {
+            "type": "string"
+          },
+          "with_default": {
+            "type": "integer",
+            "default": 7
+          }
         },
-        "required": ["s", "f", "i", "b", "nothing", "anything"]
+        "required": [
+          "s",
+          "f",
+          "i",
+          "b",
+          "nothing",
+          "anything"
+        ]
       },
       "Refined": {
         "type": "object",
         "description": "validation keywords: parsed always, printed only with --refinements",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "email": { "type": "string", "format": "email" },
-          "site": { "type": "string", "format": "uri" },
-          "created_at": { "type": "string", "format": "date-time" },
-          "slug": { "type": "string", "minLength": 3, "maxLength": 32, "pattern": "^[a-z-]+$" },
-          "ratio": { "type": "number", "minimum": 0, "maximum": 1 },
-          "count": { "type": "integer", "exclusiveMinimum": 0, "multipleOf": 5 }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "site": {
+            "type": "string",
+            "format": "uri"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 32,
+            "pattern": "^[a-z-]+$"
+          },
+          "ratio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "count": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "multipleOf": 5
+          }
         },
-        "required": ["id", "email", "site", "created_at", "slug", "ratio", "count"]
+        "required": [
+          "id",
+          "email",
+          "site",
+          "created_at",
+          "slug",
+          "ratio",
+          "count"
+        ]
       },
       "Containers": {
         "type": "object",
         "properties": {
-          "tags": { "type": "array", "items": { "type": "string" } },
-          "matrix": { "type": "array", "items": { "type": "array", "items": { "type": "integer" } } },
-          "by_key": { "type": "object", "additionalProperties": { "type": "number" } },
-          "free_form": { "type": "object", "additionalProperties": true },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "matrix": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          },
+          "by_key": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "free_form": {
+            "type": "object",
+            "additionalProperties": true
+          },
           "nested": {
             "type": "object",
-            "properties": { "deep": { "type": "array", "items": { "type": "object", "additionalProperties": { "type": "string" } } } },
-            "required": ["deep"]
+            "properties": {
+              "deep": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "required": [
+              "deep"
+            ]
           }
         },
-        "required": ["tags", "matrix", "by_key", "free_form", "nested"]
+        "required": [
+          "tags",
+          "matrix",
+          "by_key",
+          "free_form",
+          "nested"
+        ]
       },
       "Keywords": {
         "type": "object",
         "description": "ReScript reserved words as property names",
         "properties": {
-          "type": { "type": "string" },
-          "module": { "type": "string" },
-          "and": { "type": "boolean" },
-          "external": { "type": "integer" }
+          "type": {
+            "type": "string"
+          },
+          "module": {
+            "type": "string"
+          },
+          "and": {
+            "type": "boolean"
+          },
+          "external": {
+            "type": "integer"
+          }
         },
-        "required": ["type", "module", "and", "external"]
+        "required": [
+          "type",
+          "module",
+          "and",
+          "external"
+        ]
       },
-      "Size": { "type": "string", "enum": ["small", "medium", "large"] },
-      "Phase": { "type": "string", "enum": ["Draft", "Done"], "x-variant-encoding": "list" },
+      "Size": {
+        "type": "string",
+        "enum": [
+          "small",
+          "medium",
+          "large"
+        ]
+      },
+      "Phase": {
+        "type": "string",
+        "enum": [
+          "Draft",
+          "Done"
+        ],
+        "x-variant-encoding": "list"
+      },
       "Nullables": {
         "type": "object",
         "properties": {
-          "maybe_text": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-          "maybe_size": { "anyOf": [{ "$ref": "#/components/schemas/Size" }, { "type": "null" }] },
-          "maybe_list": { "anyOf": [{ "type": "array", "items": { "type": "string" } }, { "type": "null" }] },
-          "only_one": { "anyOf": [{ "type": "string" }] },
-          "inline_enum": { "type": "string", "enum": ["on", "off"] },
-          "literal_union": { "anyOf": [{ "const": "yes" }, { "const": "no" }] }
+          "maybe_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maybe_size": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Size"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maybe_list": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "only_one": {
+            "anyOf": [
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "inline_enum": {
+            "type": "string",
+            "enum": [
+              "on",
+              "off"
+            ]
+          },
+          "literal_union": {
+            "anyOf": [
+              {
+                "const": "yes"
+              },
+              {
+                "const": "no"
+              }
+            ]
+          }
         },
-        "required": ["maybe_text", "maybe_size", "maybe_list", "only_one", "inline_enum", "literal_union"]
+        "required": [
+          "maybe_text",
+          "maybe_size",
+          "maybe_list",
+          "only_one",
+          "inline_enum",
+          "literal_union"
+        ]
       },
       "Measure": {
         "type": "object",
-        "properties": { "value": { "type": "number" }, "unit": { "type": "string" } },
-        "required": ["value", "unit"]
+        "properties": {
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "unit"
+        ]
       },
       "ShapeDistinct": {
         "type": "object",
         "description": "arms tell themselves apart by runtime shape — @unboxed, no discriminator",
         "properties": {
-          "amount": { "anyOf": [{ "$ref": "#/components/schemas/Measure" }, { "type": "number" }] },
-          "mixed_list": { "type": "array", "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] } }
+          "amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Measure"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "mixed_list": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            }
+          }
         },
-        "required": ["amount", "mixed_list"]
+        "required": [
+          "amount",
+          "mixed_list"
+        ]
       },
       "MixedAlias": {
         "type": "array",
         "description": "union at an alias root",
-        "items": { "anyOf": [{ "type": "string" }, { "type": "array", "items": { "type": "boolean" } }] }
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "boolean"
+              }
+            }
+          ]
+        }
       },
       "Base": {
         "type": "object",
-        "properties": { "id": { "type": "string" }, "created_at": { "type": "string" } },
-        "required": ["id", "created_at"]
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at"
+        ]
       },
       "Widget": {
         "description": "allOf inheritance: Base fields plus its own",
         "allOf": [
-          { "$ref": "#/components/schemas/Base" },
+          {
+            "$ref": "#/components/schemas/Base"
+          },
           {
             "type": "object",
-            "properties": { "size": { "$ref": "#/components/schemas/Size" }, "weight": { "type": "number" } },
-            "required": ["size", "weight"]
+            "properties": {
+              "size": {
+                "$ref": "#/components/schemas/Size"
+              },
+              "weight": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "size",
+              "weight"
+            ]
           }
         ]
       },
       "WidgetAlias": {
         "description": "single-arm allOf keeps the reference",
-        "allOf": [{ "$ref": "#/components/schemas/Widget" }]
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Widget"
+          }
+        ]
       },
       "Node": {
         "type": "object",
         "description": "recursive type",
         "properties": {
-          "name": { "type": "string" },
-          "children": { "type": "array", "items": { "$ref": "#/components/schemas/Node" } },
-          "parent": { "anyOf": [{ "$ref": "#/components/schemas/Node" }, { "type": "null" }] }
+          "name": {
+            "type": "string"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            }
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Node"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         },
-        "required": ["name", "children", "parent"]
+        "required": [
+          "name",
+          "children",
+          "parent"
+        ]
       },
       "EventCreated": {
         "type": "object",
-        "properties": { "_tag": { "const": "EventCreated" }, "at": { "type": "string" } },
-        "required": ["_tag", "at"]
+        "properties": {
+          "_tag": {
+            "const": "EventCreated"
+          },
+          "at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "at"
+        ]
       },
       "EventDeleted": {
         "type": "object",
-        "properties": { "_tag": { "const": "EventDeleted" }, "reason": { "type": "string" } },
-        "required": ["_tag", "reason"]
+        "properties": {
+          "_tag": {
+            "const": "EventDeleted"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "reason"
+        ]
       },
       "Event": {
         "description": "internally tagged union, default _tag discriminant",
-        "oneOf": [{ "$ref": "#/components/schemas/EventCreated" }, { "$ref": "#/components/schemas/EventDeleted" }]
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/EventCreated"
+          },
+          {
+            "$ref": "#/components/schemas/EventDeleted"
+          }
+        ]
       },
       "IssueLoop": {
         "type": "object",
-        "properties": { "kind": { "type": "string", "const": "loop_found" }, "path": { "type": "array", "items": { "type": "string" } } },
-        "required": ["kind", "path"]
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "loop_found"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "path"
+        ]
       },
       "IssueBrokenLink": {
         "type": "object",
-        "properties": { "kind": { "type": "string", "const": "broken_link" }, "from": { "type": "string" }, "to": { "type": "string" } },
-        "required": ["kind", "from", "to"]
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "broken_link"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "from",
+          "to"
+        ]
       },
       "Issue": {
         "description": "discriminator.propertyName + mapping",
-        "oneOf": [{ "$ref": "#/components/schemas/IssueLoop" }, { "$ref": "#/components/schemas/IssueBrokenLink" }],
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IssueLoop"
+          },
+          {
+            "$ref": "#/components/schemas/IssueBrokenLink"
+          }
+        ],
         "discriminator": {
           "propertyName": "kind",
-          "mapping": { "loop_found": "#/components/schemas/IssueLoop", "broken_link": "#/components/schemas/IssueBrokenLink" }
+          "mapping": {
+            "loop_found": "#/components/schemas/IssueLoop",
+            "broken_link": "#/components/schemas/IssueBrokenLink"
+          }
         }
       },
       "Mark": {
@@ -191,14 +683,42 @@
         "oneOf": [
           {
             "type": "object",
-            "properties": { "Shine": { "type": "object", "properties": { "target": { "type": "string" } }, "required": ["target"] } },
-            "required": ["Shine"],
+            "properties": {
+              "Shine": {
+                "type": "object",
+                "properties": {
+                  "target": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "target"
+                ]
+              }
+            },
+            "required": [
+              "Shine"
+            ],
             "additionalProperties": false
           },
           {
             "type": "object",
-            "properties": { "Tint": { "type": "object", "properties": { "level": { "type": "integer" } }, "required": ["level"] } },
-            "required": ["Tint"],
+            "properties": {
+              "Tint": {
+                "type": "object",
+                "properties": {
+                  "level": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "level"
+                ]
+              }
+            },
+            "required": [
+              "Tint"
+            ],
             "additionalProperties": false
           }
         ]
@@ -208,14 +728,34 @@
         "description": "field-level discriminated union",
         "properties": {
           "payload": {
-            "anyOf": [{ "$ref": "#/components/schemas/IssueLoop" }, { "$ref": "#/components/schemas/IssueBrokenLink" }],
-            "discriminator": { "propertyName": "kind" }
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IssueLoop"
+              },
+              {
+                "$ref": "#/components/schemas/IssueBrokenLink"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "kind"
+            }
           },
-          "event": { "$ref": "#/components/schemas/Event" },
-          "phase": { "$ref": "#/components/schemas/Phase" },
-          "mark": { "$ref": "#/components/schemas/Mark" }
+          "event": {
+            "$ref": "#/components/schemas/Event"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/Phase"
+          },
+          "mark": {
+            "$ref": "#/components/schemas/Mark"
+          }
         },
-        "required": ["payload", "event", "phase", "mark"]
+        "required": [
+          "payload",
+          "event",
+          "phase",
+          "mark"
+        ]
       }
     }
   }
