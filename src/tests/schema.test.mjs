@@ -4004,3 +4004,30 @@ describe('Inline poly variants print as #tag(payload)', () => {
         expect(code).not.toMatch(/#"[A-Za-z]+\(/);
     });
 });
+
+// `anyOf: [T]` is valid JSON Schema and means T. osury refused it outright.
+describe('Single-arm anyOf/oneOf', () => {
+    test('anyOf with one arm is that arm', () => {
+        const result = Schema.parse({ anyOf: [{ type: "string" }] });
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0).toBe('String');
+    });
+
+    // A single-arm oneOf is NOT collapsed: a discriminated union of one arm
+    // still carries its discriminator on the wire, and `oneOf` is how a spec
+    // says "this may grow more arms".
+    test('a single-arm oneOf stays a variant', () => {
+        const result = Schema.parse({
+            oneOf: [{ $ref: "#/$defs/Base" }],
+            discriminator: { propertyName: "kind" },
+        });
+
+        expect(result.TAG).toBe('Ok');
+        expect(result._0._tag).toBe('PolyVariant');
+    });
+
+    test('an empty anyOf is still an error', () => {
+        expect(Schema.parse({ anyOf: [] }).TAG).toBe('Error');
+    });
+});

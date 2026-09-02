@@ -373,8 +373,15 @@ and parseAnyOf = (items: array<JSON.t>, ~path: array<string>, ~keyword: string="
       }
       Ok(hasNull ? Nullable(inner) : inner)
     }
+  } else if Array.length(nonNullItems) == 1 {
+    // `anyOf: [T]` is valid JSON Schema and means exactly T — a union of one
+    // is not a union. (With a null arm this is the Nullable case above.)
+    switch nonNullItems->Array.get(0) {
+    | Some(item) => parseSchema(item, ~path=Array.concat(path, [`${keyword}[0]`]))
+    | None => Error([Errors.makeError(~kind=InvalidJson(`${keyword} must not be empty`), ~path, ())])
+    }
   } else {
-    Error([Errors.makeError(~kind=InvalidJson(`${keyword} must have at least 2 items`), ~path, ())])
+    Error([Errors.makeError(~kind=InvalidJson(`${keyword} must not be empty`), ~path, ())])
   }
 }
 

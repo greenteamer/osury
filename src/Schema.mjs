@@ -463,46 +463,60 @@ function parseAnyOf(items, path, keywordOpt) {
         }, path, undefined, undefined)]
     };
   }
-  if (nonNullItems.length < 2) {
+  if (nonNullItems.length >= 2) {
+    let results = nonNullItems.map((item, i) => parseSchema(item, path.concat([keyword + `[` + i.toString() + `]`])));
+    let errors = Core__Array.filterMap(results, r => {
+      if (r.TAG === "Ok") {
+        return;
+      } else {
+        return r._0;
+      }
+    }).flat();
+    if (errors.length > 0) {
+      return {
+        TAG: "Error",
+        _0: errors
+      };
+    }
+    let types = Core__Array.filterMap(results, r => {
+      if (r.TAG === "Ok") {
+        return r._0;
+      }
+    });
+    let types$1 = types.some(t => t === "Number") ? types.filter(t => t !== "Integer") : types;
+    let inner = types$1.length !== 1 ? ({
+        _tag: "Union",
+        _0: types$1
+      }) : types$1[0];
+    return {
+      TAG: "Ok",
+      _0: hasNull ? ({
+          _tag: "Nullable",
+          _0: inner
+        }) : inner
+    };
+  }
+  if (nonNullItems.length !== 1) {
     return {
       TAG: "Error",
       _0: [Errors.makeError({
           TAG: "InvalidJson",
-          _0: keyword + ` must have at least 2 items`
+          _0: keyword + ` must not be empty`
         }, path, undefined, undefined)]
     };
   }
-  let results = nonNullItems.map((item, i) => parseSchema(item, path.concat([keyword + `[` + i.toString() + `]`])));
-  let errors = Core__Array.filterMap(results, r => {
-    if (r.TAG === "Ok") {
-      return;
-    } else {
-      return r._0;
-    }
-  }).flat();
-  if (errors.length > 0) {
+  let item = nonNullItems[0];
+  if (item !== undefined) {
+    return parseSchema(item, path.concat([keyword + `[0]`]));
+  } else {
     return {
       TAG: "Error",
-      _0: errors
+      _0: [Errors.makeError({
+          TAG: "InvalidJson",
+          _0: keyword + ` must not be empty`
+        }, path, undefined, undefined)]
     };
   }
-  let types = Core__Array.filterMap(results, r => {
-    if (r.TAG === "Ok") {
-      return r._0;
-    }
-  });
-  let types$1 = types.some(t => t === "Number") ? types.filter(t => t !== "Integer") : types;
-  let inner = types$1.length !== 1 ? ({
-      _tag: "Union",
-      _0: types$1
-    }) : types$1[0];
-  return {
-    TAG: "Ok",
-    _0: hasNull ? ({
-        _tag: "Nullable",
-        _0: inner
-      }) : inner
-  };
 }
 
 function parseObjectType(dict, path) {
