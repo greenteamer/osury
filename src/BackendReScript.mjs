@@ -157,6 +157,18 @@ function printField(field) {
   return asAttr + field.name + `: ` + fieldType;
 }
 
+function printVariantCases(cases) {
+  let caseStrs = cases.map(c => {
+    let tag = `#` + quoteTag(c.tag);
+    let payload = c.payload;
+    if (typeof payload === "object" && payload.TAG === "Primitive" && payload._0 === "PUnit") {
+      return tag;
+    }
+    return tag + `(` + printType(payload) + `)`;
+  });
+  return `[` + caseStrs.join(" | ") + `]`;
+}
+
 function printRecord(fields) {
   if (fields.length === 0) {
     return "{}";
@@ -170,11 +182,6 @@ function printVariantCase(c) {
   let wire = c.asValue;
   let asAttr = wire !== undefined ? `@as("` + wire + `") ` : "";
   return asAttr + c.tag + `(` + payloadStr + `)`;
-}
-
-function printVariantCases(cases) {
-  let caseStrs = cases.map(printVariantCase);
-  return `[` + caseStrs.map(c => `#` + quoteTag(c)).join(" | ") + `]`;
 }
 
 function printAnnotation(ann) {

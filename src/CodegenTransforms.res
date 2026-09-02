@@ -535,13 +535,16 @@ let getPolyVariantName = (cases: array<Schema.variantCase>): string => {
 // Extract Union types from schema fields
 // Returns array of {name, schema} for each Union found
 // Uses structural naming based on Union members
+// The root of a named schema is printed as its own type definition, so the root
+// union is never extracted — only what is nested inside it. Everywhere else
+// (alias roots like `array<union>`, variant payloads, nested unions) an inline
+// union must come out: left inline it prints as a poly variant whose tag is the
+// rendered case, which parses no data at all.
 let rec extractUnions = (_parentName: string, schema: Schema.schemaType): array<extractedUnion> => {
   switch schema {
-  | Object(fields) =>
-    fields->Array.flatMap(field => {
-      extractUnionsFromType(field.type_)
-    })
-  | _ => []
+  | Union(types) => types->Array.flatMap(extractUnionsFromType)
+  | PolyVariant(cases) => cases->Array.flatMap(c => extractUnionsFromType(c.payload))
+  | other => extractUnionsFromType(other)
   }
 }
 
@@ -549,23 +552,24 @@ let rec extractUnions = (_parentName: string, schema: Schema.schemaType): array<
 and extractUnionsFromType = (schema: Schema.schemaType): array<extractedUnion> => {
   switch schema {
   | Union(types) =>
+    let nested = types->Array.flatMap(extractUnionsFromType)
     // Skip Ref+Dict unions - they will be simplified to just Ref
     switch isRefPlusDictUnion(types) {
-    | Some(_) => []
-    | None =>
-      let name = getUnionName(types)
-      [{name, schema}]
+    | Some(_) => nested
+    | None => Array.concat(nested, [{name: getUnionName(types), schema}])
     }
   | PolyVariant(cases) =>
-    let name = getPolyVariantName(cases)
-    [{name, schema}]
+    let nested = cases->Array.flatMap(c => extractUnionsFromType(c.payload))
+    Array.concat(nested, [{name: getPolyVariantName(cases), schema}])
   | Optional(inner) | Nullable(inner) => extractUnionsFromType(inner)
   | Array(inner) => extractUnionsFromType(inner)
   | Dict(inner) => extractUnionsFromType(inner)
+  | Refined(inner, _) => extractUnionsFromType(inner)
   | Object(fields) =>
     // Nested object - extract unions from its fields
     fields->Array.flatMap(field => extractUnionsFromType(field.type_))
-  | _ => []
+  | AllOf(types) => types->Array.flatMap(extractUnionsFromType)
+  | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => []
   }
 }
 
@@ -584,19 +588,20 @@ let lookupUnionName = (
 }
 
 // Replace Union types with Ref to extracted type (using the resolved name)
+// Mirror of extractUnions: the root union stays (it IS the type being defined),
+// everything nested becomes a Ref to its extracted type.
 let rec replaceUnions = (
   ~names: Dict.t<string>,
   _parentName: string,
   schema: Schema.schemaType,
 ): Schema.schemaType => {
   switch schema {
-  | Object(fields) =>
-    let newFields = fields->Array.map(field => {
-      let newType = replaceUnionInType(~names, field.type_)
-      {...field, type_: newType}
-    })
-    Object(newFields)
-  | _ => schema
+  | Union(types) => Union(types->Array.map(t => replaceUnionInType(~names, t)))
+  | PolyVariant(cases) =>
+    PolyVariant(
+      cases->Array.map(c => {...c, Schema.payload: replaceUnionInType(~names, c.payload)}),
+    )
+  | other => replaceUnionInType(~names, other)
   }
 }
 
@@ -610,6 +615,8 @@ and replaceUnionInType = (~names: Dict.t<string>, schema: Schema.schemaType): Sc
     | None => Ref(lookupUnionName(names, schema, getUnionName(types)))
     }
   | PolyVariant(cases) => Ref(lookupUnionName(names, schema, getPolyVariantName(cases)))
+  | Refined(inner, refs) => Refined(replaceUnionInType(~names, inner), refs)
+  | AllOf(types) => AllOf(types->Array.map(t => replaceUnionInType(~names, t)))
   | Optional(inner) => Optional(replaceUnionInType(~names, inner))
   | Nullable(inner) => Nullable(replaceUnionInType(~names, inner))
   | Array(inner) => Array(replaceUnionInType(~names, inner))
@@ -621,7 +628,7 @@ and replaceUnionInType = (~names: Dict.t<string>, schema: Schema.schemaType): Sc
       {...field, type_: newType}
     })
     Object(newFields)
-  | other => other
+  | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => schema
   }
 }
 

@@ -2,6 +2,8 @@ import * as Schema from '../Schema.mjs';
 import * as Codegen from '../Codegen.mjs';
 import * as OpenAPIParser from '../OpenAPIParser.mjs';
 import * as SampleData from '../SampleData.mjs';
+import * as IRGen from '../IRGen.mjs';
+import * as BackendReScript from '../BackendReScript.mjs';
 
 describe('Schema Parser', () => {
     test('parse string type', () => {
@@ -3924,5 +3926,81 @@ describe('Parse errors carry a JSON path', () => {
         const result = Schema.parse({ type: 7 });
 
         expect(Object.keys(result._0[0].location)).toEqual(['path']);
+    });
+});
+
+// Union extraction walked only the fields of an Object root, so a union living
+// in an alias (`type mixed = array<union>`) or inside a discriminated variant's
+// payload was never extracted. It stayed inline and the printer rendered it as
+// a poly variant whose TAG was the whole rendered case:
+// `[#"String(string)" | #"Int(int)"]` — compiles, parses nothing.
+describe('Unions are extracted from every position', () => {
+    const SPEC = {
+        $defs: {
+            Mixed: { type: "array", items: { anyOf: [{ type: "string" }, { type: "integer" }] } },
+            Inline: {
+                oneOf: [
+                    {
+                        type: "object",
+                        properties: { _tag: { const: "A" }, v: { anyOf: [{ type: "string" }, { type: "integer" }] } },
+                        required: ["_tag", "v"],
+                    },
+                    {
+                        type: "object",
+                        properties: { _tag: { const: "B" }, w: { type: "string" } },
+                        required: ["_tag", "w"],
+                    },
+                ],
+            },
+        },
+    };
+
+    const code = () => {
+        const parsed = OpenAPIParser.parseDocument(SPEC);
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+        expect(g.TAG).toBe('Ok');
+        return g._0.code;
+    };
+
+    test('no inline poly variant with a rendered-case tag survives', () => {
+        expect(code()).not.toContain('#"String(string)"');
+    });
+
+    test('a union at an alias root becomes a named type', () => {
+        expect(code()).toContain('type mixed = array<stringOrInt>');
+    });
+
+    test('a union inside a variant payload becomes a named type', () => {
+        expect(code()).toContain('v: stringOrInt');
+    });
+});
+
+// Even with extraction complete, the inline-variant printer must emit valid
+// ReScript: the tag is quoted, never the whole case.
+describe('Inline poly variants print as #tag(payload)', () => {
+    test('the printer emits #Tag(payload), not #"Tag(payload)"', () => {
+        const union = Schema.parse({ anyOf: [{ type: "string" }, { type: "integer" }] })._0;
+        const ir = IRGen.convertType(union);
+
+        expect(BackendReScript.printType(ir)).toBe('[#String(string) | #Int(int)]');
+    });
+
+    test('pipeline output has no stringified-case tags', () => {
+        const parsed = OpenAPIParser.parseDocument({
+            $defs: {
+                Holder: {
+                    type: "object",
+                    properties: { f: { anyOf: [{ type: "string" }, { type: "integer" }] } },
+                    required: ["f"],
+                },
+            },
+        });
+        expect(parsed.TAG).toBe('Ok');
+        const code = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined)._0.code;
+
+        // extracted union → a tagged variant type, not a poly variant with a
+        // stringified payload
+        expect(code).not.toMatch(/#"[A-Za-z]+\(/);
     });
 });

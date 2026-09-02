@@ -659,28 +659,33 @@ function extractUnionsFromType(_schema) {
       case "Object" :
         return schema._0.flatMap(field => extractUnionsFromType(field.type));
       case "PolyVariant" :
-        let name = getPolyVariantName(schema._0);
-        return [{
-            name: name,
+        let cases = schema._0;
+        let nested = cases.flatMap(c => extractUnionsFromType(c.payload));
+        return nested.concat([{
+            name: getPolyVariantName(cases),
             schema: schema
-          }];
+          }]);
+      case "Union" :
+        let types = schema._0;
+        let nested$1 = types.flatMap(extractUnionsFromType);
+        let match = isRefPlusDictUnion(types);
+        if (match !== undefined) {
+          return nested$1;
+        } else {
+          return nested$1.concat([{
+              name: joinUnionParts(types.map(typeNamePart)),
+              schema: schema
+            }]);
+        }
+      case "AllOf" :
+        return schema._0.flatMap(extractUnionsFromType);
       case "Optional" :
       case "Nullable" :
       case "Array" :
       case "Dict" :
+      case "Refined" :
         _schema = schema._0;
         continue;
-      case "Union" :
-        let types = schema._0;
-        let match = isRefPlusDictUnion(types);
-        if (match !== undefined) {
-          return [];
-        }
-        let name$1 = joinUnionParts(types.map(typeNamePart));
-        return [{
-            name: name$1,
-            schema: schema
-          }];
       default:
         return [];
     }
@@ -689,11 +694,15 @@ function extractUnionsFromType(_schema) {
 
 function extractUnions(_parentName, schema) {
   if (typeof schema !== "object") {
-    return [];
-  } else if (schema._tag === "Object") {
-    return schema._0.flatMap(field => extractUnionsFromType(field.type));
-  } else {
-    return [];
+    return extractUnionsFromType(schema);
+  }
+  switch (schema._tag) {
+    case "PolyVariant" :
+      return schema._0.flatMap(c => extractUnionsFromType(c.payload));
+    case "Union" :
+      return schema._0.flatMap(extractUnionsFromType);
+    default:
+      return extractUnionsFromType(schema);
   }
 }
 
@@ -763,6 +772,17 @@ function replaceUnionInType(names, schema) {
           _0: lookupUnionName(names, schema, joinUnionParts(types.map(typeNamePart)))
         };
       }
+    case "AllOf" :
+      return {
+        _tag: "AllOf",
+        _0: schema._0.map(t => replaceUnionInType(names, t))
+      };
+    case "Refined" :
+      return {
+        _tag: "Refined",
+        _0: replaceUnionInType(names, schema._0),
+        _1: schema._1
+      };
     default:
       return schema;
   }
@@ -770,23 +790,25 @@ function replaceUnionInType(names, schema) {
 
 function replaceUnions(names, _parentName, schema) {
   if (typeof schema !== "object") {
-    return schema;
+    return replaceUnionInType(names, schema);
   }
-  if (schema._tag !== "Object") {
-    return schema;
+  switch (schema._tag) {
+    case "PolyVariant" :
+      return {
+        _tag: "PolyVariant",
+        _0: schema._0.map(c => ({
+          _tag: c._tag,
+          payload: replaceUnionInType(names, c.payload)
+        }))
+      };
+    case "Union" :
+      return {
+        _tag: "Union",
+        _0: schema._0.map(t => replaceUnionInType(names, t))
+      };
+    default:
+      return replaceUnionInType(names, schema);
   }
-  let newFields = schema._0.map(field => {
-    let newType = replaceUnionInType(names, field.type);
-    return {
-      name: field.name,
-      type: newType,
-      required: field.required
-    };
-  });
-  return {
-    _tag: "Object",
-    _0: newFields
-  };
 }
 
 function resolveExtractedUnionNames(extracted, taken) {

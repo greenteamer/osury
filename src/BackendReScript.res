@@ -148,8 +148,17 @@ and printVariantCase = (c: IR.irVariantCase): string => {
 }
 
 and printVariantCases = (cases: array<IR.irVariantCase>): string => {
-  let caseStrs = cases->Array.map(printVariantCase)
-  `[${caseStrs->Array.map(c => `#${quoteTag(c)}`)->Array.join(" | ")}]`
+  // Only the TAG is quoted. Quoting the rendered case instead produced
+  // `[#"String(string)"]` — a payload-less poly variant whose tag happens to
+  // spell a type. It compiles and never matches a single value on the wire.
+  let caseStrs = cases->Array.map(c => {
+    let tag = `#${quoteTag(c.tag)}`
+    switch c.payload {
+    | IR.Primitive(PUnit) => tag
+    | payload => `${tag}(${printType(payload)})`
+    }
+  })
+  `[${caseStrs->Array.join(" | ")}]`
 }
 
 let printAnnotation = (ann: IR.annotation): option<string> => {
