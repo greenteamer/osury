@@ -4204,3 +4204,46 @@ describe('Missing sury schema propagates to consumers', () => {
         expect(blockOf(code(), 'outer')).not.toContain('@schema');
     });
 });
+
+// A self-referential type has no finite full sample. The generator recursed
+// through `children: array<node>` until the stack gave out — so the one type
+// that most needs an example produced none.
+describe('Sample data for recursive types', () => {
+    const NODE = {
+        $defs: {
+            Node: {
+                type: "object",
+                properties: {
+                    name: { type: "string" },
+                    children: { type: "array", items: { $ref: "#/$defs/Node" } },
+                    parent: { anyOf: [{ $ref: "#/$defs/Node" }, { type: "null" }] },
+                },
+                required: ["name", "children", "parent"],
+            },
+        },
+    };
+
+    const sample = () => {
+        const parsed = OpenAPIParser.parseDocument(NODE);
+        expect(parsed.TAG).toBe('Ok');
+        return SampleData.generateForSchema(parsed._0, 'Node');
+    };
+
+    test('a self-referential type produces a sample instead of overflowing', () => {
+        expect(sample()).toBeTruthy();
+    });
+
+    test('one level of nesting is shown, the next is cut', () => {
+        const s = sample();
+
+        expect(s.name).toBe('sample');
+        // The sample expands the recursion once — that is what makes it a
+        // useful example — and cuts on the second pass through the same $ref
+        expect(s.children).toHaveLength(1);
+        expect(s.children[0].name).toBe('sample');
+        // At the cut: an empty array is still a valid array<node>, and a
+        // nullable self-reference becomes explicit null
+        expect(s.children[0].children).toEqual([]);
+        expect(s.children[0].parent).toBe(null);
+    });
+});
