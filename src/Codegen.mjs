@@ -10,9 +10,10 @@ import * as BackendEffectTS from "./BackendEffectTS.mjs";
 import * as BackendReScript from "./BackendReScript.mjs";
 import * as CodegenTransforms from "./CodegenTransforms.mjs";
 
-function generateModuleWithDiagnostics(schemas, refinementsOpt, param) {
+function generateModuleWithDiagnostics(schemas, refinementsOpt, exactOptionalOpt, param) {
   let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
-  let irModule = IRGen.generate(schemas, refinements, undefined);
+  let exactOptional = exactOptionalOpt !== undefined ? exactOptionalOpt : false;
+  let irModule = IRGen.generate(schemas, refinements, exactOptional, undefined);
   if (irModule.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -30,9 +31,10 @@ function generateModuleWithDiagnostics(schemas, refinementsOpt, param) {
   };
 }
 
-function generateOCamlWithDiagnostics(schemas, refinementsOpt, param) {
+function generateOCamlWithDiagnostics(schemas, refinementsOpt, exactOptionalOpt, param) {
   let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
-  let irModule = IRGen.generate(schemas, refinements, undefined);
+  let exactOptional = exactOptionalOpt !== undefined ? exactOptionalOpt : false;
+  let irModule = IRGen.generate(schemas, refinements, exactOptional, undefined);
   if (irModule.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -50,9 +52,10 @@ function generateOCamlWithDiagnostics(schemas, refinementsOpt, param) {
   };
 }
 
-function generateEffectTSWithDiagnostics(schemas, refinementsOpt, param) {
+function generateEffectTSWithDiagnostics(schemas, refinementsOpt, exactOptionalOpt, param) {
   let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
-  let irModule = IRGen.generate(schemas, refinements, undefined);
+  let exactOptional = exactOptionalOpt !== undefined ? exactOptionalOpt : false;
+  let irModule = IRGen.generate(schemas, refinements, exactOptional, undefined);
   if (irModule.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -70,9 +73,10 @@ function generateEffectTSWithDiagnostics(schemas, refinementsOpt, param) {
   };
 }
 
-function generateRustWithDiagnostics(schemas, refinementsOpt, param) {
+function generateRustWithDiagnostics(schemas, refinementsOpt, exactOptionalOpt, param) {
   let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
-  let irModule = IRGen.generate(schemas, refinements, undefined);
+  let exactOptional = exactOptionalOpt !== undefined ? exactOptionalOpt : false;
+  let irModule = IRGen.generate(schemas, refinements, exactOptional, undefined);
   if (irModule.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -91,7 +95,7 @@ function generateRustWithDiagnostics(schemas, refinementsOpt, param) {
 }
 
 function generateModule(schemas) {
-  let result = generateModuleWithDiagnostics(schemas, undefined, undefined);
+  let result = generateModuleWithDiagnostics(schemas, undefined, undefined, undefined);
   if (result.TAG === "Ok") {
     let result$1 = result._0;
     result$1.warnings.forEach(w => {

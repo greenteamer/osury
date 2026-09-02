@@ -72,6 +72,10 @@ and convertField = (field: Schema.field): IR.irField => {
   // lowers to Nullable(unit) for the same reason: the wire value is null.
   let carriesJsonNull = switch field.type_ {
   | Null => true
+  // --exact-optional wraps a nullable field in Optional to keep "key absent"
+  // apart from "key present, null" — the null is one level deeper, but it is
+  // still a null on the wire.
+  | Optional(inner) => inner == Schema.Null || CodegenHelpers.isNullableType(inner)
   | _ => CodegenHelpers.isNullableType(field.type_)
   }
   if carriesJsonNull {
@@ -378,16 +382,24 @@ let extractNamedUnions = (
 }
 
 // Everything after warning collection.
-let expandStages: array<stage> = [
-  {name: "promoteInlineEnums", run: promoteInlineEnums},
-  {
-    // Lift nested objects out of record fields, array items and dict values —
-    // ReScript takes an inline record only as a variant payload.
-    name: "extractInlineRecords",
-    run: CodegenTransforms.extractInlineRecords,
-  },
-  {name: "extractNamedUnions", run: extractNamedUnions},
-]
+let expandStages = (~exactOptional: bool): array<stage> =>
+  Array.concat(
+    [
+      {name: "promoteInlineEnums", run: promoteInlineEnums},
+      {
+        // Lift nested objects out of record fields, array items and dict values —
+        // ReScript takes an inline record only as a variant payload.
+        name: "extractInlineRecords",
+        run: CodegenTransforms.extractInlineRecords,
+      },
+      {name: "extractNamedUnions", run: extractNamedUnions},
+    ],
+    // Last: it only adds a wrapper to fields, so every stage above still sees
+    // the plain shapes it was written against.
+    exactOptional
+      ? [{name: "applyExactOptional", run: schemas => ok(CodegenTransforms.applyExactOptional(schemas))}]
+      : [],
+  )
 
 let runStages = (schemas: array<OpenAPIParser.namedSchema>, stages: array<stage>) =>
   stages->Array.reduce(Ok(schemas), (acc, stage) =>
@@ -398,8 +410,8 @@ let runStages = (schemas: array<OpenAPIParser.namedSchema>, stages: array<stage>
   )
 
 // The pipeline order, as names — Rule 6 in executable form.
-let stageNames = (~refinements: bool): array<string> =>
-  Array.concat(normalizeStages(~refinements), expandStages)->Array.map(s => s.name)
+let stageNames = (~refinements: bool, ~exactOptional: bool=false): array<string> =>
+  Array.concat(normalizeStages(~refinements), expandStages(~exactOptional))->Array.map(s => s.name)
 
 // Externally-tagged unions and list-encoded enums get a type but no sury codec
 // — tell the user why.
@@ -425,6 +437,7 @@ let encodingWarnings = (schemas: array<OpenAPIParser.namedSchema>): array<string
 let generate = (
   schemas: array<OpenAPIParser.namedSchema>,
   ~refinements: bool=false,
+  ~exactOptional: bool=false,
   (),
 ): result<IR.irModule, Errors.errors> => {
   switch runStages(schemas, normalizeStages(~refinements)) {
@@ -438,7 +451,7 @@ let generate = (
       encodingWarnings(normalized),
     )
 
-    switch runStages(normalized, expandStages) {
+    switch runStages(normalized, expandStages(~exactOptional)) {
     | Error(errs) => Error(errs)
     | Ok(allSchemas) =>
       // Lookup tables for inline-record resolution and discriminator tags
@@ -473,6 +486,7 @@ let generate = (
         IR.preamble: "",
         types: irTypes,
         warnings,
+        exactOptional,
       })
     }
   }

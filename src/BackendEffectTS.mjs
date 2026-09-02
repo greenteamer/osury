@@ -97,7 +97,7 @@ function checkExpr(r) {
   }
 }
 
-function schemaExpr(_t, indent) {
+function schemaExpr(_t, indent, exactOptional) {
   while (true) {
     let t = _t;
     if (typeof t !== "object") {
@@ -118,42 +118,50 @@ function schemaExpr(_t, indent) {
             return "Schema.Null";
         }
       case "Option" :
-        return `Schema.optionalKey(Schema.NullOr(` + schemaExpr(t._0, indent) + `))`;
+        let inner = t._0;
+        if (typeof inner === "object" && inner.TAG === "Nullable") {
+          return `Schema.optionalKey(Schema.NullOr(` + schemaExpr(inner._0, indent, exactOptional) + `))`;
+        }
+        if (exactOptional) {
+          return `Schema.optionalKey(` + schemaExpr(inner, indent, exactOptional) + `)`;
+        } else {
+          return `Schema.optionalKey(Schema.NullOr(` + schemaExpr(inner, indent, exactOptional) + `))`;
+        }
       case "Nullable" :
-        return `Schema.NullOr(` + schemaExpr(t._0, indent) + `)`;
+        return `Schema.NullOr(` + schemaExpr(t._0, indent, exactOptional) + `)`;
       case "Array" :
-        return `Schema.Array(` + schemaExpr(t._0, indent) + `)`;
+        return `Schema.Array(` + schemaExpr(t._0, indent, exactOptional) + `)`;
       case "Dict" :
-        return `Schema.Record(Schema.String, ` + schemaExpr(t._0, indent) + `)`;
+        return `Schema.Record(Schema.String, ` + schemaExpr(t._0, indent, exactOptional) + `)`;
       case "Named" :
         return tsName(t._0);
       case "Enum" :
         return `Schema.Literals([` + t._0.map(v => `'` + v + `'`).join(", ") + `])`;
       case "InlineRecord" :
-        return structExpr(t._0, indent);
+        return structExpr(t._0, indent, exactOptional);
       case "InlineVariant" :
         return "Schema.Unknown";
       case "Refined" :
-        let inner = t._0;
+        let inner$1 = t._0;
         let checks = Core__Array.filterMap(t._1, checkExpr);
         if (checks.length !== 0) {
-          return schemaExpr(inner, indent) + `.check(` + checks.join(", ") + `)`;
+          return schemaExpr(inner$1, indent, exactOptional) + `.check(` + checks.join(", ") + `)`;
         }
-        _t = inner;
+        _t = inner$1;
         continue;
     }
   };
 }
 
-function structFields(fields, indent) {
-  return fields.map(f => indent + `  ` + quoteKey(wireName(f)) + `: ` + schemaExpr(f.type_, indent + "  ") + `,`).join("\n");
+function structFields(fields, indent, exactOptional) {
+  return fields.map(f => indent + `  ` + quoteKey(wireName(f)) + `: ` + schemaExpr(f.type_, indent + "  ", exactOptional) + `,`).join("\n");
 }
 
-function structExpr(fields, indent) {
-  return `Schema.Struct({\n` + structFields(fields, indent) + `\n` + indent + `})`;
+function structExpr(fields, indent, exactOptional) {
+  return `Schema.Struct({\n` + structFields(fields, indent, exactOptional) + `\n` + indent + `})`;
 }
 
-function memoryStructBody(c, indent) {
+function memoryStructBody(c, indent, exactOptional) {
   let tagLine = indent + `  _tag: Schema.Literal('` + c.tag + `'),`;
   let fields = c.payload;
   if (typeof fields === "object") {
@@ -168,18 +176,18 @@ function memoryStructBody(c, indent) {
         if (fields$1.length === 0) {
           return `Schema.Struct({\n` + tagLine + `\n` + indent + `})`;
         } else {
-          return `Schema.Struct({\n` + tagLine + `\n` + structFields(fields$1, indent) + `\n` + indent + `})`;
+          return `Schema.Struct({\n` + tagLine + `\n` + structFields(fields$1, indent, exactOptional) + `\n` + indent + `})`;
         }
     }
   }
-  return `Schema.Struct({\n` + tagLine + `\n` + indent + `  value: ` + schemaExpr(fields, indent + "  ") + `,\n` + indent + `})`;
+  return `Schema.Struct({\n` + tagLine + `\n` + indent + `  value: ` + schemaExpr(fields, indent + "  ", exactOptional) + `,\n` + indent + `})`;
 }
 
-function externalCase(constName, c) {
+function externalCase(constName, c, exactOptional) {
   let wire = wireTag(c);
   let wireKey = quoteKey(wire);
-  let payloadExpr = schemaExpr(c.payload, "  ");
-  let memory = memoryStructBody(c, "    ");
+  let payloadExpr = schemaExpr(c.payload, "  ", exactOptional);
+  let memory = memoryStructBody(c, "    ", exactOptional);
   let match = c.payload;
   let match$1;
   let exit = 0;
@@ -213,7 +221,7 @@ function externalCase(constName, c) {
 )`;
 }
 
-function internalTransformCase(constName, c, tagField) {
+function internalTransformCase(constName, c, tagField, exactOptional) {
   let wire = wireTag(c);
   let tagKey = quoteKey(tagField);
   let fields = c.payload;
@@ -222,9 +230,9 @@ function internalTransformCase(constName, c, tagField) {
     wireFields = "";
   } else {
     let fields$1 = fields._0;
-    wireFields = fields$1.length > 0 ? "\n" + structFields(fields$1, "") : "";
+    wireFields = fields$1.length > 0 ? "\n" + structFields(fields$1, "", exactOptional) : "";
   }
-  let memory = memoryStructBody(c, "    ");
+  let memory = memoryStructBody(c, "    ", exactOptional);
   return `const ` + constName + ` = Schema.Struct({
   ` + tagKey + `: Schema.Literal('` + wire + `'),` + wireFields + `
 }).pipe(
@@ -238,37 +246,37 @@ function internalTransformCase(constName, c, tagField) {
 )`;
 }
 
-function plainTaggedCase(constName, c) {
-  return `const ` + constName + ` = ` + memoryStructBody(c, "");
+function plainTaggedCase(constName, c, exactOptional) {
+  return `const ` + constName + ` = ` + memoryStructBody(c, "", exactOptional);
 }
 
 function typeExport(name) {
   return `export type ` + name + ` = Schema.Schema.Type<typeof ` + name + `>`;
 }
 
-function printTypeDef(typeDef) {
+function printTypeDef(typeDef, exactOptional) {
   let name = tsName(typeDef.name);
   let listEncoded = typeDef.annotations.includes("ListEncoded");
   let fields = typeDef.kind;
   switch (fields.TAG) {
     case "RecordDef" :
-      return `export const ` + name + ` = ` + structExpr(fields._0, "") + `\n` + typeExport(name);
+      return `export const ` + name + ` = ` + structExpr(fields._0, "", exactOptional) + `\n` + typeExport(name);
     case "VariantDef" :
       let repr = fields._1;
       let cases = fields._0;
       let unboxed = typeDef.annotations.includes("Unboxed");
       if (unboxed) {
-        let members = cases.map(c => schemaExpr(c.payload, "")).join(", ");
+        let members = cases.map(c => schemaExpr(c.payload, "", exactOptional)).join(", ");
         return `export const ` + name + ` = Schema.Union([` + members + `])\n` + typeExport(name);
       }
       let constNames = cases.map(c => `_` + name + c.tag);
       let caseDefs;
       if (typeof repr !== "object") {
-        caseDefs = cases.map((c, i) => externalCase(constNames[i], c));
+        caseDefs = cases.map((c, i) => externalCase(constNames[i], c, exactOptional));
       } else {
         let tagField = repr._0;
         let allMatch = tagField === "_tag" && cases.every(c => Core__Option.isNone(c.asValue));
-        caseDefs = allMatch ? cases.map((c, i) => plainTaggedCase(constNames[i], c)) : cases.map((c, i) => internalTransformCase(constNames[i], c, tagField));
+        caseDefs = allMatch ? cases.map((c, i) => plainTaggedCase(constNames[i], c, exactOptional)) : cases.map((c, i) => internalTransformCase(constNames[i], c, tagField, exactOptional));
       }
       let union = `export const ` + name + ` = Schema.Union([` + constNames.join(", ") + `])\n` + typeExport(name);
       return caseDefs.concat([union]).join("\n\n");
@@ -291,12 +299,12 @@ function printTypeDef(typeDef) {
 )
 ` + typeExport(name);
       }
-      return `export const ` + name + ` = ` + schemaExpr(values, "") + `\n` + typeExport(name);
+      return `export const ` + name + ` = ` + schemaExpr(values, "", exactOptional) + `\n` + typeExport(name);
   }
 }
 
 function print(module_) {
-  let body = module_.types.map(printTypeDef).join("\n\n");
+  let body = module_.types.map(t => printTypeDef(t, module_.exactOptional)).join("\n\n");
   let needsGetter = body.includes("SchemaGetter.");
   let needsEffect = body.includes("Effect.succeed");
   let imports = Core__Array.filterMap([

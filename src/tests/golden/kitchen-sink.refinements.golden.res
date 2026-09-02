@@ -188,6 +188,18 @@ type nullables = {
 
 @genType
 @schema
+type shipmentUpdate = {
+  name: string,
+  carrier_id: @s.null Nullable.t<string>,
+  note: option<string>,
+  tracking_number: @s.null Nullable.t<string>,
+  weight: @s.null Nullable.t<float>,
+  labels: @s.null Nullable.t<array<string>>,
+  size: @s.null Nullable.t<size>
+}
+
+@genType
+@schema
 type widget = {
   id: string,
   created_at: string,

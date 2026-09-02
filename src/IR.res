@@ -63,6 +63,11 @@ type irModule = {
   preamble: string, // "module S = Sury"
   types: array<irTypeDef>, // topo-sorted
   warnings: array<string>,
+  // Presence and nullability are printed as separate axes (Option(Nullable(t))
+  // for a field that is neither required nor non-null). Backends need to know:
+  // the honest rendering differs per target, and some of them are only exact in
+  // this mode — see the `--exact-optional` section of the README.
+  exactOptional: bool,
 }
 
 // ─── Refinement reporting ────────────────────────────────────────────────────

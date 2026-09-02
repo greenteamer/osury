@@ -75,7 +75,7 @@ let checkExpr = (r: Schema.refinement): option<string> => {
   }
 }
 
-let rec schemaExpr = (t: IR.irType, ~indent: string): string => {
+let rec schemaExpr = (t: IR.irType, ~indent: string, ~exactOptional: bool): string => {
   switch t {
   | Primitive(PString) => "Schema.String"
   | Primitive(PFloat) => "Schema.Number"
@@ -83,52 +83,73 @@ let rec schemaExpr = (t: IR.irType, ~indent: string): string => {
   | Primitive(PBool) => "Schema.Boolean"
   | Primitive(PUnit) => "Schema.Null"
   // Option: key may be absent on the wire — absence is preserved in both
-  // directions (encode omits the key), null stays explicit null
-  | Option(inner) => `Schema.optionalKey(Schema.NullOr(${schemaExpr(inner, ~indent)}))`
-  | Nullable(inner) => `Schema.NullOr(${schemaExpr(inner, ~indent)})`
-  | Array(inner) => `Schema.Array(${schemaExpr(inner, ~indent)})`
-  | Dict(inner) => `Schema.Record(Schema.String, ${schemaExpr(inner, ~indent)})`
+  // directions (encode omits the key). A nullable field underneath keeps its own
+  // NullOr, so the three states of `--exact-optional` stay distinct: no key,
+  // null, value.
+  | Option(Nullable(inner)) =>
+    `Schema.optionalKey(Schema.NullOr(${schemaExpr(inner, ~indent, ~exactOptional)}))`
+  // Without --exact-optional an absent key and an explicit null are one and the
+  // same here, and the extra NullOr is what makes a null parse at all. In exact
+  // mode the spec is taken at its word: only a nullable field admits null.
+  | Option(inner) =>
+    exactOptional
+      ? `Schema.optionalKey(${schemaExpr(inner, ~indent, ~exactOptional)})`
+      : `Schema.optionalKey(Schema.NullOr(${schemaExpr(inner, ~indent, ~exactOptional)}))`
+  | Nullable(inner) => `Schema.NullOr(${schemaExpr(inner, ~indent, ~exactOptional)})`
+  | Array(inner) => `Schema.Array(${schemaExpr(inner, ~indent, ~exactOptional)})`
+  | Dict(inner) => `Schema.Record(Schema.String, ${schemaExpr(inner, ~indent, ~exactOptional)})`
   | Named(name) => tsName(name)
   | Enum(values) => `Schema.Literals([${values->Array.map(v => `'${v}'`)->Array.join(", ")}])`
-  | InlineRecord(fields) => structExpr(fields, ~indent)
+  | InlineRecord(fields) => structExpr(fields, ~indent, ~exactOptional)
   | InlineVariant(_) | JSON => "Schema.Unknown"
   | Refined(inner, refs) =>
     switch refs->Array.filterMap(checkExpr) {
-    | [] => schemaExpr(inner, ~indent)
-    | checks => `${schemaExpr(inner, ~indent)}.check(${checks->Array.join(", ")})`
+    | [] => schemaExpr(inner, ~indent, ~exactOptional)
+    | checks => `${schemaExpr(inner, ~indent, ~exactOptional)}.check(${checks->Array.join(", ")})`
     }
   }
 }
 
-and structFields = (fields: array<IR.irField>, ~indent: string): string =>
+and structFields = (fields: array<IR.irField>, ~indent: string, ~exactOptional: bool): string =>
   fields
-  ->Array.map(f => `${indent}  ${quoteKey(wireName(f))}: ${schemaExpr(f.type_, ~indent=indent ++ "  ")},`)
+  ->Array.map(f =>
+    `${indent}  ${quoteKey(wireName(f))}: ${schemaExpr(
+        f.type_,
+        ~indent=indent ++ "  ",
+        ~exactOptional,
+      )},`
+  )
   ->Array.join("\n")
 
-and structExpr = (fields: array<IR.irField>, ~indent: string): string =>
-  `Schema.Struct({\n${structFields(fields, ~indent)}\n${indent}})`
+and structExpr = (fields: array<IR.irField>, ~indent: string, ~exactOptional: bool): string =>
+  `Schema.Struct({\n${structFields(fields, ~indent, ~exactOptional)}\n${indent}})`
 
 // ─── Variant cases ───────────────────────────────────────────────────────────
 
 // In-memory struct body for a case: { _tag: Literal('Ctor'), ...payload }
-let memoryStructBody = (c: IR.irVariantCase, ~indent: string): string => {
+let memoryStructBody = (c: IR.irVariantCase, ~indent: string, ~exactOptional: bool): string => {
   let tagLine = `${indent}  _tag: Schema.Literal('${c.tag}'),`
   switch c.payload {
   | InlineRecord(fields) =>
     Array.length(fields) == 0
       ? `Schema.Struct({\n${tagLine}\n${indent}})`
-      : `Schema.Struct({\n${tagLine}\n${structFields(fields, ~indent)}\n${indent}})`
+      : `Schema.Struct({\n${tagLine}\n${structFields(fields, ~indent, ~exactOptional)}\n${indent}})`
   | Primitive(PUnit) => `Schema.Struct({\n${tagLine}\n${indent}})`
-  | payload => `Schema.Struct({\n${tagLine}\n${indent}  value: ${schemaExpr(payload, ~indent=indent ++ "  ")},\n${indent}})`
+  | payload =>
+    `Schema.Struct({\n${tagLine}\n${indent}  value: ${schemaExpr(
+        payload,
+        ~indent=indent ++ "  ",
+        ~exactOptional,
+      )},\n${indent}})`
   }
 }
 
 // Externally-tagged case: wire { Ctor: {...} } ↔ memory { _tag: 'Ctor', ... }
-let externalCase = (constName: string, c: IR.irVariantCase): string => {
+let externalCase = (constName: string, c: IR.irVariantCase, ~exactOptional: bool): string => {
   let wire = wireTag(c)
   let wireKey = quoteKey(wire)
-  let payloadExpr = schemaExpr(c.payload, ~indent="  ")
-  let memory = memoryStructBody(c, ~indent="    ")
+  let payloadExpr = schemaExpr(c.payload, ~indent="  ", ~exactOptional)
+  let memory = memoryStructBody(c, ~indent="    ", ~exactOptional)
   let (decode, encode) = switch c.payload {
   | InlineRecord(_) =>
     isValidIdent(wire)
@@ -159,14 +180,20 @@ let externalCase = (constName: string, c: IR.irVariantCase): string => {
 }
 
 // Internally-tagged case needing a transform: wire { kind: 'x', ... } ↔ memory { _tag: 'X', ... }
-let internalTransformCase = (constName: string, c: IR.irVariantCase, ~tagField: string): string => {
+let internalTransformCase = (
+  constName: string,
+  c: IR.irVariantCase,
+  ~tagField: string,
+  ~exactOptional: bool,
+): string => {
   let wire = wireTag(c)
   let tagKey = quoteKey(tagField)
   let wireFields = switch c.payload {
-  | InlineRecord(fields) if Array.length(fields) > 0 => "\n" ++ structFields(fields, ~indent="")
+  | InlineRecord(fields) if Array.length(fields) > 0 =>
+    "\n" ++ structFields(fields, ~indent="", ~exactOptional)
   | _ => ""
   }
-  let memory = memoryStructBody(c, ~indent="    ")
+  let memory = memoryStructBody(c, ~indent="    ", ~exactOptional)
   `const ${constName} = Schema.Struct({
   ${tagKey}: Schema.Literal('${wire}'),${wireFields}
 }).pipe(
@@ -181,20 +208,20 @@ let internalTransformCase = (constName: string, c: IR.irVariantCase, ~tagField: 
 }
 
 // Internally-tagged case where wire already matches the _tag convention
-let plainTaggedCase = (constName: string, c: IR.irVariantCase): string =>
-  `const ${constName} = ${memoryStructBody(c, ~indent="")}`
+let plainTaggedCase = (constName: string, c: IR.irVariantCase, ~exactOptional: bool): string =>
+  `const ${constName} = ${memoryStructBody(c, ~indent="", ~exactOptional)}`
 
 // ─── Type definitions ────────────────────────────────────────────────────────
 
 let typeExport = (name: string): string =>
   `export type ${name} = Schema.Schema.Type<typeof ${name}>`
 
-let printTypeDef = (typeDef: IR.irTypeDef): string => {
+let printTypeDef = (typeDef: IR.irTypeDef, ~exactOptional: bool): string => {
   let name = tsName(typeDef.name)
   let listEncoded = typeDef.annotations->Array.includes(IR.ListEncoded)
   switch typeDef.kind {
   | RecordDef(fields) =>
-    `export const ${name} = ${structExpr(fields, ~indent="")}\n${typeExport(name)}`
+    `export const ${name} = ${structExpr(fields, ~indent="", ~exactOptional)}\n${typeExport(name)}`
   | AliasDef(Enum(values)) if listEncoded =>
     // Wire: single-element list ["InProgress"] (ppx_deriving_yojson default);
     // in-memory: plain literal union
@@ -211,26 +238,33 @@ let printTypeDef = (typeDef: IR.irTypeDef): string => {
 ${typeExport(name)}`
   | AliasDef(Enum(values)) =>
     `export const ${name} = Schema.Literals([${values->Array.map(v => `'${v}'`)->Array.join(", ")}])\n${typeExport(name)}`
-  | AliasDef(t) => `export const ${name} = ${schemaExpr(t, ~indent="")}\n${typeExport(name)}`
+  | AliasDef(t) =>
+    `export const ${name} = ${schemaExpr(t, ~indent="", ~exactOptional)}\n${typeExport(name)}`
   | VariantDef(cases, repr) =>
     let unboxed = typeDef.annotations->Array.includes(IR.Unboxed)
     if unboxed {
       // Untagged wire: plain union of member schemas
-      let members = cases->Array.map(c => schemaExpr(c.payload, ~indent=""))->Array.join(", ")
+      let members =
+        cases->Array.map(c => schemaExpr(c.payload, ~indent="", ~exactOptional))->Array.join(", ")
       `export const ${name} = Schema.Union([${members}])\n${typeExport(name)}`
     } else {
       // Leading underscore keeps case consts out of the exported-type
       // namespace (a $defs entry may share the same PascalCase name)
       let constNames = cases->Array.map(c => `_${name}${c.tag}`)
       let caseDefs = switch repr {
-      | ExternalTag => cases->Array.mapWithIndex((c, i) => externalCase(constNames->Array.getUnsafe(i), c))
+      | ExternalTag =>
+        cases->Array.mapWithIndex((c, i) =>
+          externalCase(constNames->Array.getUnsafe(i), c, ~exactOptional)
+        )
       | InternalTag(tagField) =>
         // No transform needed when the wire is already _tag + constructor names
         let allMatch = tagField == "_tag" && cases->Array.every(c => c.asValue->Option.isNone)
         allMatch
-          ? cases->Array.mapWithIndex((c, i) => plainTaggedCase(constNames->Array.getUnsafe(i), c))
+          ? cases->Array.mapWithIndex((c, i) =>
+              plainTaggedCase(constNames->Array.getUnsafe(i), c, ~exactOptional)
+            )
           : cases->Array.mapWithIndex((c, i) =>
-              internalTransformCase(constNames->Array.getUnsafe(i), c, ~tagField)
+              internalTransformCase(constNames->Array.getUnsafe(i), c, ~tagField, ~exactOptional)
             )
       }
       let union = `export const ${name} = Schema.Union([${constNames->Array.join(", ")}])\n${typeExport(name)}`
@@ -242,7 +276,10 @@ ${typeExport(name)}`
 // ─── Module ──────────────────────────────────────────────────────────────────
 
 let print = (module_: IR.irModule): string => {
-  let body = module_.types->Array.map(printTypeDef)->Array.join("\n\n")
+  let body =
+    module_.types
+    ->Array.map(t => printTypeDef(t, ~exactOptional=module_.exactOptional))
+    ->Array.join("\n\n")
 
   // Import only what the generated code actually uses
   let needsGetter = body->String.includes("SchemaGetter.")

@@ -21,26 +21,42 @@ const SYNTHETIC = "src/tests/fixtures/kitchen-sink.openapi.json";
 const SYNTHETIC_TARGETS = [
   {
     golden: "src/tests/golden/kitchen-sink.golden.res",
-    gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, false, undefined),
+    gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, false, false, undefined),
   },
   {
     golden: "src/tests/golden/kitchen-sink.refinements.golden.res",
-    gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, true, undefined),
+    gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, true, false, undefined),
   },
   { golden: "src/tests/golden/kitchen-sink.golden.ml", gen: Codegen.generateOCamlWithDiagnostics },
   { golden: "src/tests/golden/kitchen-sink.golden.rs", gen: Codegen.generateRustWithDiagnostics },
   { golden: "src/tests/golden/kitchen-sink.golden.ts", gen: Codegen.generateEffectTSWithDiagnostics },
   {
     golden: "src/tests/golden/kitchen-sink.refinements.golden.ml",
-    gen: (schemas) => Codegen.generateOCamlWithDiagnostics(schemas, true, undefined),
+    gen: (schemas) => Codegen.generateOCamlWithDiagnostics(schemas, true, false, undefined),
   },
   {
     golden: "src/tests/golden/kitchen-sink.refinements.golden.rs",
-    gen: (schemas) => Codegen.generateRustWithDiagnostics(schemas, true, undefined),
+    gen: (schemas) => Codegen.generateRustWithDiagnostics(schemas, true, false, undefined),
   },
   {
     golden: "src/tests/golden/kitchen-sink.refinements.golden.ts",
-    gen: (schemas) => Codegen.generateEffectTSWithDiagnostics(schemas, true, undefined),
+    gen: (schemas) => Codegen.generateEffectTSWithDiagnostics(schemas, true, false, undefined),
+  },
+  {
+    golden: "src/tests/golden/kitchen-sink.exact-optional.golden.res",
+    gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, false, true, undefined),
+  },
+  {
+    golden: "src/tests/golden/kitchen-sink.exact-optional.golden.ml",
+    gen: (schemas) => Codegen.generateOCamlWithDiagnostics(schemas, false, true, undefined),
+  },
+  {
+    golden: "src/tests/golden/kitchen-sink.exact-optional.golden.rs",
+    gen: (schemas) => Codegen.generateRustWithDiagnostics(schemas, false, true, undefined),
+  },
+  {
+    golden: "src/tests/golden/kitchen-sink.exact-optional.golden.ts",
+    gen: (schemas) => Codegen.generateEffectTSWithDiagnostics(schemas, false, true, undefined),
   },
 ];
 

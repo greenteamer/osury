@@ -1849,6 +1849,107 @@ function validateUnionDiscriminators(schemas) {
   return errors;
 }
 
+function applyExactOptionalInType(schema) {
+  let markField = f => {
+    let inner = applyExactOptionalInType(f.type);
+    let match = f.required;
+    if (typeof inner === "object") {
+      switch (inner._tag) {
+        case "Optional" :
+          return {
+            name: f.name,
+            type: inner,
+            required: f.required
+          };
+        case "Nullable" :
+          if (!match) {
+            return {
+              name: f.name,
+              type: {
+                _tag: "Optional",
+                _0: inner
+              },
+              required: f.required
+            };
+          }
+          break;
+      }
+    }
+    return {
+      name: f.name,
+      type: inner,
+      required: f.required
+    };
+  };
+  if (typeof schema !== "object") {
+    return schema;
+  }
+  switch (schema._tag) {
+    case "Optional" :
+      return {
+        _tag: "Optional",
+        _0: applyExactOptionalInType(schema._0)
+      };
+    case "Nullable" :
+      return {
+        _tag: "Nullable",
+        _0: applyExactOptionalInType(schema._0)
+      };
+    case "Object" :
+      return {
+        _tag: "Object",
+        _0: schema._0.map(markField)
+      };
+    case "Array" :
+      return {
+        _tag: "Array",
+        _0: applyExactOptionalInType(schema._0)
+      };
+    case "PolyVariant" :
+      return {
+        _tag: "PolyVariant",
+        _0: schema._0.map(c => ({
+          _tag: c._tag,
+          payload: applyExactOptionalInType(c.payload)
+        }))
+      };
+    case "Dict" :
+      return {
+        _tag: "Dict",
+        _0: applyExactOptionalInType(schema._0)
+      };
+    case "Union" :
+      return {
+        _tag: "Union",
+        _0: schema._0.map(applyExactOptionalInType)
+      };
+    case "AllOf" :
+      return {
+        _tag: "AllOf",
+        _0: schema._0.map(applyExactOptionalInType)
+      };
+    case "Refined" :
+      return {
+        _tag: "Refined",
+        _0: applyExactOptionalInType(schema._0),
+        _1: schema._1
+      };
+    default:
+      return schema;
+  }
+}
+
+function applyExactOptional(schemas) {
+  return schemas.map(s => ({
+    name: s.name,
+    schema: applyExactOptionalInType(s.schema),
+    discriminatorTag: s.discriminatorTag,
+    discriminatorPropertyName: s.discriminatorPropertyName,
+    fieldDiscriminators: s.fieldDiscriminators,
+    variantEncoding: s.variantEncoding
+  }));
+}
+
 let refinementKey = CodegenHelpers.refinementLabel;
 
 export {
@@ -1900,5 +2001,7 @@ export {
   buildSkipSchemaSet,
   collectUnionWarnings,
   validateUnionDiscriminators,
+  applyExactOptionalInType,
+  applyExactOptional,
 }
 /* No side effect */

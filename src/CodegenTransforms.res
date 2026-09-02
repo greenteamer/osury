@@ -1529,3 +1529,48 @@ let validateUnionDiscriminators = (schemas: array<OpenAPIParser.namedSchema>): E
 
   errors
 }
+
+// ─── Exact optional ──────────────────────────────────────────────────────────
+// OpenAPI describes two independent axes: presence (is the key in `required`?)
+// and nullability (does the type admit null?). A field that is neither required
+// nor non-null therefore has three wire states — key absent, key present with
+// null, key present with a value — and a PATCH body is exactly where the
+// difference carries the meaning: "leave alone" vs "clear" vs "set".
+//
+// By default those collapse: a non-required nullable field prints as plain
+// `Nullable.t<T>`, so absence and null become one. That is harmless when
+// decoding a response but loses the distinction on the encoding side, where
+// there is no longer a way to say "omit this key".
+//
+// This stage marks the third state explicitly, wrapping the field in the
+// `Optional` constructor the AST has always had. It runs last: by then unions
+// and inline records are extracted, so no other stage has to know about the
+// extra wrapper.
+let rec applyExactOptionalInType = (schema: Schema.schemaType): Schema.schemaType => {
+  let markField = (f: Schema.field): Schema.field => {
+    let inner = applyExactOptionalInType(f.type_)
+    switch (f.required, inner) {
+    // Already carries its own presence marker — nothing to add
+    | (_, Optional(_)) => {...f, Schema.type_: inner}
+    | (false, Nullable(_)) => {...f, Schema.type_: Optional(inner)}
+    | (_, _) => {...f, Schema.type_: inner}
+    }
+  }
+  switch schema {
+  | Object(fields) => Object(fields->Array.map(markField))
+  | Optional(inner) => Optional(applyExactOptionalInType(inner))
+  | Nullable(inner) => Nullable(applyExactOptionalInType(inner))
+  | Array(inner) => Array(applyExactOptionalInType(inner))
+  | Dict(inner) => Dict(applyExactOptionalInType(inner))
+  | Refined(inner, refs) => Refined(applyExactOptionalInType(inner), refs)
+  | PolyVariant(cases) =>
+    PolyVariant(cases->Array.map(c => {...c, Schema.payload: applyExactOptionalInType(c.payload)}))
+  | Union(types) => Union(types->Array.map(applyExactOptionalInType))
+  | AllOf(types) => AllOf(types->Array.map(applyExactOptionalInType))
+  | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => schema
+  }
+}
+
+let applyExactOptional = (schemas: array<OpenAPIParser.namedSchema>): array<
+  OpenAPIParser.namedSchema,
+> => schemas->Array.map(s => {...s, OpenAPIParser.schema: applyExactOptionalInType(s.schema)})

@@ -108,16 +108,29 @@ let rec printType = (t: IR.irType): string => {
   }
 }
 
-and printField = (field: IR.irField): string => {
-  let typeStr = printType(field.type_)
+// `@s.null` belongs to the Nullable layer, not to the field as a whole.
+// sury-ppx reads `@s.null option<Nullable.t<t>>` as $nullAsOption(nullish(t)):
+// the outer layer would swallow the null and "key absent" / "value null" would
+// collapse back into one state. Printed inside, it is $option(nullish(t)) —
+// which keeps them apart. Deeper than the outermost layer the attribute is
+// redundant (the ppx recognises Nullable.t on its own), so only the layers that
+// wrap the field are walked.
+and printFieldType = (t: IR.irType): string => {
+  switch t {
+  | Nullable(inner) => `@s.null Nullable.t<${printType(inner)}>`
+  | Option(inner) => `option<${printFieldType(inner)}>`
+  | _ => printType(t)
+  }
+}
 
-  // Prepend field-level annotations (@s.null, @as)
-  let fieldType = field.annotations->Array.reduce(typeStr, (acc, ann) => {
+and printField = (field: IR.irField): string => {
+  let carriesNull = field.annotations->Array.some(ann =>
     switch ann {
-    | SNull => `@s.null ${acc}`
-    | _ => acc
+    | SNull => true
+    | _ => false
     }
-  })
+  )
+  let fieldType = carriesNull ? printFieldType(field.type_) : printType(field.type_)
 
   let asAttr = field.annotations->Array.findMap(ann => {
     switch ann {

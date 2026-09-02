@@ -139,14 +139,14 @@ function printType(t) {
 }
 
 function printField(field) {
-  let typeStr = printType(field.type_);
-  let fieldType = Core__Array.reduce(field.annotations, typeStr, (acc, ann) => {
-    if (typeof ann !== "object" && ann === "SNull") {
-      return `@s.null ` + acc;
+  let carriesNull = field.annotations.some(ann => {
+    if (typeof ann !== "object") {
+      return ann === "SNull";
     } else {
-      return acc;
+      return false;
     }
   });
+  let fieldType = carriesNull ? printFieldType(field.type_) : printType(field.type_);
   let asAttr = Core__Option.getOr(Core__Array.findMap(field.annotations, ann => {
     if (typeof ann !== "object" || ann.TAG !== "As") {
       return;
@@ -155,6 +155,20 @@ function printField(field) {
     }
   }), "");
   return asAttr + field.name + `: ` + fieldType;
+}
+
+function printFieldType(t) {
+  if (typeof t !== "object") {
+    return printType(t);
+  }
+  switch (t.TAG) {
+    case "Option" :
+      return `option<` + printFieldType(t._0) + `>`;
+    case "Nullable" :
+      return `@s.null Nullable.t<` + printType(t._0) + `>`;
+    default:
+      return printType(t);
+  }
 }
 
 function printVariantCases(cases) {
@@ -252,6 +266,7 @@ export {
   formatSchema,
   refinementAttr,
   printType,
+  printFieldType,
   printField,
   printRecord,
   printVariantCase,

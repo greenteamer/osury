@@ -27,7 +27,8 @@ are added on demand. Issues and PRs welcome.
 - **Path operation types** — both `Response` types from `responses[200]` and `Params`
   types from query/path `parameters[]`
 - **JSON `null` support** via `Nullable.t<T>` (maps to `T | null` in TypeScript,
-  distinct from `option<T>` for `undefined`)
+  distinct from `option<T>` for `undefined`); `--exact-optional` keeps "key
+  absent" apart from "value is null" for PATCH bodies
 - **Untyped/Unknown handling** via `JSON.t` with `@s.matches(S.json)` so untyped
   fields don't poison `@schema` propagation through enclosing types
 - **Automatic deduplication** of identical union/enum structures
@@ -59,6 +60,59 @@ npx osury generate openapi.json -o src/Schema.res
 # Show help
 npx osury --help
 ```
+
+### Flags
+
+Both flags change what the generated code accepts and produces at runtime, so
+neither is on by default: turning one on is a decision about the contract, not a
+formatting preference. Both apply to every target (ReScript, OCaml, Rust,
+Effect TS).
+
+| Flag | Effect |
+|------|--------|
+| `--refinements` | Emit `format`, `minLength`, `minimum`, … as runtime checks |
+| `--exact-optional` | Keep "key absent" apart from "value is null" |
+
+#### `--exact-optional`
+
+OpenAPI describes two independent axes, and a field can be anywhere in the grid:
+
+| in `required[]` | admits `null` | wire states | default | `--exact-optional` |
+|---|---|---|---|---|
+| yes | no | value | `string` | `string` |
+| yes | yes | value, `null` | `@s.null Nullable.t<string>` | unchanged |
+| no | no | value, absent | `option<string>` | unchanged |
+| no | yes | value, `null`, **absent** | `@s.null Nullable.t<string>` | `option<@s.null Nullable.t<string>>` |
+
+Only the last row changes. By default its three wire states collapse into two:
+an absent key and an explicit `null` become the same value, and the type gives
+no way to say "omit this key".
+
+Decoding a response, that loss rarely matters. Encoding a **PATCH body** it is
+the whole point — the three states are three different instructions:
+
+```rescript
+{carrier_id: None}            // leave the field alone
+{carrier_id: Some(Null)}      // clear it
+{carrier_id: Some(Value(id))} // set it
+```
+
+Under the flag each target expresses the distinction natively:
+
+| Target | Type | How the wire is read |
+|--------|------|----------------------|
+| ReScript | `option<@s.null Nullable.t<t>>` | `S.option(S.nullish(t))` — the attribute sits *inside* the option |
+| OCaml | `t option option` | `Oj.tri_field` (the default `opt_field` folds absent and `null` together) |
+| Rust | `Option<Option<T>>` | `#[serde(default, deserialize_with = "de_double_option")]` — plain serde would read both as `None` |
+| Effect TS | `Schema.optionalKey(Schema.NullOr(t))` | absence and `null` stay separate |
+
+In exact mode Effect TS also stops wrapping every optional field in `NullOr`,
+which by default lets a `null` through where the spec never allowed one.
+
+**This changes existing types**, so adopt it deliberately: in specs generated
+from Pydantic (`Optional[X] = None`) the last row can cover most of the fields
+in the document. Nothing else about the output moves — every other row above is
+byte-identical with and without the flag.
 
 ### Full Example: OpenAPI → ReScript → TypeScript
 
@@ -245,7 +299,7 @@ For the generated code to compile, your project needs:
 | `number` | `float` |
 | `integer` | `int` |
 | `boolean` | `bool` |
-| `null` | `unit` |
+| `null` | `@s.null Nullable.t<unit>` (JSON `null` is a value; a `unit` schema expects `undefined`) |
 | `array` | `array<T>` |
 | `object` | record `{ field: T }` |
 | `$ref` | type reference |
@@ -253,7 +307,7 @@ For the generated code to compile, your project needs:
 | `enum` (top-level) | poly variant `[#A \| #B]` |
 | `const` (single string) | one-element enum (used for discriminator tags) |
 | schema with no `type` | `JSON.t` (TS: `unknown`) with `@s.matches(S.json)` |
-| `anyOf: [T, null]` | `Nullable.t<T>` (TS: `T \| null`) |
+| `anyOf: [T, null]` | `Nullable.t<T>` (TS: `T \| null`); optional too → `option<Nullable.t<T>>` under `--exact-optional` |
 | `anyOf`/`oneOf` of string literals (`enum`/`const`, incl. behind `$ref`) | merged into one named poly variant `[#a \| #b \| #all]` |
 | `anyOf: [A, B, ...]` (no discriminator) | extracted variant type with structural name |
 | `oneOf` + `discriminator` | poly variant with tags from `discriminator.mapping` |

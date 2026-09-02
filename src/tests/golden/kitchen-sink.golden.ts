@@ -194,6 +194,17 @@ export const Nullables = Schema.Struct({
 })
 export type Nullables = Schema.Schema.Type<typeof Nullables>
 
+export const ShipmentUpdate = Schema.Struct({
+  name: Schema.String,
+  carrier_id: Schema.NullOr(Schema.String),
+  note: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  tracking_number: Schema.NullOr(Schema.String),
+  weight: Schema.NullOr(Schema.Number),
+  labels: Schema.NullOr(Schema.Array(Schema.String)),
+  size: Schema.NullOr(Size),
+})
+export type ShipmentUpdate = Schema.Schema.Type<typeof ShipmentUpdate>
+
 export const Widget = Schema.Struct({
   id: Schema.String,
   created_at: Schema.String,

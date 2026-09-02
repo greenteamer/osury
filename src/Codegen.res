@@ -52,9 +52,10 @@ type generateResult = {
 let generateModuleWithDiagnostics = (
   schemas: array<OpenAPIParser.namedSchema>,
   ~refinements: bool=false,
+  ~exactOptional: bool=false,
   (),
 ): result<generateResult, Errors.errors> => {
-  switch IRGen.generate(schemas, ~refinements, ()) {
+  switch IRGen.generate(schemas, ~refinements, ~exactOptional, ()) {
   | Ok(irModule) =>
     let code = BackendReScript.print(irModule)
     Ok({code, warnings: irModule.warnings})
@@ -67,9 +68,10 @@ let generateModuleWithDiagnostics = (
 let generateOCamlWithDiagnostics = (
   schemas: array<OpenAPIParser.namedSchema>,
   ~refinements: bool=false,
+  ~exactOptional: bool=false,
   (),
 ): result<generateResult, Errors.errors> => {
-  switch IRGen.generate(schemas, ~refinements, ()) {
+  switch IRGen.generate(schemas, ~refinements, ~exactOptional, ()) {
   | Ok(irModule) =>
     let code = BackendOCaml.print(irModule)
     // Checks this backend cannot express are named out loud rather than
@@ -84,9 +86,10 @@ let generateOCamlWithDiagnostics = (
 let generateEffectTSWithDiagnostics = (
   schemas: array<OpenAPIParser.namedSchema>,
   ~refinements: bool=false,
+  ~exactOptional: bool=false,
   (),
 ): result<generateResult, Errors.errors> => {
-  switch IRGen.generate(schemas, ~refinements, ()) {
+  switch IRGen.generate(schemas, ~refinements, ~exactOptional, ()) {
   | Ok(irModule) =>
     let code = BackendEffectTS.print(irModule)
     // Checks this backend cannot express are named out loud rather than
@@ -101,9 +104,10 @@ let generateEffectTSWithDiagnostics = (
 let generateRustWithDiagnostics = (
   schemas: array<OpenAPIParser.namedSchema>,
   ~refinements: bool=false,
+  ~exactOptional: bool=false,
   (),
 ): result<generateResult, Errors.errors> => {
-  switch IRGen.generate(schemas, ~refinements, ()) {
+  switch IRGen.generate(schemas, ~refinements, ~exactOptional, ()) {
   | Ok(irModule) =>
     let code = BackendRust.print(irModule)
     // Checks this backend cannot express are named out loud rather than

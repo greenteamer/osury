@@ -88,6 +88,7 @@ function printHelp() {
   log(`    ${c.cyan("-t")}, ${c.cyan("--target")}    Output language: ${c.cyan("rescript")} ${c.dim("(default)")}, ${c.cyan("ocaml")}, ${c.cyan("effect-ts")}, ${c.cyan("rust")}`);
   log(`    ${c.cyan("-o")}, ${c.cyan("--output")}    Output file path ${c.dim("(default depends on target)")}`);
   log(`    ${c.cyan("--refinements")} Emit OpenAPI validation keywords as runtime checks ${c.dim("(all targets)")}`);
+  log(`    ${c.cyan("--exact-optional")} Keep "key absent" apart from "value null" ${c.dim("(all targets)")}`);
   log(`    ${c.cyan("-h")}, ${c.cyan("--help")}      Show this help`);
   log(`    ${c.cyan("-v")}, ${c.cyan("--version")}   Show version`);
   log(`    ${c.cyan("--no-color")}    Disable colored output`);
@@ -102,6 +103,7 @@ function printHelp() {
   log(`    ${c.cyan("$")} osury openapi.json src/API.res`);
   log(`    ${c.cyan("$")} osury generate schema.json -o src/Schema.res`);
   log(`    ${c.cyan("$")} osury openapi.json --refinements ${c.dim("# format/minLength/minimum → runtime checks")}`);
+  log(`    ${c.cyan("$")} osury openapi.json --exact-optional ${c.dim("# option<Nullable.t<t>> for PATCH bodies")}`);
   log(`    ${c.cyan("$")} osury wire.schema.json --target ocaml -o core/lib/wire.ml`);
   log(`    ${c.cyan("$")} osury wire.schema.json --target effect-ts -o src/shared/api/wire.ts`);
   log(`    ${c.cyan("$")} osury wire.schema.json --target rust -o crates/ir/src/wire.rs`);
@@ -119,7 +121,13 @@ const TARGETS = {
 };
 
 function parseArgs(args) {
-  const options = { input: null, output: null, target: "rescript", refinements: false };
+  const options = {
+    input: null,
+    output: null,
+    target: "rescript",
+    refinements: false,
+    exactOptional: false,
+  };
 
   let i = 0;
   while (i < args.length) {
@@ -135,6 +143,8 @@ function parseArgs(args) {
       // already handled above
     } else if (arg === "--refinements") {
       options.refinements = true;
+    } else if (arg === "--exact-optional") {
+      options.exactOptional = true;
     } else if (arg === "-t" || arg === "--target") {
       i++;
       if (i >= args.length || !TARGETS[args[i]]) {
@@ -246,7 +256,13 @@ function formatWarning(warning) {
 
 // ─── Main generate ───────────────────────────────────────────────────────────
 
-function generate(inputPath, outputPath, target = "rescript", refinements = false) {
+function generate(
+  inputPath,
+  outputPath,
+  target = "rescript",
+  refinements = false,
+  exactOptional = false,
+) {
   const start = performance.now();
 
   header();
@@ -320,7 +336,12 @@ function generate(inputPath, outputPath, target = "rescript", refinements = fals
   // ── Generate code ──
   // Every backend takes the flag now; each enforces what its target can express
   // and warns about the checks it cannot (see the warnings block below).
-  const genResult = Codegen[TARGETS[target].generate](schemas, refinements, undefined);
+  const genResult = Codegen[TARGETS[target].generate](
+    schemas,
+    refinements,
+    exactOptional,
+    undefined,
+  );
 
   if (genResult.TAG !== "Ok") {
     const errors = genResult._0;
@@ -560,5 +581,11 @@ if (rawArgs[0] === "domain") {
     process.exit(1);
   }
 
-  generate(options.input, options.output, options.target, options.refinements);
+  generate(
+    options.input,
+    options.output,
+    options.target,
+    options.refinements,
+    options.exactOptional,
+  );
 }

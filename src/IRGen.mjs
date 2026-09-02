@@ -146,9 +146,16 @@ function convertField(field) {
       _0: baseType
     });
   let annotations = [];
-  let match = field.type;
+  let inner = field.type;
   let carriesJsonNull;
-  carriesJsonNull = typeof match !== "object" && match === "Null" ? true : CodegenHelpers.isNullableType(field.type);
+  if (typeof inner !== "object") {
+    carriesJsonNull = inner === "Null" ? true : CodegenHelpers.isNullableType(field.type);
+  } else if (inner._tag === "Optional") {
+    let inner$1 = inner._0;
+    carriesJsonNull = inner$1 === "Null" || CodegenHelpers.isNullableType(inner$1);
+  } else {
+    carriesJsonNull = CodegenHelpers.isNullableType(field.type);
+  }
   if (carriesJsonNull) {
     annotations.push("SNull");
   }
@@ -483,20 +490,28 @@ function extractNamedUnions(schemas) {
   };
 }
 
-let expandStages = [
-  {
-    name: "promoteInlineEnums",
-    run: promoteInlineEnums
-  },
-  {
-    name: "extractInlineRecords",
-    run: CodegenTransforms.extractInlineRecords
-  },
-  {
-    name: "extractNamedUnions",
-    run: extractNamedUnions
-  }
-];
+function expandStages(exactOptional) {
+  return [
+    {
+      name: "promoteInlineEnums",
+      run: promoteInlineEnums
+    },
+    {
+      name: "extractInlineRecords",
+      run: CodegenTransforms.extractInlineRecords
+    },
+    {
+      name: "extractNamedUnions",
+      run: extractNamedUnions
+    }
+  ].concat(exactOptional ? [{
+        name: "applyExactOptional",
+        run: schemas => ({
+          TAG: "Ok",
+          _0: CodegenTransforms.applyExactOptional(schemas)
+        })
+      }] : []);
+}
 
 function runStages(schemas, stages) {
   return Core__Array.reduce(stages, {
@@ -511,8 +526,9 @@ function runStages(schemas, stages) {
   });
 }
 
-function stageNames(refinements) {
-  return normalizeStages(refinements).concat(expandStages).map(s => s.name);
+function stageNames(refinements, exactOptionalOpt) {
+  let exactOptional = exactOptionalOpt !== undefined ? exactOptionalOpt : false;
+  return normalizeStages(refinements).concat(expandStages(exactOptional)).map(s => s.name);
 }
 
 function encodingWarnings(schemas) {
@@ -532,8 +548,9 @@ function encodingWarnings(schemas) {
   });
 }
 
-function generate(schemas, refinementsOpt, param) {
+function generate(schemas, refinementsOpt, exactOptionalOpt, param) {
   let refinements = refinementsOpt !== undefined ? refinementsOpt : false;
+  let exactOptional = exactOptionalOpt !== undefined ? exactOptionalOpt : false;
   let errs = runStages(schemas, normalizeStages(refinements));
   if (errs.TAG !== "Ok") {
     return {
@@ -543,7 +560,7 @@ function generate(schemas, refinementsOpt, param) {
   }
   let normalized = errs._0;
   let warnings = CodegenTransforms.collectUnionWarnings(normalized).concat(encodingWarnings(normalized));
-  let errs$1 = runStages(normalized, expandStages);
+  let errs$1 = runStages(normalized, expandStages(exactOptional));
   if (errs$1.TAG !== "Ok") {
     return {
       TAG: "Error",
@@ -569,7 +586,8 @@ function generate(schemas, refinementsOpt, param) {
     _0: {
       preamble: "",
       types: irTypes,
-      warnings: warnings
+      warnings: warnings,
+      exactOptional: exactOptional
     }
   };
 }

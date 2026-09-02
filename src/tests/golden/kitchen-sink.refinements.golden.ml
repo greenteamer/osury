@@ -208,6 +208,16 @@ type nullables = {
   literal_union : literal_union;
 }
 
+type shipment_update = {
+  name : string;
+  carrier_id : string option;
+  note : string option;
+  tracking_number : string option;
+  weight : float option;
+  labels : string list option;
+  size : size option;
+}
+
 type widget = {
   id : string;
   created_at : string;
@@ -675,6 +685,30 @@ and nullables_of_yojson (j : Yojson.Safe.t) : (nullables, string) result =
   let* inline_enum = Oj.req_field "inline_enum" (fun j -> inline_enum_of_yojson j) j in
   let* literal_union = Oj.req_field "literal_union" (fun j -> literal_union_of_yojson j) j in
   Ok ({ maybe_text; maybe_size; maybe_list; only_one; inline_enum; literal_union } : nullables)
+
+and shipment_update_to_yojson (x : shipment_update) : Yojson.Safe.t =
+  `Assoc
+    (List.concat
+    [
+      [ ("name", `String x.name) ];
+      [ ("carrier_id", (match x.carrier_id with Some x -> `String x | None -> `Null)) ];
+      (match x.note with Some v -> [ ("note", `String v) ] | None -> []);
+      [ ("tracking_number", (match x.tracking_number with Some x -> `String x | None -> `Null)) ];
+      [ ("weight", (match x.weight with Some x -> `Float x | None -> `Null)) ];
+      [ ("labels", (match x.labels with Some x -> `List (List.map (fun x -> `String x) x) | None -> `Null)) ];
+      [ ("size", (match x.size with Some x -> size_to_yojson x | None -> `Null)) ];
+    ])
+
+and shipment_update_of_yojson (j : Yojson.Safe.t) : (shipment_update, string) result =
+  let open Oj in
+  let* name = Oj.req_field "name" (fun j -> Oj.string_ j) j in
+  let* carrier_id = Oj.req_field "carrier_id" (fun j -> Oj.nullable_ (fun j -> Oj.string_ j) j) j in
+  let* note = Oj.opt_field "note" (fun j -> Oj.string_ j) j in
+  let* tracking_number = Oj.req_field "tracking_number" (fun j -> Oj.nullable_ (fun j -> Oj.string_ j) j) j in
+  let* weight = Oj.req_field "weight" (fun j -> Oj.nullable_ (fun j -> Oj.float_ j) j) j in
+  let* labels = Oj.req_field "labels" (fun j -> Oj.nullable_ (fun j -> Oj.list_ (fun j -> Oj.string_ j) j) j) j in
+  let* size = Oj.req_field "size" (fun j -> Oj.nullable_ (fun j -> size_of_yojson j) j) j in
+  Ok ({ name; carrier_id; note; tracking_number; weight; labels; size } : shipment_update)
 
 and widget_to_yojson (x : widget) : Yojson.Safe.t =
   `Assoc

@@ -30,12 +30,12 @@ const SYNTHETIC_TARGETS = [
     {
         target: 'ReScript',
         golden: 'src/tests/golden/kitchen-sink.golden.res',
-        gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, false, undefined),
+        gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, false, false, undefined),
     },
     {
         target: 'ReScript --refinements',
         golden: 'src/tests/golden/kitchen-sink.refinements.golden.res',
-        gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, true, undefined),
+        gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, true, false, undefined),
     },
     { target: 'OCaml', golden: 'src/tests/golden/kitchen-sink.golden.ml', gen: Codegen.generateOCamlWithDiagnostics },
     { target: 'Rust', golden: 'src/tests/golden/kitchen-sink.golden.rs', gen: Codegen.generateRustWithDiagnostics },
@@ -43,17 +43,37 @@ const SYNTHETIC_TARGETS = [
     {
         target: 'OCaml --refinements',
         golden: 'src/tests/golden/kitchen-sink.refinements.golden.ml',
-        gen: (schemas) => Codegen.generateOCamlWithDiagnostics(schemas, true, undefined),
+        gen: (schemas) => Codegen.generateOCamlWithDiagnostics(schemas, true, false, undefined),
     },
     {
         target: 'Rust --refinements',
         golden: 'src/tests/golden/kitchen-sink.refinements.golden.rs',
-        gen: (schemas) => Codegen.generateRustWithDiagnostics(schemas, true, undefined),
+        gen: (schemas) => Codegen.generateRustWithDiagnostics(schemas, true, false, undefined),
     },
     {
         target: 'Effect TS --refinements',
         golden: 'src/tests/golden/kitchen-sink.refinements.golden.ts',
-        gen: (schemas) => Codegen.generateEffectTSWithDiagnostics(schemas, true, undefined),
+        gen: (schemas) => Codegen.generateEffectTSWithDiagnostics(schemas, true, false, undefined),
+    },
+    {
+        target: 'ReScript --exact-optional',
+        golden: 'src/tests/golden/kitchen-sink.exact-optional.golden.res',
+        gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, false, true, undefined),
+    },
+    {
+        target: 'OCaml --exact-optional',
+        golden: 'src/tests/golden/kitchen-sink.exact-optional.golden.ml',
+        gen: (schemas) => Codegen.generateOCamlWithDiagnostics(schemas, false, true, undefined),
+    },
+    {
+        target: 'Rust --exact-optional',
+        golden: 'src/tests/golden/kitchen-sink.exact-optional.golden.rs',
+        gen: (schemas) => Codegen.generateRustWithDiagnostics(schemas, false, true, undefined),
+    },
+    {
+        target: 'Effect TS --exact-optional',
+        golden: 'src/tests/golden/kitchen-sink.exact-optional.golden.ts',
+        gen: (schemas) => Codegen.generateEffectTSWithDiagnostics(schemas, false, true, undefined),
     },
 ];
 

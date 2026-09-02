@@ -235,6 +235,18 @@ pub struct Nullables {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShipmentUpdate {
+    pub name: String,
+    pub carrier_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    pub tracking_number: Option<String>,
+    pub weight: Option<f64>,
+    pub labels: Option<Vec<String>>,
+    pub size: Option<Size>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Widget {
     pub id: String,
     pub created_at: String,
