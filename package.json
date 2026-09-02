@@ -2,7 +2,7 @@
   "name": "osury",
   "type": "module",
   "description": "Generate ReScript types with Sury schemas from OpenAPI specifications",
-  "version": "2.7.1",
+  "version": "2.8.0",
   "license": "MIT",
   "bin": {
     "osury": "dist/osury.mjs"
