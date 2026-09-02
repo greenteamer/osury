@@ -11,7 +11,7 @@ import * as Codegen from '../Codegen.mjs';
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -31,14 +31,21 @@ const projectConfig = {
     'ppx-flags': ['sury-ppx/bin'],
 };
 
-const compile = (code) => {
+// Builds the module and leaves the artifacts in place — callers that only want
+// the compiler's verdict clean up right away; the runtime test imports the
+// compiled .mjs first.
+const build = (code) => {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.mkdirSync(scratch, { recursive: true });
+    fs.writeFileSync(path.join(scratch, 'rescript.json'), JSON.stringify(projectConfig, null, 2));
+    fs.writeFileSync(path.join(scratch, 'Nullable.res'), Codegen.generateNullableModule());
+    fs.writeFileSync(path.join(scratch, 'Generated.res'), code);
+    return execSync('npx rescript build', { cwd: scratch, encoding: 'utf8', stdio: 'pipe' });
+};
+
+const compile = (code) => {
     try {
-        fs.writeFileSync(path.join(scratch, 'rescript.json'), JSON.stringify(projectConfig, null, 2));
-        fs.writeFileSync(path.join(scratch, 'Nullable.res'), Codegen.generateNullableModule());
-        fs.writeFileSync(path.join(scratch, 'Generated.res'), code);
-        return execSync('npx rescript build', { cwd: scratch, encoding: 'utf8', stdio: 'pipe' });
+        return build(code);
     } finally {
         fs.rmSync(scratch, { recursive: true, force: true });
     }
@@ -64,5 +71,59 @@ describe('Generated ReScript compiles', () => {
         const out = compile(genFrom(path.join(here, 'fixtures/kitchen-sink.openapi.json'), true));
 
         expect(out).not.toMatch(/We've found a bug for you|Syntax error/);
+    }, 120000);
+});
+
+// Compiling is not enough: the schema sury-ppx synthesizes has to actually
+// parse the wire. sury 11.0.0-rc.1 mis-compiled exactly the shape osury emits
+// most — a discriminated union whose branch carries an optional field — and no
+// compile-only check could see it, because the generated code was correct and
+// the runtime was not.
+describe('Generated ReScript parses real data', () => {
+    // A branch with an optional field sitting at index >= 2 was the trigger,
+    // and it poisoned every branch after it as well.
+    const FILTERS = {
+        $defs: {
+            Filter: {
+                oneOf: [
+                    { type: "object", properties: { kind: { const: "multi" }, key: { type: "string" } }, required: ["kind", "key"] },
+                    { type: "object", properties: { kind: { const: "single" }, key: { type: "string" } }, required: ["kind", "key"] },
+                    { type: "object", properties: { kind: { const: "range" }, key: { type: "string" }, step: { type: "number" } }, required: ["kind", "key"] },
+                    { type: "object", properties: { kind: { const: "bool" }, key: { type: "string" }, label: { type: "string" } }, required: ["kind", "key"] },
+                    { type: "object", properties: { kind: { const: "tree" }, key: { type: "string" } }, required: ["kind", "key"] },
+                ],
+                discriminator: { propertyName: "kind" },
+            },
+        },
+    };
+
+    test('every branch of a discriminated union decodes, optional fields included', async () => {
+        const parsed = OpenAPIParser.parseDocument(FILTERS);
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+        expect(g.TAG).toBe('Ok');
+
+        try {
+            build(g._0.code);
+            const mod = await import(pathToFileURL(path.join(scratch, 'Generated.mjs')).href);
+            const S = await import('sury');
+            const parse = S.parser(mod.filterSchema);
+
+            const wire = [
+                { kind: 'multi', key: 'a' },
+                { kind: 'single', key: 'a' },
+                { kind: 'range', key: 'a', step: 1 },
+                { kind: 'range', key: 'a' },
+                { kind: 'bool', key: 'a', label: 'on' },
+                { kind: 'bool', key: 'a' },
+                { kind: 'tree', key: 'a' },
+            ];
+            for (const v of wire) {
+                expect(() => parse(v)).not.toThrow();
+                expect(parse(v).kind).toBe(v.kind);
+            }
+        } finally {
+            fs.rmSync(scratch, { recursive: true, force: true });
+        }
     }, 120000);
 });
