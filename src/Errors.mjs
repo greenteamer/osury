@@ -46,43 +46,43 @@ function invalidRef(ref, pathOpt, hintOpt, param) {
   }, path, Primitive_option.some(hint), undefined);
 }
 
-function formatError(error) {
-  let parts = error.location.path;
-  let pathStr = parts.length !== 0 ? "#/" + parts.join("/") : "#";
-  let value = error.kind;
-  let kindStr;
-  switch (value.TAG) {
+function formatKind(kind) {
+  switch (kind.TAG) {
     case "UnknownType" :
-      kindStr = `Unknown type "` + value._0 + `"`;
-      break;
+      return `Unknown type "` + kind._0 + `"`;
     case "MissingRequiredField" :
-      kindStr = `Missing required field "` + value._0 + `"`;
-      break;
+      return `Missing required field "` + kind._0 + `"`;
     case "InvalidRef" :
-      kindStr = `Invalid reference "` + value._0 + `"`;
-      break;
+      return `Invalid reference "` + kind._0 + `"`;
     case "UnsupportedFeature" :
-      kindStr = `Unsupported feature "` + value._0 + `"`;
-      break;
+      return `Unsupported feature "` + kind._0 + `"`;
     case "CircularReference" :
-      kindStr = `Circular reference detected: "` + value._0 + `"`;
-      break;
+      return `Circular reference detected: "` + kind._0 + `"`;
     case "MissingDiscriminator" :
-      kindStr = `Missing discriminator for union "` + value._0 + `"`;
-      break;
+      return `Missing discriminator for union "` + kind._0 + `"`;
     case "DuplicateTypeName" :
-      kindStr = `Duplicate type name "` + value._0 + `"`;
-      break;
+      return `Duplicate type name "` + kind._0 + `"`;
     case "DuplicateConstructor" :
-      kindStr = `Union "` + value._0 + `" produces the constructor "` + value._1 + `" more than once`;
-      break;
+      return `Union "` + kind._0 + `" produces the constructor "` + kind._1 + `" more than once`;
     case "ConflictingInlineEnums" :
-      kindStr = `Conflicting inline enums at field "` + value._0 + `" (different value sets on the same field path)`;
-      break;
+      return `Conflicting inline enums at field "` + kind._0 + `" (different value sets on the same field path)`;
     case "InvalidJson" :
-      kindStr = `Invalid JSON: ` + value._0;
-      break;
+      return `Invalid JSON: ` + kind._0;
   }
+}
+
+function formatPath(location) {
+  let parts = location.path;
+  if (parts.length !== 0) {
+    return "#/" + parts.join("/");
+  } else {
+    return "#";
+  }
+}
+
+function formatError(error) {
+  let pathStr = formatPath(error.location);
+  let kindStr = formatKind(error.kind);
   let hint = error.hint;
   let hintStr = hint !== undefined ? `\n  Hint: ` + hint : "";
   return `Error at ` + pathStr + `:\n  ` + kindStr + hintStr;
@@ -98,6 +98,8 @@ export {
   unknownType,
   missingField,
   invalidRef,
+  formatKind,
+  formatPath,
   formatError,
   formatErrors,
 }

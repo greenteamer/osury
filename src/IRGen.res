@@ -331,7 +331,12 @@ let generate = (
       | Some(dict) => dict->Dict.get(extracted.name)
       | None => None
       }
-      {OpenAPIParser.name: extracted.name, schema: extracted.schema, discriminatorTag: None, discriminatorPropertyName, fieldDiscriminators: None, variantEncoding: None}
+      OpenAPIParser.make(
+        ~name=extracted.name,
+        ~schema=extracted.schema,
+        ~discriminatorPropertyName,
+        (),
+      )
     })
   })
 
@@ -345,7 +350,10 @@ let generate = (
 
   // Step 4: Replace — unions with refs in original schemas
   let modifiedSchemas = schemas->Array.map(s => {
-    {OpenAPIParser.name: s.name, schema: CodegenTransforms.replaceUnions(~names=unionNames, s.name, s.schema), discriminatorTag: s.discriminatorTag, discriminatorPropertyName: s.discriminatorPropertyName, fieldDiscriminators: s.fieldDiscriminators, variantEncoding: s.variantEncoding}
+    {
+      ...s,
+      OpenAPIParser.schema: CodegenTransforms.replaceUnions(~names=unionNames, s.name, s.schema),
+    }
   })
 
   // Step 5: Combine — unique unions + modified originals

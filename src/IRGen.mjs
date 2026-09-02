@@ -3,8 +3,10 @@
 import * as Errors from "./Errors.mjs";
 import * as Core__Array from "@rescript/core/src/Core__Array.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
+import * as OpenAPIParser from "./OpenAPIParser.mjs";
 import * as CodegenHelpers from "./CodegenHelpers.mjs";
 import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js";
+import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
 import * as CodegenTransforms from "./CodegenTransforms.mjs";
 
 function mkTaggedCase(wireTag, payload) {
@@ -436,14 +438,7 @@ function generate(schemas, refinementsOpt, param) {
   let extractedUnions = schemas$5.flatMap(s => CodegenTransforms.extractUnions(s.name, s.schema).map(extracted => {
     let dict = s.fieldDiscriminators;
     let discriminatorPropertyName = dict !== undefined ? dict[extracted.name] : undefined;
-    return {
-      name: extracted.name,
-      schema: extracted.schema,
-      discriminatorTag: undefined,
-      discriminatorPropertyName: discriminatorPropertyName,
-      fieldDiscriminators: undefined,
-      variantEncoding: undefined
-    };
+    return OpenAPIParser.make(extracted.name, extracted.schema, undefined, Primitive_option.some(discriminatorPropertyName), undefined, undefined, undefined);
   }));
   let match = CodegenTransforms.resolveExtractedUnionNames(extractedUnions, schemas$5.map(s => s.name));
   let unionNames = match[1];

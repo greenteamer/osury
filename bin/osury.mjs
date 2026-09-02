@@ -2,6 +2,7 @@
 
 import * as OpenAPIParser from "../src/OpenAPIParser.mjs";
 import * as Codegen from "../src/Codegen.mjs";
+import * as Errors from "../src/Errors.mjs";
 import * as DomainConfig from "../src/DomainConfig.mjs";
 import * as DomainGen from "../src/DomainGen.mjs";
 import * as DomainBackend from "../src/DomainBackend.mjs";
@@ -216,43 +217,15 @@ function findSimilarFiles(target) {
 
 // ─── Error formatting ────────────────────────────────────────────────────────
 
-function formatErrorKind(kind) {
-  if (!kind || !kind.TAG) return "Unknown error";
-  switch (kind.TAG) {
-    case "UnknownType":
-      return `Unknown type ${c.bold(`"${kind._0}"`)}`;
-    case "MissingRequiredField":
-      return `Missing required field ${c.bold(`"${kind._0}"`)}`;
-    case "InvalidRef":
-      return `Invalid reference ${c.bold(`"${kind._0}"`)}`;
-    case "UnsupportedFeature":
-      return `Unsupported feature ${c.bold(`"${kind._0}"`)}`;
-    case "CircularReference":
-      return `Circular reference ${c.bold(`"${kind._0}"`)}`;
-    case "MissingDiscriminator":
-      return `Missing discriminator for union ${c.bold(`"${kind._0}"`)}`;
-    case "DuplicateTypeName":
-      return `Duplicate type name ${c.bold(`"${kind._0}"`)}`;
-    case "DuplicateConstructor":
-      return `Union ${c.bold(`"${kind._0}"`)} produces the constructor ${c.bold(`"${kind._1}"`)} more than once`;
-    case "ConflictingInlineEnums":
-      return `Conflicting inline enums for ${c.bold(`"${kind._0}"`)}`;
-    case "InvalidJson":
-      return `Invalid JSON: ${kind._0}`;
-    default:
-      return kind.TAG + (kind._0 ? `: ${kind._0}` : "");
-  }
-}
-
 function formatParseError(error, index) {
-  const pathStr =
-    error.location?.path?.length > 0
-      ? c.cyan("#/" + error.location.path.join("/"))
-      : c.cyan("#");
+  // Both the path and the kind text come from Errors.res — the CLI owns the
+  // layout, not the vocabulary. A JS copy of the kind list meant every new
+  // errorKind had to be added twice, and one of the two always lagged.
+  const pathStr = c.cyan(Errors.formatPath(error.location));
 
   const lines = [];
   lines.push(`  ${c.dim(`${index + 1}.`)} ${pathStr}`);
-  lines.push(`     ${formatErrorKind(error.kind)}`);
+  lines.push(`     ${Errors.formatKind(error.kind)}`);
 
   if (error.hint) {
     lines.push(`     ${c.dim("Hint:")} ${c.italic(error.hint)}`);

@@ -4,6 +4,23 @@ import * as Errors from "./Errors.mjs";
 import * as Schema from "./Schema.mjs";
 import * as Core__Array from "@rescript/core/src/Core__Array.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
+import * as CodegenHelpers from "./CodegenHelpers.mjs";
+import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
+
+function make(name, schema, discriminatorTagOpt, discriminatorPropertyNameOpt, fieldDiscriminatorsOpt, variantEncodingOpt, param) {
+  let discriminatorTag = discriminatorTagOpt !== undefined ? Primitive_option.valFromOption(discriminatorTagOpt) : undefined;
+  let discriminatorPropertyName = discriminatorPropertyNameOpt !== undefined ? Primitive_option.valFromOption(discriminatorPropertyNameOpt) : undefined;
+  let fieldDiscriminators = fieldDiscriminatorsOpt !== undefined ? Primitive_option.valFromOption(fieldDiscriminatorsOpt) : undefined;
+  let variantEncoding = variantEncodingOpt !== undefined ? Primitive_option.valFromOption(variantEncodingOpt) : undefined;
+  return {
+    name: name,
+    schema: schema,
+    discriminatorTag: discriminatorTag,
+    discriminatorPropertyName: discriminatorPropertyName,
+    fieldDiscriminators: fieldDiscriminators,
+    variantEncoding: variantEncoding
+  };
+}
 
 function pathToName(path) {
   return path.split("/").filter(s => s !== "").map(s => {
@@ -17,12 +34,6 @@ function pathToName(path) {
     let rest = part.slice(1);
     return first + rest;
   }).join("")).join("");
-}
-
-function ucFirst(s) {
-  let first = s.charAt(0).toUpperCase();
-  let rest = s.slice(1);
-  return first + rest;
 }
 
 function parsePathResponses(pathsJson) {
@@ -85,19 +96,12 @@ function parsePathResponses(pathsJson) {
         if (schemaJson === undefined) {
           return;
         }
-        let name = ucFirst(method) + pathToName(path) + "Response";
+        let name = CodegenHelpers.ucFirst(method) + pathToName(path) + "Response";
         let schemaType = Schema.parseAt(schemaJson, [name]);
         if (schemaType.TAG === "Ok") {
           return {
             TAG: "Ok",
-            _0: {
-              name: name,
-              schema: schemaType._0,
-              discriminatorTag: undefined,
-              discriminatorPropertyName: undefined,
-              fieldDiscriminators: undefined,
-              variantEncoding: Schema.variantEncodingOfJson(schemaJson)
-            }
+            _0: make(name, schemaType._0, undefined, undefined, undefined, Primitive_option.some(Schema.variantEncodingOfJson(schemaJson)), undefined)
           };
         } else {
           return {
@@ -147,30 +151,16 @@ function extractDiscriminatorFromPair(items, discDict) {
       return;
     }
     let match = item["$ref"];
-    if (match === undefined) {
-      return;
+    if (typeof match === "string") {
+      return Schema.extractRefName(match);
     }
-    if (typeof match !== "string") {
-      return;
-    }
-    let parts = match.split("/");
-    return parts[parts.length - 1 | 0];
   });
-  if (memberNames.length < 2) {
-    return;
+  if (memberNames.length >= 2 && memberNames.length === items.length) {
+    return [
+      CodegenHelpers.joinUnionParts(memberNames.map(CodegenHelpers.lcFirst)),
+      match
+    ];
   }
-  let lcNames = memberNames.map(n => {
-    let first = n.charAt(0).toLowerCase();
-    let rest = n.slice(1);
-    return first + rest;
-  });
-  let firstName = Core__Option.getOr(lcNames[0], "unknown");
-  let restNames = lcNames.slice(1);
-  let unionName = firstName + restNames.map(n => "Or" + ucFirst(n)).join("");
-  return [
-    unionName,
-    match
-  ];
 }
 
 function extractFieldDiscriminators(schemaJson) {
@@ -220,19 +210,8 @@ function extractFieldDiscriminators(schemaJson) {
 }
 
 function extractDiscriminatorPropertyName(schemaJson) {
-  if (typeof schemaJson !== "object" || schemaJson === null || Array.isArray(schemaJson)) {
-    return;
-  }
-  let match = schemaJson["discriminator"];
-  if (match === undefined) {
-    return;
-  }
-  if (typeof match !== "object" || match === null || Array.isArray(match)) {
-    return;
-  }
-  let match$1 = match["propertyName"];
-  if (typeof match$1 === "string") {
-    return match$1;
+  if (typeof schemaJson === "object" && schemaJson !== null && !Array.isArray(schemaJson)) {
+    return Schema.extractDiscriminatorPropertyName(schemaJson);
   }
 }
 
@@ -273,14 +252,7 @@ function parseSchemaDict(schemas) {
     if (schemaType.TAG === "Ok") {
       return {
         TAG: "Ok",
-        _0: {
-          name: name,
-          schema: schemaType._0,
-          discriminatorTag: discriminatorTag,
-          discriminatorPropertyName: discriminatorPropertyName,
-          fieldDiscriminators: fieldDiscriminators,
-          variantEncoding: Schema.variantEncodingOfJson(schemaJson)
-        }
+        _0: make(name, schemaType._0, Primitive_option.some(discriminatorTag), Primitive_option.some(discriminatorPropertyName), Primitive_option.some(fieldDiscriminators), Primitive_option.some(Schema.variantEncodingOfJson(schemaJson)), undefined)
       };
     } else {
       return {
@@ -459,19 +431,12 @@ function parsePathParameters(pathsJson) {
         if (objJson === undefined) {
           return;
         }
-        let name = ucFirst(method) + pathToName(path) + "Params";
+        let name = CodegenHelpers.ucFirst(method) + pathToName(path) + "Params";
         let schemaType = Schema.parseAt(objJson, [name]);
         if (schemaType.TAG === "Ok") {
           return {
             TAG: "Ok",
-            _0: {
-              name: name,
-              schema: schemaType._0,
-              discriminatorTag: undefined,
-              discriminatorPropertyName: undefined,
-              fieldDiscriminators: undefined,
-              variantEncoding: undefined
-            }
+            _0: make(name, schemaType._0, undefined, undefined, undefined, undefined, undefined)
           };
         } else {
           return {
@@ -530,12 +495,7 @@ function extractAllDiscriminatorMappings(json) {
               if (typeof refValue !== "string") {
                 return;
               }
-              let parts = refValue.split("/");
-              let schemaName = parts[parts.length - 1 | 0];
-              if (schemaName !== undefined) {
-                result[schemaName] = param[0];
-                return;
-              }
+              result[Schema.extractRefName(refValue)] = param[0];
             });
           }
         }
@@ -731,7 +691,10 @@ function parseDocument(json) {
   };
 }
 
+let ucFirst = CodegenHelpers.ucFirst;
+
 export {
+  make,
   pathToName,
   ucFirst,
   parsePathResponses,

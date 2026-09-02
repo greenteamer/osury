@@ -49,14 +49,10 @@ let invalidRef = (~ref, ~path=[], ~hint=None, ()): error => {
   makeError(~kind=InvalidRef(ref), ~path, ~hint, ())
 }
 
-// Format error for display
-let formatError = (error: error): string => {
-  let pathStr = switch error.location.path {
-  | [] => "#"
-  | parts => "#/" ++ parts->Array.join("/")
-  }
-
-  let kindStr = switch error.kind {
+// The one place a kind becomes English. The CLI prints its own layout but
+// calls this, so a new errorKind is never added in two files.
+let formatKind = (kind: errorKind): string => {
+  switch kind {
   | UnknownType(value) => `Unknown type "${value}"`
   | MissingRequiredField(field) => `Missing required field "${field}"`
   | InvalidRef(ref) => `Invalid reference "${ref}"`
@@ -70,6 +66,21 @@ let formatError = (error: error): string => {
     `Conflicting inline enums at field "${field}" (different value sets on the same field path)`
   | InvalidJson(msg) => `Invalid JSON: ${msg}`
   }
+}
+
+// The JSON path of an error, as the CLI shows it: "#" or "#/Order/items"
+let formatPath = (location: location): string => {
+  switch location.path {
+  | [] => "#"
+  | parts => "#/" ++ parts->Array.join("/")
+  }
+}
+
+// Format error for display
+let formatError = (error: error): string => {
+  let pathStr = formatPath(error.location)
+
+  let kindStr = formatKind(error.kind)
 
   let hintStr = switch error.hint {
   | Some(hint) => `\n  Hint: ${hint}`

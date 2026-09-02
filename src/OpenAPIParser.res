@@ -10,6 +10,26 @@ type namedSchema = {
   variantEncoding: option<Schema.variantEncoding>, // External for {"Glow": {...}} wrapper unions
 }
 
+// Build a namedSchema. Everything but the name and the schema is optional
+// metadata, and spelling out six fields at every construction site made adding
+// a seventh a search-and-replace exercise.
+let make = (
+  ~name: string,
+  ~schema: Schema.schemaType,
+  ~discriminatorTag: option<string>=None,
+  ~discriminatorPropertyName: option<string>=None,
+  ~fieldDiscriminators: option<Dict.t<string>>=None,
+  ~variantEncoding: option<Schema.variantEncoding>=None,
+  (),
+): namedSchema => {
+  name,
+  schema,
+  discriminatorTag,
+  discriminatorPropertyName,
+  fieldDiscriminators,
+  variantEncoding,
+}
+
 // Convert path to PascalCase name: /v1/math/ads/executive-summary → V1MathAdsExecutiveSummary
 // Template params are kept, not dropped — otherwise /v1/thing and /v1/thing/{thing_id}
 // collapse to the same name and one response type silently overwrites the other.
@@ -39,11 +59,7 @@ let pathToName = (path: string): string => {
 }
 
 // Capitalize first letter
-let ucFirst = (s: string): string => {
-  let first = s->String.charAt(0)->String.toUpperCase
-  let rest = s->String.sliceToEnd(~start=1)
-  first ++ rest
-}
+let ucFirst = CodegenHelpers.ucFirst
 
 // Parse response schemas from paths
 let parsePathResponses = (pathsJson: JSON.t): result<array<namedSchema>, Errors.errors> => {
@@ -77,7 +93,17 @@ let parsePathResponses = (pathsJson: JSON.t): result<array<namedSchema>, Errors.
                       | Some(schemaJson) =>
                         let name = ucFirst(method) ++ pathToName(path) ++ "Response"
                         switch Schema.parseAt(schemaJson, ~path=[name]) {
-                        | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None, discriminatorPropertyName: None, fieldDiscriminators: None, variantEncoding: Schema.variantEncodingOfJson(schemaJson)}))
+                        | Ok(schemaType) =>
+                          Some(
+                            Ok(
+                              make(
+                                ~name,
+                                ~schema=schemaType,
+                                ~variantEncoding=Schema.variantEncodingOfJson(schemaJson),
+                                (),
+                              ),
+                            ),
+                          )
                         | Error(e) => Some(Error(e))
                         }
                       | None => None
@@ -132,26 +158,22 @@ let extractDiscriminatorFromPair = (items: array<JSON.t>, discDict: Dict.t<JSON.
       switch item {
       | Object(itemDict) =>
         switch itemDict->Dict.get("$ref") {
-        | Some(String(refPath)) =>
-          let parts = refPath->String.split("/")
-          parts->Array.get(Array.length(parts) - 1)
+        | Some(String(refPath)) => Some(Schema.extractRefName(refPath))
         | _ => None
         }
       | _ => None
       }
     })
-    if Array.length(memberNames) >= 2 {
-      // Build structural name matching CodegenTransforms.getUnionName logic:
-      // lcFirst(first) ++ "Or" ++ ucFirst(second) ++ ...
-      let lcNames = memberNames->Array.map(n => {
-        let first = n->String.charAt(0)->String.toLowerCase
-        let rest = n->String.sliceToEnd(~start=1)
-        first ++ rest
-      })
-      let firstName = lcNames->Array.get(0)->Option.getOr("unknown")
-      let restNames = lcNames->Array.sliceToEnd(~start=1)
-      let unionName = firstName ++ restNames->Array.map(n => "Or" ++ ucFirst(n))->Array.join("")
-      Some((unionName, propName))
+    // Only an all-$ref union can be named from raw JSON: every arm's name part
+    // is lcFirst(refName), which is exactly what CodegenTransforms.typeNamePart
+    // produces for Ref. With a non-ref arm in the mix the two namings diverge,
+    // the key never matches, and the discriminator is silently lost — so don't
+    // invent a key at all.
+    if Array.length(memberNames) >= 2 && Array.length(memberNames) == Array.length(items) {
+      Some((
+        CodegenHelpers.joinUnionParts(memberNames->Array.map(CodegenHelpers.lcFirst)),
+        propName,
+      ))
     } else {
       None
     }
@@ -204,18 +226,11 @@ let extractFieldDiscriminators = (schemaJson: JSON.t): Dict.t<string> => {
   result
 }
 
-// Extract discriminator.propertyName from a schema JSON
+// Extract discriminator.propertyName from a schema JSON (the dict-level lookup
+// itself lives in Schema — one reader of the keyword, not two)
 let extractDiscriminatorPropertyName = (schemaJson: JSON.t): option<string> => {
   switch schemaJson {
-  | Object(dict) =>
-    switch dict->Dict.get("discriminator") {
-    | Some(Object(discDict)) =>
-      switch discDict->Dict.get("propertyName") {
-      | Some(String(propName)) => Some(propName)
-      | _ => None
-      }
-    | _ => None
-    }
+  | Object(dict) => Schema.extractDiscriminatorPropertyName(dict)
   | _ => None
   }
 }
@@ -253,7 +268,18 @@ let parseSchemaDict = (schemas: Dict.t<JSON.t>): result<array<namedSchema>, Erro
       None
     }
     switch Schema.parseAt(schemaJson, ~path=[name]) {
-    | Ok(schemaType) => Ok({name, schema: schemaType, discriminatorTag, discriminatorPropertyName, fieldDiscriminators, variantEncoding: Schema.variantEncodingOfJson(schemaJson)})
+    | Ok(schemaType) =>
+      Ok(
+        make(
+          ~name,
+          ~schema=schemaType,
+          ~discriminatorTag,
+          ~discriminatorPropertyName,
+          ~fieldDiscriminators,
+          ~variantEncoding=Schema.variantEncodingOfJson(schemaJson),
+          (),
+        ),
+      )
     | Error(e) => Error(e)
     }
   })
@@ -374,7 +400,7 @@ let parsePathParameters = (pathsJson: JSON.t): result<array<namedSchema>, Errors
                 | Some(objJson) =>
                   let name = ucFirst(method) ++ pathToName(path) ++ "Params"
                   switch Schema.parseAt(objJson, ~path=[name]) {
-                  | Ok(schemaType) => Some(Ok({name, schema: schemaType, discriminatorTag: None, discriminatorPropertyName: None, fieldDiscriminators: None, variantEncoding: None}))
+                  | Ok(schemaType) => Some(Ok(make(~name, ~schema=schemaType, ())))
                   | Error(e) => Some(Error(e))
                   }
                 | None => None
@@ -433,12 +459,7 @@ let extractAllDiscriminatorMappings = (json: JSON.t): Dict.t<string> => {
           ->Dict.toArray
           ->Array.forEach(((constVal, refValue)) =>
             switch refValue {
-            | String(refPath) =>
-              let parts = refPath->String.split("/")
-              switch parts->Array.get(Array.length(parts) - 1) {
-              | Some(schemaName) => result->Dict.set(schemaName, constVal)
-              | None => ()
-              }
+            | String(refPath) => result->Dict.set(Schema.extractRefName(refPath), constVal)
             | _ => ()
             }
           )

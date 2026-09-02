@@ -211,14 +211,7 @@ let buildExtractedEnumSchemas = (occurrences: array<enumOccurrence>, ~names: Dic
       if seen->Dict.get(typeName)->Option.isNone {
         seen->Dict.set(typeName, true)
         result
-        ->Array.push({
-          OpenAPIParser.name: typeName,
-          schema: Schema.Enum(occ.values),
-          discriminatorTag: None,
-          discriminatorPropertyName: None,
-          fieldDiscriminators: None,
-          variantEncoding: None,
-        })
+        ->Array.push(OpenAPIParser.make(~name=typeName, ~schema=Schema.Enum(occ.values), ()))
         ->ignore
       }
     }
@@ -473,16 +466,8 @@ let rec typeNamePart = (t: Schema.schemaType): string => {
   }
 }
 
-// Join with "Or": [a, b, c] → "aOrBOrC"
-and joinUnionParts = (names: array<string>): string => {
-  if Array.length(names) == 0 {
-    "emptyUnion"
-  } else {
-    let first = names->Array.get(0)->Option.getOr("unknown")
-    let rest = names->Array.sliceToEnd(~start=1)
-    first ++ rest->Array.map(n => "Or" ++ CodegenHelpers.ucFirst(n))->Array.join("")
-  }
-}
+// Join with "Or": [a, b, c] → "aOrBOrC" (shared with OpenAPIParser)
+and joinUnionParts = CodegenHelpers.joinUnionParts
 
 // Generate a structural name for a Union type based on its members
 // Union([String, Number]) → "stringOrFloat"

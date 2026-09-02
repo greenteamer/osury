@@ -3,6 +3,7 @@
 import * as Errors from "./Errors.mjs";
 import * as Core__Array from "@rescript/core/src/Core__Array.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
+import * as OpenAPIParser from "./OpenAPIParser.mjs";
 import * as CodegenHelpers from "./CodegenHelpers.mjs";
 import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js";
 import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
@@ -247,17 +248,10 @@ function buildExtractedEnumSchemas(occurrences, names) {
     let typeName = CodegenHelpers.ucFirst(name);
     if (Core__Option.isNone(seen[typeName])) {
       seen[typeName] = true;
-      result.push({
-        name: typeName,
-        schema: {
-          _tag: "Enum",
-          _0: occ.values
-        },
-        discriminatorTag: undefined,
-        discriminatorPropertyName: undefined,
-        fieldDiscriminators: undefined,
-        variantEncoding: undefined
-      });
+      result.push(OpenAPIParser.make(typeName, {
+        _tag: "Enum",
+        _0: occ.values
+      }, undefined, undefined, undefined, undefined, undefined));
       return;
     }
   });
@@ -566,14 +560,7 @@ function typeNamePart(_t) {
   };
 }
 
-function joinUnionParts(names) {
-  if (names.length === 0) {
-    return "emptyUnion";
-  }
-  let first = Core__Option.getOr(names[0], "unknown");
-  let rest = names.slice(1);
-  return first + rest.map(n => "Or" + CodegenHelpers.ucFirst(n)).join("");
-}
+let joinUnionParts = CodegenHelpers.joinUnionParts;
 
 function getUnionName(types) {
   return joinUnionParts(types.map(typeNamePart));

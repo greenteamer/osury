@@ -39,6 +39,20 @@ let ucFirst = (s: string): string => {
   }
 }
 
+// Join structural union-name parts: [a, b, c] → "aOrBOrC". Both namers use it —
+// CodegenTransforms.getUnionName (from schemaType) and
+// OpenAPIParser.extractDiscriminatorFromPair (from raw $ref names) — so the two
+// can no longer drift apart.
+let joinUnionParts = (names: array<string>): string => {
+  if Array.length(names) == 0 {
+    "emptyUnion"
+  } else {
+    let first = names->Array.get(0)->Option.getOr("unknown")
+    let rest = names->Array.sliceToEnd(~start=1)
+    first ++ rest->Array.map(n => "Or" ++ ucFirst(n))->Array.join("")
+  }
+}
+
 // Check if schema type is already Optional or Nullable
 let isOptionalType = (schema: Schema.schemaType): bool => {
   switch schema {
