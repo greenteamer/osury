@@ -31,7 +31,7 @@ export const Scalars = Schema.Struct({
   f: Schema.Number,
   i: Schema.Int,
   b: Schema.Boolean,
-  nothing: Schema.Null,
+  nothing: Schema.NullOr(Schema.Null),
   anything: Schema.Unknown,
   opt: Schema.optionalKey(Schema.NullOr(Schema.String)),
   with_default: Schema.optionalKey(Schema.NullOr(Schema.Int)),

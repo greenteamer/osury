@@ -100,7 +100,7 @@ type scalars = {
   f : float;
   i : int;
   b : bool;
-  nothing : unit;
+  nothing : unit option;
   anything : Yojson.Safe.t;
   opt : string option;
   with_default : int option;
@@ -355,7 +355,7 @@ and scalars_to_yojson (x : scalars) : Yojson.Safe.t =
       [ ("f", `Float x.f) ];
       [ ("i", `Int x.i) ];
       [ ("b", `Bool x.b) ];
-      [ ("nothing", `Null) ];
+      [ ("nothing", (match x.nothing with Some x -> `Null | None -> `Null)) ];
       [ ("anything", x.anything) ];
       (match x.opt with Some v -> [ ("opt", `String v) ] | None -> []);
       (match x.with_default with Some v -> [ ("with_default", `Int v) ] | None -> []);
@@ -367,7 +367,7 @@ and scalars_of_yojson (j : Yojson.Safe.t) : (scalars, string) result =
   let* f = Oj.req_field "f" (fun j -> Oj.float_ j) j in
   let* i = Oj.req_field "i" (fun j -> Oj.int_ j) j in
   let* b = Oj.req_field "b" (fun j -> Oj.bool_ j) j in
-  let* nothing = Oj.req_field "nothing" (fun j -> Oj.unit_ j) j in
+  let* nothing = Oj.req_field "nothing" (fun j -> Oj.nullable_ (fun j -> Oj.unit_ j) j) j in
   let* anything = Oj.req_field "anything" (fun j -> Ok j) j in
   let* opt = Oj.opt_field "opt" (fun j -> Oj.string_ j) j in
   let* with_default = Oj.opt_field "with_default" (fun j -> Oj.int_ j) j in

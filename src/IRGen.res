@@ -21,7 +21,11 @@ let rec convertType = (schema: Schema.schemaType): IR.irType => {
   | Number => Primitive(PFloat)
   | Integer => Primitive(PInt)
   | Boolean => Primitive(PBool)
-  | Null => Primitive(PUnit)
+  // JSON null is a VALUE, and sury's `unit` schema expects `undefined`, not
+  // null — a `type: "null"` field typed as bare `unit` could never parse the
+  // one value the spec allows. Nullable-of-unit is the honest lowering: the
+  // wire carries null, ReScript sees None.
+  | Null => Nullable(Primitive(PUnit))
   | Optional(inner) => Option(convertType(inner))
   | Nullable(inner) => Nullable(convertType(inner))
   | Array(inner) => Array(convertType(inner))
@@ -64,8 +68,13 @@ and convertField = (field: Schema.field): IR.irField => {
   // Build annotations
   let annotations = []
 
-  // @s.null for Nullable types
-  if CodegenHelpers.isNullableType(field.type_) {
+  // @s.null for Nullable types — and for a bare `type: "null"` field, which
+  // lowers to Nullable(unit) for the same reason: the wire value is null.
+  let carriesJsonNull = switch field.type_ {
+  | Null => true
+  | _ => CodegenHelpers.isNullableType(field.type_)
+  }
+  if carriesJsonNull {
     annotations->Array.push(IR.SNull)->ignore
   }
 

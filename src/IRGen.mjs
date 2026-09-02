@@ -51,8 +51,11 @@ function convertType(schema) {
         };
       case "Null" :
         return {
-          TAG: "Primitive",
-          _0: "PUnit"
+          TAG: "Nullable",
+          _0: {
+            TAG: "Primitive",
+            _0: "PUnit"
+          }
         };
       case "Unknown" :
         return "JSON";
@@ -143,7 +146,10 @@ function convertField(field) {
       _0: baseType
     });
   let annotations = [];
-  if (CodegenHelpers.isNullableType(field.type)) {
+  let match = field.type;
+  let carriesJsonNull;
+  carriesJsonNull = typeof match !== "object" && match === "Null" ? true : CodegenHelpers.isNullableType(field.type);
+  if (carriesJsonNull) {
     annotations.push("SNull");
   }
   if (CodegenHelpers.isReservedKeyword(field.name)) {

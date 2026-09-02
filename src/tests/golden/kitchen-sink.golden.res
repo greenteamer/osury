@@ -45,7 +45,7 @@ type scalars = {
   f: float,
   i: int,
   b: bool,
-  nothing: unit,
+  nothing: @s.null Nullable.t<unit>,
   anything: @s.matches(S.json) JSON.t,
   opt: option<string>,
   with_default: option<int>

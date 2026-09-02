@@ -63,7 +63,7 @@ pub struct Scalars {
     pub f: f64,
     pub i: i64,
     pub b: bool,
-    pub nothing: (),
+    pub nothing: Option<()>,
     pub anything: serde_json::Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub opt: Option<String>,
