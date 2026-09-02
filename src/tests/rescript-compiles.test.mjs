@@ -8,6 +8,8 @@
 // surface only in a consumer's repo.
 import * as OpenAPIParser from '../OpenAPIParser.mjs';
 import * as Codegen from '../Codegen.mjs';
+import * as SampleData from '../SampleData.mjs';
+import * as CodegenHelpers from '../CodegenHelpers.mjs';
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
@@ -19,7 +21,10 @@ const root = path.resolve(here, '../..');
 // The scratch project lives inside the repo so ReScript resolves @rescript/core,
 // sury and sury-ppx from the root node_modules. It is not part of the root
 // build: rescript.json lists only src and scripts.
-const scratch = path.join(root, '.rescript-compile-check');
+//
+// One directory per test: Node caches ES modules by URL, so two tests importing
+// the same path would silently get the first test's module.
+const scratchFor = (name) => path.join(root, `.rescript-compile-check-${name}`);
 
 const projectConfig = {
     name: 'osury-compile-check',
@@ -34,7 +39,7 @@ const projectConfig = {
 // Builds the module and leaves the artifacts in place — callers that only want
 // the compiler's verdict clean up right away; the runtime test imports the
 // compiled .mjs first.
-const build = (code) => {
+const build = (code, scratch) => {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.mkdirSync(scratch, { recursive: true });
     fs.writeFileSync(path.join(scratch, 'rescript.json'), JSON.stringify(projectConfig, null, 2));
@@ -43,9 +48,22 @@ const build = (code) => {
     return execSync('npx rescript build', { cwd: scratch, encoding: 'utf8', stdio: 'pipe' });
 };
 
-const compile = (code) => {
+const compile = (code, name) => {
+    const scratch = scratchFor(name);
     try {
-        return build(code);
+        return build(code, scratch);
+    } finally {
+        fs.rmSync(scratch, { recursive: true, force: true });
+    }
+};
+
+// Build, import the compiled module, hand it to `use`, always clean up.
+const withModule = async (code, name, use) => {
+    const scratch = scratchFor(name);
+    try {
+        build(code, scratch);
+        const mod = await import(pathToFileURL(path.join(scratch, 'Generated.mjs')).href);
+        return await use(mod);
     } finally {
         fs.rmSync(scratch, { recursive: true, force: true });
     }
@@ -62,13 +80,13 @@ describe('Generated ReScript compiles', () => {
     };
 
     test('the synthetic kitchen-sink spec produces a compiling module', () => {
-        const out = compile(genFrom(path.join(here, 'fixtures/kitchen-sink.openapi.json'), false));
+        const out = compile(genFrom(path.join(here, 'fixtures/kitchen-sink.openapi.json'), false), 'plain');
 
         expect(out).not.toMatch(/We've found a bug for you|Syntax error/);
     }, 120000);
 
     test('and so does the same spec with --refinements', () => {
-        const out = compile(genFrom(path.join(here, 'fixtures/kitchen-sink.openapi.json'), true));
+        const out = compile(genFrom(path.join(here, 'fixtures/kitchen-sink.openapi.json'), true), 'refinements');
 
         expect(out).not.toMatch(/We've found a bug for you|Syntax error/);
     }, 120000);
@@ -103,9 +121,7 @@ describe('Generated ReScript parses real data', () => {
         const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
         expect(g.TAG).toBe('Ok');
 
-        try {
-            build(g._0.code);
-            const mod = await import(pathToFileURL(path.join(scratch, 'Generated.mjs')).href);
+        await withModule(g._0.code, 'union', async (mod) => {
             const S = await import('sury');
             const parse = S.parser(mod.filterSchema);
 
@@ -122,8 +138,50 @@ describe('Generated ReScript parses real data', () => {
                 expect(() => parse(v)).not.toThrow();
                 expect(parse(v).kind).toBe(v.kind);
             }
-        } finally {
-            fs.rmSync(scratch, { recursive: true, force: true });
-        }
+        });
+    }, 120000);
+});
+
+// The broadest runtime check osury can make of itself: for every type in the
+// synthetic spec, take the example SampleData produces for it and feed it to
+// the schema sury-ppx synthesized for that same type. Compiling proves the
+// module is a program; this proves the program accepts the data its own spec
+// describes — across every construct at once, not just the shape of the day.
+describe('Generated ReScript parses its own sample data', () => {
+    test('every type with a sury schema accepts its sample', async () => {
+        const doc = JSON.parse(fs.readFileSync(path.join(here, 'fixtures/kitchen-sink.openapi.json'), 'utf8'));
+        const parsed = OpenAPIParser.parseDocument(doc);
+        expect(parsed.TAG).toBe('Ok');
+        const schemas = parsed._0;
+        const g = Codegen.generateModuleWithDiagnostics(schemas, false, undefined);
+        expect(g.TAG).toBe('Ok');
+
+        await withModule(g._0.code, 'samples', async (mod) => {
+            const S = await import('sury');
+            const dict = SampleData.buildSchemasDict(schemas);
+
+            const checked = [];
+            const failures = [];
+            for (const s of schemas) {
+                // Types whose wire form sury-ppx cannot express carry no schema
+                // value at all (externally-tagged unions, list-encoded enums,
+                // and anything referencing them) — nothing to run.
+                const schemaValue = mod[`${CodegenHelpers.lcFirst(s.name)}Schema`];
+                if (!schemaValue) continue;
+
+                const sample = SampleData.generate(s.schema, dict);
+                checked.push(s.name);
+                try {
+                    S.parser(schemaValue)(sample);
+                } catch (e) {
+                    failures.push(`${s.name}: ${String(e.message).split('\n')[0]}\n  sample: ${JSON.stringify(sample)}`);
+                }
+            }
+
+            expect(failures).toEqual([]);
+            // Guard against a silently empty run (a rename in the export
+            // convention would otherwise make this test pass by checking nothing)
+            expect(checked.length).toBeGreaterThan(20);
+        });
     }, 120000);
 });
