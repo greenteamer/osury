@@ -42,8 +42,10 @@ let rec collectEnumsFromType = (
     )
   | PolyVariant(cases) =>
     cases->Array.flatMap(c => collectEnumsFromType(~parentType, ~fieldPath, c.payload))
-  | Union(types) => types->Array.flatMap(t => collectEnumsFromType(~parentType, ~fieldPath, t))
-  | _ => []
+  | Union(types) | AllOf(types) =>
+    types->Array.flatMap(t => collectEnumsFromType(~parentType, ~fieldPath, t))
+  | Refined(inner, _) => collectEnumsFromType(~parentType, ~fieldPath, inner)
+  | String | Number | Integer | Boolean | Null | Ref(_) | Unknown => []
   }
 }
 
@@ -169,7 +171,12 @@ let rec replaceEnumsInType = (
     )
   | Union(types) =>
     Union(types->Array.map(t => replaceEnumsInType(~parentType, ~fieldPath, ~names, t)))
-  | other => other
+  | AllOf(types) =>
+    AllOf(types->Array.map(t => replaceEnumsInType(~parentType, ~fieldPath, ~names, t)))
+  | Refined(inner, refs) =>
+    Refined(replaceEnumsInType(~parentType, ~fieldPath, ~names, inner), refs)
+  // Enum is handled above — it is what this pass replaces
+  | String | Number | Integer | Boolean | Null | Ref(_) | Unknown => schema
   }
 }
 
@@ -299,6 +306,8 @@ let armLiteralValues = (~schemasDict: Dict.t<Schema.schemaType>, t: Schema.schem
   let rec resolve = (t: Schema.schemaType, visited: Dict.t<bool>): option<array<string>> => {
     switch t {
     | Enum(values) => Some(values)
+    // A constraint narrows values, it does not turn a literal set into one
+    | Refined(inner, _) => resolve(inner, visited)
     | Ref(name) =>
       if visited->Dict.get(name)->Option.isSome {
         None
@@ -309,7 +318,20 @@ let armLiteralValues = (~schemasDict: Dict.t<Schema.schemaType>, t: Schema.schem
         | None => None
         }
       }
-    | _ => None
+    | String
+    | Number
+    | Integer
+    | Boolean
+    | Null
+    | Optional(_)
+    | Nullable(_)
+    | Object(_)
+    | Array(_)
+    | Dict(_)
+    | PolyVariant(_)
+    | Union(_)
+    | AllOf(_)
+    | Unknown => None
     }
   }
   resolve(t, Dict.make())
@@ -338,7 +360,9 @@ let rec collapseLiteralUnionsInType = (
     PolyVariant(
       cases->Array.map(c => {...c, payload: collapseLiteralUnionsInType(~schemasDict, c.payload)}),
     )
-  | other => other
+  | AllOf(types) => AllOf(types->Array.map(collapseLiteralUnionsInType(~schemasDict, ...)))
+  | Refined(inner, refs) => Refined(collapseLiteralUnionsInType(~schemasDict, inner), refs)
+  | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => schema
   }
 }
 
@@ -834,10 +858,23 @@ let mergeAllOf = (
           armFields(mergeInType(target, ~path, ~seen), ~path, ~seen)
         }
       }
-    | other =>
+    | String
+    | Number
+    | Integer
+    | Boolean
+    | Null
+    | Optional(_)
+    | Nullable(_)
+    | Array(_)
+    | Dict(_)
+    | Enum(_)
+    | PolyVariant(_)
+    | Union(_)
+    | AllOf(_)
+    | Unknown =>
       errors->Array.push(
         Errors.makeError(
-          ~kind=UnsupportedFeature(`allOf arm of type ${typeNamePart(other)}`),
+          ~kind=UnsupportedFeature(`allOf arm of type ${typeNamePart(t)}`),
           ~path,
           ~hint=Some("allOf can only merge object schemas (or $refs to them)"),
           (),
@@ -1258,12 +1295,17 @@ let collectUnionWarnings = (schemas: array<OpenAPIParser.namedSchema>): array<st
   let resolve = name => schemasDict->Dict.get(name)
 
   // Recursively find all Union types in a schema
+  // Every position a union can hide in — including inside another union's arm
+  // and inside a variant payload, which the old wildcard silently skipped.
   let rec findUnions = (schema: Schema.schemaType): array<array<Schema.schemaType>> => {
     switch schema {
-    | Union(types) => [types]
-    | Optional(inner) | Nullable(inner) | Array(inner) | Dict(inner) => findUnions(inner)
+    | Union(types) => Array.concat([types], types->Array.flatMap(findUnions))
+    | Optional(inner) | Nullable(inner) | Array(inner) | Dict(inner) | Refined(inner, _) =>
+      findUnions(inner)
     | Object(fields) => fields->Array.flatMap(f => findUnions(f.type_))
-    | _ => []
+    | PolyVariant(cases) => cases->Array.flatMap(c => findUnions(c.payload))
+    | AllOf(types) => types->Array.flatMap(findUnions)
+    | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => []
     }
   }
 
@@ -1343,12 +1385,17 @@ let validateUnionDiscriminators = (schemas: array<OpenAPIParser.namedSchema>): E
   })
 
   // Check each schema for undiscriminated unions
+  // Every position a union can hide in — including inside another union's arm
+  // and inside a variant payload, which the old wildcard silently skipped.
   let rec findUnions = (schema: Schema.schemaType): array<array<Schema.schemaType>> => {
     switch schema {
-    | Union(types) => [types]
-    | Optional(inner) | Nullable(inner) | Array(inner) | Dict(inner) => findUnions(inner)
+    | Union(types) => Array.concat([types], types->Array.flatMap(findUnions))
+    | Optional(inner) | Nullable(inner) | Array(inner) | Dict(inner) | Refined(inner, _) =>
+      findUnions(inner)
     | Object(fields) => fields->Array.flatMap(f => findUnions(f.type_))
-    | _ => []
+    | PolyVariant(cases) => cases->Array.flatMap(c => findUnions(c.payload))
+    | AllOf(types) => types->Array.flatMap(findUnions)
+    | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => []
     }
   }
 

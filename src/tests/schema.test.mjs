@@ -3960,3 +3960,34 @@ describe('Single-arm anyOf/oneOf', () => {
         expect(Schema.parse({ anyOf: [] }).TAG).toBe('Error');
     });
 });
+
+// The union walkers stopped at Object fields: a union nested inside another
+// union's arm (or inside a variant payload) was never checked for a
+// discriminator, so it reached codegen unvalidated.
+describe('Nested unions are validated too', () => {
+    test('an undiscriminated union inside a union arm is reported', () => {
+        const parsed = OpenAPIParser.parseDocument({
+            $defs: {
+                A: { type: "object", properties: { a: { type: "string" } }, required: ["a"] },
+                B: { type: "object", properties: { b: { type: "string" } }, required: ["b"] },
+                Holder: {
+                    type: "object",
+                    properties: {
+                        f: {
+                            anyOf: [
+                                { type: "string" },
+                                { anyOf: [{ $ref: "#/$defs/A" }, { $ref: "#/$defs/B" }] },
+                            ],
+                        },
+                    },
+                    required: ["f"],
+                },
+            },
+        });
+        expect(parsed.TAG).toBe('Ok');
+        const g = Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+
+        expect(g.TAG).toBe('Error');
+        expect(g._0.some(e => e.kind.TAG === 'MissingDiscriminator' && e.kind._0 === 'aOrB')).toBe(true);
+    });
+});

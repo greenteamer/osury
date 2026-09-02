@@ -10,6 +10,7 @@ import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js
 function collectEnumsFromType(parentType, fieldPath, _schema) {
   while (true) {
     let schema = _schema;
+    let exit = 0;
     if (typeof schema !== "object") {
       return [];
     }
@@ -32,14 +33,25 @@ function collectEnumsFromType(parentType, fieldPath, _schema) {
       case "Nullable" :
       case "Array" :
       case "Dict" :
+        exit = 1;
         break;
       case "Union" :
-        return schema._0.flatMap(t => collectEnumsFromType(parentType, fieldPath, t));
+      case "AllOf" :
+        exit = 2;
+        break;
+      case "Refined" :
+        _schema = schema._0;
+        continue;
       default:
         return [];
     }
-    _schema = schema._0;
-    continue;
+    switch (exit) {
+      case 1 :
+        _schema = schema._0;
+        continue;
+      case 2 :
+        return schema._0.flatMap(t => collectEnumsFromType(parentType, fieldPath, t));
+    }
   };
 }
 
@@ -183,6 +195,17 @@ function replaceEnumsInType(parentType, fieldPath, names, schema) {
         _tag: "Union",
         _0: schema._0.map(t => replaceEnumsInType(parentType, fieldPath, names, t))
       };
+    case "AllOf" :
+      return {
+        _tag: "AllOf",
+        _0: schema._0.map(t => replaceEnumsInType(parentType, fieldPath, names, t))
+      };
+    case "Refined" :
+      return {
+        _tag: "Refined",
+        _0: replaceEnumsInType(parentType, fieldPath, names, schema._0),
+        _1: schema._1
+      };
     default:
       return schema;
   }
@@ -310,6 +333,9 @@ function armLiteralValues(schemasDict, t) {
         continue;
       case "Enum" :
         return t$1._0;
+      case "Refined" :
+        _t = t$1._0;
+        continue;
       default:
         return;
     }
@@ -372,6 +398,17 @@ function collapseLiteralUnionsInType(schemasDict, schema) {
           _0: arms
         };
       }
+    case "AllOf" :
+      return {
+        _tag: "AllOf",
+        _0: schema._0.map(extra => collapseLiteralUnionsInType(schemasDict, extra))
+      };
+    case "Refined" :
+      return {
+        _tag: "Refined",
+        _0: collapseLiteralUnionsInType(schemasDict, schema._0),
+        _1: schema._1
+      };
     default:
       return schema;
   }
@@ -1608,14 +1645,20 @@ function collectUnionWarnings(schemas) {
       switch (schema._tag) {
         case "Object" :
           return schema._0.flatMap(f => findUnions(f.type));
+        case "PolyVariant" :
+          return schema._0.flatMap(c => findUnions(c.payload));
+        case "Union" :
+          let types = schema._0;
+          return [types].concat(types.flatMap(findUnions));
+        case "AllOf" :
+          return schema._0.flatMap(findUnions);
         case "Optional" :
         case "Nullable" :
         case "Array" :
         case "Dict" :
+        case "Refined" :
           _schema = schema._0;
           continue;
-        case "Union" :
-          return [schema._0];
         default:
           return [];
       }
@@ -1678,14 +1721,20 @@ function validateUnionDiscriminators(schemas) {
       switch (schema._tag) {
         case "Object" :
           return schema._0.flatMap(f => findUnions(f.type));
+        case "PolyVariant" :
+          return schema._0.flatMap(c => findUnions(c.payload));
+        case "Union" :
+          let types = schema._0;
+          return [types].concat(types.flatMap(findUnions));
+        case "AllOf" :
+          return schema._0.flatMap(findUnions);
         case "Optional" :
         case "Nullable" :
         case "Array" :
         case "Dict" :
+        case "Refined" :
           _schema = schema._0;
           continue;
-        case "Union" :
-          return [schema._0];
         default:
           return [];
       }
