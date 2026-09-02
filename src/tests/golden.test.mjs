@@ -22,6 +22,42 @@ const SPECS = [
 const present = ({ input, golden }) =>
     fs.existsSync(path.join(root, input)) && fs.existsSync(path.join(root, golden));
 
+// The committed synthetic spec: every construct osury supports, every backend.
+// Unlike the proprietary specs above it is in the repo, so these run everywhere
+// — this is what lets CI see a byte-level regression at all.
+const SYNTHETIC = 'src/tests/fixtures/kitchen-sink.openapi.json';
+const SYNTHETIC_TARGETS = [
+    {
+        target: 'ReScript',
+        golden: 'src/tests/golden/kitchen-sink.golden.res',
+        gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, false, undefined),
+    },
+    {
+        target: 'ReScript --refinements',
+        golden: 'src/tests/golden/kitchen-sink.refinements.golden.res',
+        gen: (schemas) => Codegen.generateModuleWithDiagnostics(schemas, true, undefined),
+    },
+    { target: 'OCaml', golden: 'src/tests/golden/kitchen-sink.golden.ml', gen: Codegen.generateOCamlWithDiagnostics },
+    { target: 'Rust', golden: 'src/tests/golden/kitchen-sink.golden.rs', gen: Codegen.generateRustWithDiagnostics },
+    { target: 'Effect TS', golden: 'src/tests/golden/kitchen-sink.golden.ts', gen: Codegen.generateEffectTSWithDiagnostics },
+];
+
+describe.each(SYNTHETIC_TARGETS)('Golden synthetic: $target', ({ golden, gen }) => {
+    test('generated output is byte-identical to golden snapshot', () => {
+        const doc = JSON.parse(fs.readFileSync(path.join(root, SYNTHETIC), 'utf8'));
+
+        const parsed = OpenAPIParser.parseDocument(doc);
+        expect(parsed.TAG).toBe('Ok');
+
+        const result = gen(parsed._0);
+        expect(result.TAG).toBe('Ok');
+
+        const expected = fs.readFileSync(path.join(root, golden), 'utf8');
+        expect(result._0.code.length).toBe(expected.length);
+        expect(result._0.code).toBe(expected);
+    });
+});
+
 describe.each(SPECS)('Golden: $name', (spec) => {
     const run = present(spec) ? test : test.skip;
     run('generated module is byte-identical to golden snapshot', () => {

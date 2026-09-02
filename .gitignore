@@ -70,7 +70,10 @@ src/__generated__
 openapi.json
 openapi-core.json
 
-# Golden snapshots are derived from the proprietary specs (full transformed
-# copy of the business contract) — local-only, never committed. Regenerate
-# with: node scripts/update-golden.mjs
-src/tests/golden/
+# Golden snapshots of the proprietary specs are a full transformed copy of the
+# business contract — local-only, never committed. Regenerate with:
+# node scripts/update-golden.mjs
+src/tests/golden/*
+# The synthetic spec is ours and carries no business data — its goldens are
+# committed, and they are the only byte-level regression guard CI can run.
+!src/tests/golden/kitchen-sink.*
