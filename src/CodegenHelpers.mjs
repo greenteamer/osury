@@ -131,8 +131,6 @@ function getTagForType(_t) {
           return `Option` + getTagForType(t._0);
         case "Nullable" :
           return `Null` + getTagForType(t._0);
-        case "Object" :
-          return "Object";
         case "Array" :
           return `Array` + getTagForType(t._0);
         case "Ref" :
@@ -145,6 +143,9 @@ function getTagForType(_t) {
           return "Dict";
         case "Union" :
           return "Union";
+        case "Object" :
+        case "AllOf" :
+          return "Object";
         case "Refined" :
           _t = t._0;
           continue;
@@ -166,6 +167,8 @@ function hasUnion(_schema) {
         return schema._0.some(c => hasUnion(c.payload));
       case "Union" :
         return true;
+      case "AllOf" :
+        return schema._0.some(hasUnion);
       case "Optional" :
       case "Nullable" :
       case "Array" :
@@ -190,6 +193,8 @@ function hasUnknown(_schema) {
         return schema._0.some(f => hasUnknown(f.type));
       case "PolyVariant" :
         return schema._0.some(c => hasUnknown(c.payload));
+      case "AllOf" :
+        return schema._0.some(hasUnknown);
       case "Optional" :
       case "Nullable" :
       case "Array" :
@@ -241,6 +246,7 @@ function runtimeShapeOf(_t, resolve, _depthOpt) {
           return "SString";
         case "Object" :
         case "Dict" :
+        case "AllOf" :
           return "SObject";
         case "Refined" :
           _depthOpt = depth;

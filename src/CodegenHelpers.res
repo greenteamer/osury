@@ -72,6 +72,8 @@ let rec getTagForType = (t: Schema.schemaType): string => {
   | Object(_) => "Object"
   | PolyVariant(_) => "Variant"
   | Union(_) => "Union"
+  // An intersection of object schemas is an object
+  | AllOf(_) => "Object"
   | Unknown => "Unknown"
   // Constraints don't change the shape, so the tag stays that of the base type
   | Refined(inner, _) => getTagForType(inner)
@@ -88,6 +90,7 @@ let rec hasUnion = (schema: Schema.schemaType): bool => {
   | Dict(inner) => hasUnion(inner)
   | Object(fields) => fields->Array.some(f => hasUnion(f.type_))
   | PolyVariant(cases) => cases->Array.some(c => hasUnion(c.payload))
+  | AllOf(types) => types->Array.some(hasUnion)
   | Refined(inner, _) => hasUnion(inner)
   }
 }
@@ -103,6 +106,7 @@ let rec hasUnknown = (schema: Schema.schemaType): bool => {
   | Dict(inner) => hasUnknown(inner)
   | Object(fields) => fields->Array.some(f => hasUnknown(f.type_))
   | PolyVariant(cases) => cases->Array.some(c => hasUnknown(c.payload))
+  | AllOf(types) => types->Array.some(hasUnknown)
   | Refined(inner, _) => hasUnknown(inner)
   }
 }
@@ -130,7 +134,9 @@ let rec runtimeShapeOf = (
   | Boolean => SBoolean
   | Null => SNull
   | Array(_) => SArray
-  | Object(_) | Dict(_) => SObject
+  // AllOf is merged into an Object before this runs; an intersection of object
+  // schemas is an object either way.
+  | Object(_) | Dict(_) | AllOf(_) => SObject
   | Refined(inner, _) => runtimeShapeOf(inner, ~resolve, ~depth)
   // Follow a reference to the type it names, with a hop limit so a cyclic
   // $ref chain cannot spin here.

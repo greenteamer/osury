@@ -37,6 +37,9 @@ let rec convertType = (schema: Schema.schemaType): IR.irType => {
       {IR.tag: c.tag, asValue: None, payload}
     }))
   | Unknown => JSON
+  // Unreachable in the pipeline: mergeAllOf (step -3) turns every AllOf into an
+  // Object or fails with a structured error before conversion runs.
+  | AllOf(_) => JSON
   | Refined(inner, refs) => Refined(convertType(inner), refs)
   | Union(types) =>
     InlineVariant(types->Array.map(t => {
@@ -234,6 +237,13 @@ let generate = (
   ~refinements: bool=false,
   (),
 ): result<IR.irModule, Errors.errors> => {
+  // Step -3: Merge `allOf` intersections. First, because every later step
+  // assumes plain object types — and because a dropped `$ref` arm here means
+  // silently losing every inherited field.
+  switch CodegenTransforms.mergeAllOf(schemas) {
+  | Error(errs) => Error(errs)
+  | Ok(schemas) =>
+
   // Step -2: Drop value constraints unless the caller asked for them. Printing
   // them makes generated code reject data it used to accept, so it is opt-in.
   let schemas = refinements ? schemas : CodegenTransforms.stripRefinements(schemas)
@@ -369,6 +379,7 @@ let generate = (
     types: irTypes,
     warnings,
   })
+  }
   }
   }
 }

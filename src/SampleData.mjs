@@ -79,6 +79,18 @@ function generate(_schema, schemasDict) {
           }
           _schema = firstType;
           continue;
+        case "AllOf" :
+          let dict$4 = {};
+          schema._0.forEach(t => {
+            let armDict = generate(t, schemasDict);
+            if (typeof armDict !== "object" || armDict === null || Array.isArray(armDict)) {
+              return;
+            }
+            Object.entries(armDict).forEach(param => {
+              dict$4[param[0]] = param[1];
+            });
+          });
+          return dict$4;
         case "Refined" :
           return refineSample(generate(schema._0, schemasDict), schema._1);
       }

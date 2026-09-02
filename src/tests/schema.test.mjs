@@ -313,7 +313,7 @@ describe('Schema Parser', () => {
         expect(result._0._0._0[1]._0).toBe('Dog');
     });
 
-    test('parse allOf (merge objects)', () => {
+    test('parse allOf keeps the arms (the merge is a transform)', () => {
         const input = {
             allOf: [
                 {
@@ -334,18 +334,14 @@ describe('Schema Parser', () => {
         const result = Schema.parse(input);
 
         expect(result.TAG).toBe('Ok');
-        expect(result._0._tag).toBe('Object');
+        // Merging needs the document (arms are usually $refs), so the parser
+        // keeps the intersection and CodegenTransforms.mergeAllOf resolves it.
+        expect(result._0._tag).toBe('AllOf');
 
-        const fields = result._0._0;
-        expect(fields.length).toBe(2);
-
-        const idField = fields.find(f => f.name === 'id');
-        expect(idField.type).toBe('Integer');
-        expect(idField.required).toBe(true);
-
-        const nameField = fields.find(f => f.name === 'name');
-        expect(nameField.type).toBe('String');
-        expect(nameField.required).toBe(false);
+        const arms = result._0._0;
+        expect(arms.length).toBe(2);
+        expect(arms[0]._0[0].name).toBe('id');
+        expect(arms[1]._0[0].name).toBe('name');
     });
 
     test('parse oneOf (poly variant with _tag)', () => {
@@ -3745,5 +3741,122 @@ describe('Extracted unions are deduplicated by structure', () => {
         expect(code.match(/type stringOrArrayInt\b/g)).toHaveLength(1);
         expect(code).toContain('g: stringOrArrayInt');
         expect(code).toContain('h: stringOrArrayInt');
+    });
+});
+
+// `allOf: [{$ref: Base}, {extra}]` is THE OpenAPI inheritance idiom. parseAllOf
+// merged only the arms that parsed to Object and dropped the $ref arms on the
+// floor, so every inherited field vanished from the generated type — silently.
+describe('allOf merges $ref arms', () => {
+    const gen = (spec) => {
+        const parsed = OpenAPIParser.parseDocument(spec);
+        expect(parsed.TAG).toBe('Ok');
+        return Codegen.generateModuleWithDiagnostics(parsed._0, false, undefined);
+    };
+
+    test('inherited fields survive the merge', () => {
+        const g = gen({
+            $defs: {
+                Base: {
+                    type: "object",
+                    properties: { id: { type: "string" }, count: { type: "integer" } },
+                    required: ["id", "count"],
+                },
+                Extended: {
+                    allOf: [
+                        { $ref: "#/$defs/Base" },
+                        { type: "object", properties: { extra: { type: "string" } }, required: ["extra"] },
+                    ],
+                },
+            },
+        });
+        expect(g.TAG).toBe('Ok');
+        const code = g._0.code;
+
+        expect(code).toContain('id: string');
+        expect(code).toContain('count: int');
+        expect(code).toContain('extra: string');
+    });
+
+    test('allOf chains through a $ref that is itself an allOf', () => {
+        const g = gen({
+            $defs: {
+                Root: { type: "object", properties: { a: { type: "string" } }, required: ["a"] },
+                Middle: {
+                    allOf: [
+                        { $ref: "#/$defs/Root" },
+                        { type: "object", properties: { b: { type: "string" } }, required: ["b"] },
+                    ],
+                },
+                Leaf: {
+                    allOf: [
+                        { $ref: "#/$defs/Middle" },
+                        { type: "object", properties: { c: { type: "string" } }, required: ["c"] },
+                    ],
+                },
+            },
+        });
+        expect(g.TAG).toBe('Ok');
+        const leaf = g._0.code.split('type leaf = ')[1];
+
+        expect(leaf).toContain('a: string');
+        expect(leaf).toContain('b: string');
+        expect(leaf).toContain('c: string');
+    });
+
+    test('a later arm overrides a field of an earlier one', () => {
+        const g = gen({
+            $defs: {
+                Base: { type: "object", properties: { v: { type: "string" } }, required: ["v"] },
+                Narrowed: {
+                    allOf: [
+                        { $ref: "#/$defs/Base" },
+                        { type: "object", properties: { v: { type: "integer" } }, required: ["v"] },
+                    ],
+                },
+            },
+        });
+        expect(g.TAG).toBe('Ok');
+        const narrowed = g._0.code.split('type narrowed = ')[1].split('}')[0];
+
+        expect(narrowed).toContain('v: int');
+        expect(narrowed).not.toContain('v: string');
+    });
+
+    test('a single-arm allOf is just that type — the $ref identity is kept', () => {
+        const g = gen({
+            $defs: {
+                Base: { type: "object", properties: { v: { type: "string" } }, required: ["v"] },
+                Described: { allOf: [{ $ref: "#/$defs/Base" }], description: "same as Base" },
+            },
+        });
+        expect(g.TAG).toBe('Ok');
+
+        expect(g._0.code).toContain('type described = base');
+    });
+
+    test('a $ref to a missing schema is an InvalidRef error, not a dropped field', () => {
+        const g = gen({
+            $defs: {
+                Extended: {
+                    allOf: [
+                        { $ref: "#/$defs/Nope" },
+                        { type: "object", properties: { extra: { type: "string" } }, required: ["extra"] },
+                    ],
+                },
+            },
+        });
+
+        expect(g.TAG).toBe('Error');
+        expect(g._0[0].kind.TAG).toBe('InvalidRef');
+    });
+
+    test('parse keeps allOf in the AST instead of merging blind', () => {
+        const parsed = Schema.parse({
+            allOf: [{ $ref: "#/$defs/Base" }, { type: "object", properties: {} }],
+        });
+        expect(parsed.TAG).toBe('Ok');
+        expect(parsed._0._tag).toBe('AllOf');
+        expect(parsed._0._0[0]._tag).toBe('Ref');
     });
 });

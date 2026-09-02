@@ -25,7 +25,7 @@ OpenAPI JSON → Schema.parse → SchemaAST → Codegen.generateModule → ReScr
 
 Тип `Schema.schemaType` определяет всё, что компилятор умеет обрабатывать. Новая OpenAPI-конструкция поддерживается тогда и только тогда, когда она выражена в `schemaType`.
 
-Текущие варианты (16):
+Текущие варианты (17):
 ```
 String | Number | Integer | Boolean | Null
 | Optional(schemaType) | Nullable(schemaType)
@@ -33,9 +33,14 @@ String | Number | Integer | Boolean | Null
 | Ref(string) | Enum(array<string>)
 | PolyVariant(array<variantCase>)
 | Dict(schemaType) | Union(array<schemaType>)
+| AllOf(array<schemaType>)
 | Unknown
 | Refined(schemaType, array<refinement>)
 ```
+
+`AllOf` — пересечение (`allOf`). Парсер **не** мержит арматы: `$ref`-арм
+резолвится только по всему документу, которого `Schema.parse` не видит. Мерж —
+отдельный шаг пайплайна (`CodegenTransforms.mergeAllOf`, Правило 6, шаг -3).
 
 `Refined` — прозрачная обёртка: она сужает множество допустимых ЗНАЧЕНИЙ, но не
 меняет форму типа. Поэтому подавляющее большинство потребителей обрабатывает её
@@ -131,6 +136,9 @@ let parse: JSON.t => schemaType  // может бросить исключени
 Пайплайн (IRGen.generate) выполняет трансформации в определённом порядке. Этот порядок менять нельзя:
 
 ```
+-3. mergeAllOf                 — пересечения allOf → один Object; $ref-армы
+                                 резолвятся по документу, ошибка InvalidRef /
+                                 CircularReference / UnsupportedFeature иначе
 -1. stripRefinements           — снятие Refined, когда refinements не запрошены
                                  (Правило 14); при ~refinements=true шаг пропускается
 0. collapseLiteralUnions       — нормализация: union из строковых литералов
@@ -147,7 +155,8 @@ let parse: JSON.t => schemaType  // может бросить исключени
 9. convert to IR → print       — генерация кода (BackendReScript и др.)
 ```
 
-**Почему:** Collapse должен быть до валидации — литеральный union не имеет свойства для дискриминатора и после схлопывания в нём не нуждается. Enum promotion должен быть до union extraction, чтобы последующие проходы видели Ref вместо сырых Enum внутри Union/PolyVariant. Union extraction должен быть до topological sort, иначе зависимости от извлечённых типов не будут учтены. Генерация должна быть последней, потому что она только печатает — не трансформирует.
+**Почему:** Мерж allOf идёт первым — все последующие шаги считают, что типы уже
+плоские объекты. Collapse должен быть до валидации — литеральный union не имеет свойства для дискриминатора и после схлопывания в нём не нуждается. Enum promotion должен быть до union extraction, чтобы последующие проходы видели Ref вместо сырых Enum внутри Union/PolyVariant. Union extraction должен быть до topological sort, иначе зависимости от извлечённых типов не будут учтены. Генерация должна быть последней, потому что она только печатает — не трансформирует.
 
 ---
 

@@ -519,6 +519,8 @@ function typeNamePart(_t) {
           return "dict" + CodegenHelpers.ucFirst(typeNamePart(t._0));
         case "Union" :
           return joinUnionParts(t._0.map(typeNamePart));
+        case "AllOf" :
+          return "object";
         case "Refined" :
           _t = t._0;
           continue;
@@ -634,6 +636,8 @@ function structuralKey(t) {
         return `dict(` + structuralKey(t._0) + `)`;
       case "Union" :
         return `union(` + t._0.map(structuralKey).join(",") + `)`;
+      case "AllOf" :
+        return `allOf(` + t._0.map(structuralKey).join(",") + `)`;
       case "Refined" :
         return `refined(` + structuralKey(t._0) + `#` + t._1.map(refinementKey).join(",") + `)`;
     }
@@ -844,6 +848,7 @@ function getDependencies(_schema) {
       case "PolyVariant" :
         return schema._0.flatMap(c => getDependencies(c.payload));
       case "Union" :
+      case "AllOf" :
         return schema._0.flatMap(getDependencies);
       case "Optional" :
       case "Nullable" :
@@ -854,6 +859,163 @@ function getDependencies(_schema) {
         continue;
     }
   };
+}
+
+function mergeAllOf(schemas) {
+  let byName = {};
+  schemas.forEach(s => {
+    byName[s.name] = s.schema;
+  });
+  let errors = [];
+  let mergeFields = fieldSets => {
+    let order = [];
+    let byField = {};
+    fieldSets.forEach(fields => {
+      fields.forEach(f => {
+        if (Core__Option.isNone(byField[f.name])) {
+          order.push(f.name);
+        }
+        byField[f.name] = f;
+      });
+    });
+    return Core__Array.filterMap(order, name => byField[name]);
+  };
+  let mergeInType = (t, path, seen) => {
+    if (typeof t !== "object") {
+      return t;
+    }
+    switch (t._tag) {
+      case "Optional" :
+        return {
+          _tag: "Optional",
+          _0: mergeInType(t._0, path, seen)
+        };
+      case "Nullable" :
+        return {
+          _tag: "Nullable",
+          _0: mergeInType(t._0, path, seen)
+        };
+      case "Object" :
+        return {
+          _tag: "Object",
+          _0: t._0.map(f => ({
+            name: f.name,
+            type: mergeInType(f.type, path.concat([f.name]), seen),
+            required: f.required
+          }))
+        };
+      case "Array" :
+        return {
+          _tag: "Array",
+          _0: mergeInType(t._0, path, seen)
+        };
+      case "PolyVariant" :
+        return {
+          _tag: "PolyVariant",
+          _0: t._0.map(c => ({
+            _tag: c._tag,
+            payload: mergeInType(c.payload, path, seen)
+          }))
+        };
+      case "Dict" :
+        return {
+          _tag: "Dict",
+          _0: mergeInType(t._0, path, seen)
+        };
+      case "Union" :
+        return {
+          _tag: "Union",
+          _0: t._0.map(t => mergeInType(t, path, seen))
+        };
+      case "AllOf" :
+        let arms = t._0;
+        let merged = arms.map(a => mergeInType(a, path, seen));
+        let len = merged.length;
+        if (len === 1) {
+          return merged[0];
+        }
+        if (len === 0) {
+          return {
+            _tag: "Object",
+            _0: []
+          };
+        }
+        let fieldSets = Core__Array.filterMap(merged, a => {
+          let _t = a;
+          let _seen = seen;
+          while (true) {
+            let seen$1 = _seen;
+            let t = _t;
+            if (typeof t === "object") {
+              switch (t._tag) {
+                case "Object" :
+                  return t._0;
+                case "Ref" :
+                  let name = t._0;
+                  if (seen$1.includes(name)) {
+                    errors.push(Errors.makeError({
+                      TAG: "CircularReference",
+                      _0: name
+                    }, path, "allOf arms reference each other in a cycle — break the cycle or inline one side", undefined));
+                    return;
+                  }
+                  let target = byName[name];
+                  if (target !== undefined) {
+                    let seen$2 = seen$1.concat([name]);
+                    _seen = seen$2;
+                    _t = mergeInType(target, path, seen$2);
+                    continue;
+                  }
+                  errors.push(Errors.makeError({
+                    TAG: "InvalidRef",
+                    _0: name
+                  }, path, Primitive_option.some(`allOf references "` + name + `", which is not defined in the document`), undefined));
+                  return;
+                case "Refined" :
+                  _t = t._0;
+                  continue;
+              }
+            }
+            errors.push(Errors.makeError({
+              TAG: "UnsupportedFeature",
+              _0: `allOf arm of type ` + typeNamePart(t)
+            }, path, "allOf can only merge object schemas (or $refs to them)", undefined));
+            return;
+          };
+        });
+        return {
+          _tag: "Object",
+          _0: mergeFields(fieldSets)
+        };
+      case "Refined" :
+        return {
+          _tag: "Refined",
+          _0: mergeInType(t._0, path, seen),
+          _1: t._1
+        };
+      default:
+        return t;
+    }
+  };
+  let merged = schemas.map(s => ({
+    name: s.name,
+    schema: mergeInType(s.schema, [s.name], [s.name]),
+    discriminatorTag: s.discriminatorTag,
+    discriminatorPropertyName: s.discriminatorPropertyName,
+    fieldDiscriminators: s.fieldDiscriminators,
+    variantEncoding: s.variantEncoding
+  }));
+  if (errors.length > 0) {
+    return {
+      TAG: "Error",
+      _0: errors
+    };
+  } else {
+    return {
+      TAG: "Ok",
+      _0: merged
+    };
+  }
 }
 
 function stripRefinementsInType(_schema) {
@@ -903,6 +1065,11 @@ function stripRefinementsInType(_schema) {
       case "Union" :
         return {
           _tag: "Union",
+          _0: schema._0.map(stripRefinementsInType)
+        };
+      case "AllOf" :
+        return {
+          _tag: "AllOf",
           _0: schema._0.map(stripRefinementsInType)
         };
       case "Refined" :
@@ -1045,6 +1212,11 @@ function dedupeUnionsInType(schema) {
       } else {
         return deduped[0];
       }
+    case "AllOf" :
+      return {
+        _tag: "AllOf",
+        _0: schema._0.map(dedupeUnionsInType)
+      };
     case "Refined" :
       return {
         _tag: "Refined",
@@ -1151,6 +1323,9 @@ function validateDistinctConstructors(schemas) {
             report(joinUnionParts(types.map(typeNamePart)), types.map(armConstructor), path);
           }
           types.forEach(t => walk(t, path));
+          return;
+        case "AllOf" :
+          schema._0.forEach(t => walk(t, path));
           return;
         case "Optional" :
         case "Nullable" :
@@ -1513,6 +1688,7 @@ export {
   replaceUnionInType,
   resolveExtractedUnionNames,
   getDependencies,
+  mergeAllOf,
   stripRefinementsInType,
   stripRefinements,
   constructorName,

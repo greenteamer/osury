@@ -34,6 +34,10 @@ and schemaType =
   | PolyVariant(array<variantCase>)
   | Dict(schemaType)
   | Union(array<schemaType>)
+  // Intersection: `allOf`. Kept as-is by the parser — merging needs the whole
+  // document to resolve $ref arms, which Schema.parse doesn't have. The merge
+  // is a transform (CodegenTransforms.mergeAllOf), see Rule 6.
+  | AllOf(array<schemaType>)
   | Unknown
   // Value constraints from OpenAPI validation keywords. Wraps the type it
   // constrains — the SHAPE is unchanged, only the set of accepted values
@@ -462,15 +466,19 @@ and parseAllOf = (items: array<JSON.t>): result<schemaType, Errors.errors> => {
   if Array.length(errors) > 0 {
     Error(errors)
   } else {
-    // Extract fields from all Object types and merge
-    let allFields = results->Array.filterMap(r =>
-      switch r {
-      | Ok(Object(fields)) => Some(fields)
-      | _ => None
-      }
-    )->Array.flat
-
-    Ok(Object(allFields))
+    // Keep every arm, including `$ref`s. Merging here would have to drop the
+    // refs — this parser sees one schema, not the document — and dropping them
+    // silently deletes every inherited field.
+    Ok(
+      AllOf(
+        results->Array.filterMap(r =>
+          switch r {
+          | Ok(t) => Some(t)
+          | Error(_) => None
+          }
+        ),
+      ),
+    )
   }
 }
 

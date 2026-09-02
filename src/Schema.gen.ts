@@ -27,6 +27,7 @@ export type schemaType =
   | { _tag: "PolyVariant"; _0: variantCase[] }
   | { _tag: "Dict"; _0: schemaType }
   | { _tag: "Union"; _0: schemaType[] }
+  | { _tag: "AllOf"; _0: schemaType[] }
   | { _tag: "Refined"; _0: schemaType; _1: refinement[] };
 
 export type stringFormat = 

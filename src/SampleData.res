@@ -15,7 +15,7 @@ let buildSchemasDict = (schemas: array<OpenAPIParser.namedSchema>): schemasDict 
 }
 
 // Generate sample JSON value from a schemaType
-// Exhaustive match on all 15 variants (Rule 3)
+// Exhaustive match on all 17 variants (Rule 3)
 let rec generate = (schema: Schema.schemaType, schemasDict: schemasDict): JSON.t => {
   switch schema {
   // Primitives
@@ -88,6 +88,18 @@ let rec generate = (schema: Schema.schemaType, schemasDict: schemasDict): JSON.t
     | Some(firstType) => generate(firstType, schemasDict)
     | None => JSON.Encode.null
     }
+
+  // AllOf — an intersection: every arm's fields in one object. mergeAllOf has
+  // normally already collapsed this; the merge here keeps a raw AST usable.
+  | AllOf(types) =>
+    let dict = Dict.make()
+    types->Array.forEach(t =>
+      switch generate(t, schemasDict) {
+      | Object(armDict) => armDict->Dict.toArray->Array.forEach(((k, v)) => dict->Dict.set(k, v))
+      | _ => ()
+      }
+    )
+    JSON.Encode.object(dict)
 
   // Unknown — any JSON value
   | Unknown => JSON.Encode.null

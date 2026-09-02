@@ -441,6 +441,8 @@ let rec typeNamePart = (t: Schema.schemaType): string => {
       fields->Array.map(f => CodegenHelpers.ucFirst(identChars(f.name)))->Array.join("")
     }
   | Union(types) => joinUnionParts(types->Array.map(typeNamePart))
+  // An unmerged intersection reads as the object it will become
+  | AllOf(_) => "object"
   // Constraints don't change the shape, so the name follows the base type —
   // otherwise a refined arm would land in the catch-all and read "unknown"
   | Refined(inner, _) => typeNamePart(inner)
@@ -517,6 +519,7 @@ let rec structuralKey = (t: Schema.schemaType): string => {
   | PolyVariant(cases) =>
     `variant(${cases->Array.map(c => `${c.tag}:${structuralKey(c.payload)}`)->Array.join(";")})`
   | Union(types) => `union(${types->Array.map(structuralKey)->Array.join(",")})`
+  | AllOf(types) => `allOf(${types->Array.map(structuralKey)->Array.join(",")})`
   | Refined(inner, refs) =>
     `refined(${structuralKey(inner)}#${refs->Array.map(refinementKey)->Array.join(",")})`
   }
@@ -669,8 +672,138 @@ let rec getDependencies = (schema: Schema.schemaType): array<string> => {
   | Object(fields) => fields->Array.flatMap(f => getDependencies(f.type_))
   | PolyVariant(cases) => cases->Array.flatMap(c => getDependencies(c.payload))
   | Union(types) => types->Array.flatMap(getDependencies)
+  | AllOf(types) => types->Array.flatMap(getDependencies)
   | Refined(inner, _) => getDependencies(inner)
   }
+}
+
+// Merge `allOf` intersections into a single object type.
+//
+// This cannot live in Schema.parse: an arm is usually a `$ref`, and resolving
+// it needs the whole document. The parser therefore keeps AllOf verbatim and
+// the merge happens here, with every named schema in reach (Rule 6, step -3).
+// Duplicate field names: the last arm wins, per JSON Schema semantics.
+let mergeAllOf = (
+  schemas: array<OpenAPIParser.namedSchema>,
+): result<array<OpenAPIParser.namedSchema>, Errors.errors> => {
+  let byName = Dict.make()
+  schemas->Array.forEach(s => byName->Dict.set(s.name, s.schema))
+  let errors = []
+
+  let mergeFields = (fieldSets: array<array<Schema.field>>): array<Schema.field> => {
+    let order = []
+    let byField = Dict.make()
+    fieldSets->Array.forEach(fields =>
+      fields->Array.forEach(f => {
+        if byField->Dict.get(f.name)->Option.isNone {
+          order->Array.push(f.name)
+        }
+        byField->Dict.set(f.name, f)
+      })
+    )
+    order->Array.filterMap(name => byField->Dict.get(name))
+  }
+
+  let rec mergeInType = (
+    t: Schema.schemaType,
+    ~path: array<string>,
+    ~seen: array<string>,
+  ): Schema.schemaType => {
+    switch t {
+    | AllOf(arms) => mergeArms(arms, ~path, ~seen)
+    | Object(fields) =>
+      Object(
+        fields->Array.map(f => {
+          ...f,
+          Schema.type_: mergeInType(f.type_, ~path=Array.concat(path, [f.name]), ~seen),
+        }),
+      )
+    | Optional(inner) => Optional(mergeInType(inner, ~path, ~seen))
+    | Nullable(inner) => Nullable(mergeInType(inner, ~path, ~seen))
+    | Array(inner) => Array(mergeInType(inner, ~path, ~seen))
+    | Dict(inner) => Dict(mergeInType(inner, ~path, ~seen))
+    | Refined(inner, refs) => Refined(mergeInType(inner, ~path, ~seen), refs)
+    | Union(types) => Union(types->Array.map(t => mergeInType(t, ~path, ~seen)))
+    | PolyVariant(cases) =>
+      PolyVariant(
+        cases->Array.map(c => {...c, Schema.payload: mergeInType(c.payload, ~path, ~seen)}),
+      )
+    | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => t
+    }
+  }
+
+  and mergeArms = (
+    arms: array<Schema.schemaType>,
+    ~path: array<string>,
+    ~seen: array<string>,
+  ): Schema.schemaType => {
+    let merged = arms->Array.map(a => mergeInType(a, ~path, ~seen))
+    switch merged {
+    // One arm is not an intersection — `allOf: [$ref X]` (the "same as X, with
+    // a description" idiom) must stay a reference to X, not a copy of it.
+    | [] => Object([])
+    | [single] => single
+    | _ =>
+      let fieldSets = merged->Array.filterMap(a => armFields(a, ~path, ~seen))
+      Object(mergeFields(fieldSets))
+    }
+  }
+
+  // The fields an arm contributes, following $ref into the document.
+  and armFields = (
+    t: Schema.schemaType,
+    ~path: array<string>,
+    ~seen: array<string>,
+  ): option<array<Schema.field>> => {
+    switch t {
+    | Object(fields) => Some(fields)
+    | Refined(inner, _) => armFields(inner, ~path, ~seen)
+    | Ref(name) =>
+      if seen->Array.includes(name) {
+        errors->Array.push(
+          Errors.makeError(
+            ~kind=CircularReference(name),
+            ~path,
+            ~hint=Some("allOf arms reference each other in a cycle — break the cycle or inline one side"),
+            (),
+          ),
+        )
+        None
+      } else {
+        switch byName->Dict.get(name) {
+        | None =>
+          errors->Array.push(
+            Errors.makeError(
+              ~kind=InvalidRef(name),
+              ~path,
+              ~hint=Some(`allOf references "${name}", which is not defined in the document`),
+              (),
+            ),
+          )
+          None
+        | Some(target) =>
+          let seen = Array.concat(seen, [name])
+          armFields(mergeInType(target, ~path, ~seen), ~path, ~seen)
+        }
+      }
+    | other =>
+      errors->Array.push(
+        Errors.makeError(
+          ~kind=UnsupportedFeature(`allOf arm of type ${typeNamePart(other)}`),
+          ~path,
+          ~hint=Some("allOf can only merge object schemas (or $refs to them)"),
+          (),
+        ),
+      )
+      None
+    }
+  }
+
+  let merged = schemas->Array.map(s => {
+    ...s,
+    OpenAPIParser.schema: mergeInType(s.schema, ~path=[s.name], ~seen=[s.name]),
+  })
+  Array.length(errors) > 0 ? Error(errors) : Ok(merged)
 }
 
 // Drop every Refined wrapper, leaving the base types. Refinements are parsed
@@ -689,6 +822,7 @@ let rec stripRefinementsInType = (schema: Schema.schemaType): Schema.schemaType 
   | PolyVariant(cases) =>
     PolyVariant(cases->Array.map(c => {...c, Schema.payload: stripRefinementsInType(c.payload)}))
   | Union(types) => Union(types->Array.map(stripRefinementsInType))
+  | AllOf(types) => AllOf(types->Array.map(stripRefinementsInType))
   | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => schema
   }
 }
@@ -781,6 +915,7 @@ and dedupeUnionsInType = (schema: Schema.schemaType): Schema.schemaType => {
     Object(fields->Array.map(f => {...f, Schema.type_: dedupeUnionsInType(f.type_)}))
   | PolyVariant(cases) =>
     PolyVariant(cases->Array.map(c => {...c, Schema.payload: dedupeUnionsInType(c.payload)}))
+  | AllOf(types) => AllOf(types->Array.map(dedupeUnionsInType))
   | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => schema
   }
 }
@@ -878,6 +1013,7 @@ let validateDistinctConstructors = (schemas: array<OpenAPIParser.namedSchema>): 
     | Optional(inner) | Nullable(inner) | Array(inner) | Dict(inner) | Refined(inner, _) =>
       walk(inner, ~path)
     | Object(fields) => fields->Array.forEach(f => walk(f.type_, ~path=Array.concat(path, [f.name])))
+    | AllOf(types) => types->Array.forEach(t => walk(t, ~path))
     | String | Number | Integer | Boolean | Null | Ref(_) | Enum(_) | Unknown => ()
     }
   }

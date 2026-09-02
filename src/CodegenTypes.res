@@ -20,6 +20,17 @@ let rec generateType = (schema: Schema.schemaType): string => {
   | Object(fields) => generateRecord(fields)
   | PolyVariant(cases) => generatePolyVariant(cases)
   | Union(types) => generateUnion(types)
+  // Legacy path: AllOf is merged into an Object by CodegenTransforms.mergeAllOf
+  // before the real (IR) pipeline ever prints, so this is only a fallback.
+  | AllOf(types) =>
+    generateRecord(
+      types->Array.flatMap(t =>
+        switch t {
+        | Object(fields) => fields
+        | _ => []
+        }
+      ),
+    )
   | Unknown => "JSON.t"
   // Constraints narrow values, never the shape — the type is the base type.
   // The checks themselves ride along in the IR and are printed as attributes.

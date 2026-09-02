@@ -42,6 +42,16 @@ function generateType(_schema) {
           return `Dict.t<` + generateType(schema._0) + `>`;
         case "Union" :
           return generateUnion(schema._0);
+        case "AllOf" :
+          return generateRecord(schema._0.flatMap(t => {
+            if (typeof t !== "object") {
+              return [];
+            } else if (t._tag === "Object") {
+              return t._0;
+            } else {
+              return [];
+            }
+          }));
         case "Refined" :
           _schema = schema._0;
           continue;

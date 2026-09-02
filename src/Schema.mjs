@@ -648,25 +648,19 @@ function parseAllOf(items) {
       TAG: "Error",
       _0: errors
     };
+  } else {
+    return {
+      TAG: "Ok",
+      _0: {
+        _tag: "AllOf",
+        _0: Core__Array.filterMap(results, r => {
+          if (r.TAG === "Ok") {
+            return r._0;
+          }
+        })
+      }
+    };
   }
-  let allFields = Core__Array.filterMap(results, r => {
-    if (r.TAG !== "Ok") {
-      return;
-    }
-    let fields = r._0;
-    if (typeof fields !== "object" || fields._tag !== "Object") {
-      return;
-    } else {
-      return fields._0;
-    }
-  }).flat();
-  return {
-    TAG: "Ok",
-    _0: {
-      _tag: "Object",
-      _0: allFields
-    }
-  };
 }
 
 function externalWrapperKey(item) {
