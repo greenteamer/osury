@@ -151,7 +151,7 @@ pub struct Base {
 pub struct Node {
     pub name: String,
     pub children: Vec<Node>,
-    pub parent: Option<Node>,
+    pub parent: Option<Box<Node>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -275,10 +275,12 @@ pub enum Event {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum IssueLoopOrIssueBrokenLink {
-    IssueLoop {
+    #[serde(rename = "loop_found")]
+    LoopFound {
         path: Vec<String>,
     },
-    IssueBrokenLink {
+    #[serde(rename = "broken_link")]
+    BrokenLink {
         from: String,
         to: String,
     },

@@ -295,17 +295,24 @@ let variantToYojson = (name: string, cases: array<IR.irVariantCase>, repr: IR.va
 ${arms->Array.join("\n")}`
 }
 
-let decCasePayload = (c: IR.irVariantCase, j: string): string => {
+// The constructed value carries its type: two variant types may share a
+// constructor name (`LoopFound` in both `issue` and a field-level union of the
+// same members), and past a `let*` OCaml no longer sees the expected type — it
+// would pick whichever type was declared last.
+let decCasePayload = (c: IR.irVariantCase, j: string, ~name: string): string => {
   switch c.payload {
   | InlineRecord(fields) =>
     let bindings = fields->Array.map(f => "  " ++ decFieldBinding(f, j))->Array.join("\n")
     let names = fields->Array.map(fieldName)->Array.join("; ")
-    let construct = Array.length(fields) == 0 ? `Ok ${c.tag}` : `Ok (${c.tag} { ${names} })`
+    let construct =
+      Array.length(fields) == 0
+        ? `Ok (${c.tag} : ${name})`
+        : `Ok (${c.tag} { ${names} } : ${name})`
     `${bindings}
     ${construct}`
-  | Primitive(PUnit) => `    Ok ${c.tag}`
+  | Primitive(PUnit) => `    Ok (${c.tag} : ${name})`
   | payload => `    let* v = ${decExpr(payload, j)} in
-    Ok (${c.tag} v)`
+    Ok (${c.tag} v : ${name})`
   }
 }
 
@@ -314,7 +321,7 @@ let variantOfYojson = (name: string, cases: array<IR.irVariantCase>, repr: IR.va
     // Untagged wire: try each case in declaration order (sury @unboxed semantics)
     let attempts = cases->Array.reduceRight(`Error ("${name}: no variant matched")`, (acc, c) => {
       `(match ${decExpr(c.payload, "j")} with
-     | Ok v -> Ok (${c.tag} v)
+     | Ok v -> Ok (${c.tag} v : ${name})
      | Error _ -> ${acc})`
     })
     `${name}_of_yojson (j : Yojson.Safe.t) : (${name}, string) result =
@@ -326,7 +333,7 @@ let variantOfYojson = (name: string, cases: array<IR.irVariantCase>, repr: IR.va
     | InternalTag(tagField) =>
       let arms = cases->Array.map(c => {
         `  | "${wireTag(c)}" ->
-${decCasePayload(c, "j")}`
+${decCasePayload(c, "j", ~name)}`
       })
       `${name}_of_yojson (j : Yojson.Safe.t) : (${name}, string) result =
   let open Oj in
@@ -340,7 +347,7 @@ ${arms->Array.join("\n")}
         | Primitive(PUnit) => `     | "${wireTag(c)}", _ -> Ok ${c.tag}`
         | _ =>
           `     | "${wireTag(c)}", j ->
-${decCasePayload(c, "j")->String.split("\n")->Array.map(l => "   " ++ l)->Array.join("\n")}`
+${decCasePayload(c, "j", ~name)->String.split("\n")->Array.map(l => "   " ++ l)->Array.join("\n")}`
         }
       })
       `${name}_of_yojson (j : Yojson.Safe.t) : (${name}, string) result =
@@ -497,7 +504,17 @@ ${exactOptional ? triFieldHelper : ""}end
 // ─── Module ──────────────────────────────────────────────────────────────────
 
 let print = (module_: IR.irModule): string => {
-  let typeDecls = module_.types->Array.map(printTypeDecl)->Array.join("\n\n")
+  // Mutually recursive types share one declaration: `type a = … and b = …`
+  let typeDecls =
+    IR.declarationGroups(module_)
+    ->Array.map(group =>
+      group
+      ->Array.mapWithIndex((def, i) =>
+        i == 0 ? printTypeDecl(def) : printTypeDecl(def)->String.replaceRegExp(/^type /, "and ")
+      )
+      ->Array.join("\n\n")
+    )
+    ->Array.join("\n\n")
 
   let allCodecs = module_.types->Array.flatMap(printCodecs)
   let codecChain = switch allCodecs->Array.get(0) {

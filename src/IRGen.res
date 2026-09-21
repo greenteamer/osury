@@ -191,8 +191,31 @@ let convertToIrTypeDef = (
       let irCases = types->Array.map(t => {
         switch t {
         | Ref(name) =>
-          // Wire tag: _tag.const value if available, otherwise the schema name
-          let wireTag = tagsDict->Dict.get(name)->Option.getOr(name)
+          // Wire tag: _tag.const if the parser recorded one; else the `const`
+          // the member itself pins its discriminator field to (`kind: const
+          // "loop_found"` — possibly lifted into a one-value enum type by the
+          // inline-enum pass); the schema name only when the spec says nothing.
+          // Without the second step a field-level `discriminator` with no
+          // `mapping` was tagged "IssueLoop" on a wire that says "loop_found".
+          let constOfDiscriminator = switch schemasDict->Dict.get(name) {
+          | Some(Object(fields)) =>
+            fields
+            ->Array.find(f => f.name == tagName)
+            ->Option.flatMap(f =>
+              switch f.type_ {
+              | Enum([only]) => Some(only)
+              | Ref(enumName) =>
+                switch schemasDict->Dict.get(enumName) {
+                | Some(Enum([only])) => Some(only)
+                | _ => None
+                }
+              | _ => None
+              }
+            )
+          | _ => None
+          }
+          let wireTag =
+            tagsDict->Dict.get(name)->Option.orElse(constOfDiscriminator)->Option.getOr(name)
           let payload = switch schemasDict->Dict.get(name) {
           | Some(Object(fields)) =>
             let filtered = fields->Array.filter(f => f.name != tagName)

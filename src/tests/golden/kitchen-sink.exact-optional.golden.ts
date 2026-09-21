@@ -83,12 +83,21 @@ export const Base = Schema.Struct({
 })
 export type Base = Schema.Schema.Type<typeof Base>
 
-export const Node = Schema.Struct({
+export interface Node {
+  readonly name: string
+  readonly children: ReadonlyArray<Node>
+  readonly parent: Node | null
+}
+export interface NodeEncoded {
+  readonly name: string
+  readonly children: ReadonlyArray<NodeEncoded>
+  readonly parent: NodeEncoded | null
+}
+export const Node: Schema.Codec<Node, NodeEncoded> = Schema.Struct({
   name: Schema.String,
-  children: Schema.Array(Node),
-  parent: Schema.NullOr(Node),
+  children: Schema.Array(Schema.suspend((): Schema.Codec<Node, NodeEncoded> => Node)),
+  parent: Schema.NullOr(Schema.suspend((): Schema.Codec<Node, NodeEncoded> => Node)),
 })
-export type Node = Schema.Schema.Type<typeof Node>
 
 export const EventCreated = Schema.Struct({
   at: Schema.String,
@@ -229,41 +238,41 @@ const _EventEventDeleted = Schema.Struct({
 export const Event = Schema.Union([_EventEventCreated, _EventEventDeleted])
 export type Event = Schema.Schema.Type<typeof Event>
 
-const _IssueLoopOrIssueBrokenLinkIssueLoop = Schema.Struct({
-  kind: Schema.Literal('IssueLoop'),
+const _IssueLoopOrIssueBrokenLinkLoopFound = Schema.Struct({
+  kind: Schema.Literal('loop_found'),
   path: Schema.Array(Schema.String),
 }).pipe(
   Schema.decodeTo(
     Schema.Struct({
-      _tag: Schema.Literal('IssueLoop'),
+      _tag: Schema.Literal('LoopFound'),
       path: Schema.Array(Schema.String),
     }),
     {
-      decode: SchemaGetter.transform(({ kind: _k, ...rest }) => ({ _tag: 'IssueLoop' as const, ...rest })),
-      encode: SchemaGetter.transform(({ _tag: _t, ...rest }) => ({ kind: 'IssueLoop' as const, ...rest })),
+      decode: SchemaGetter.transform(({ kind: _k, ...rest }) => ({ _tag: 'LoopFound' as const, ...rest })),
+      encode: SchemaGetter.transform(({ _tag: _t, ...rest }) => ({ kind: 'loop_found' as const, ...rest })),
     },
   ),
 )
 
-const _IssueLoopOrIssueBrokenLinkIssueBrokenLink = Schema.Struct({
-  kind: Schema.Literal('IssueBrokenLink'),
+const _IssueLoopOrIssueBrokenLinkBrokenLink = Schema.Struct({
+  kind: Schema.Literal('broken_link'),
   from: Schema.String,
   to: Schema.String,
 }).pipe(
   Schema.decodeTo(
     Schema.Struct({
-      _tag: Schema.Literal('IssueBrokenLink'),
+      _tag: Schema.Literal('BrokenLink'),
       from: Schema.String,
       to: Schema.String,
     }),
     {
-      decode: SchemaGetter.transform(({ kind: _k, ...rest }) => ({ _tag: 'IssueBrokenLink' as const, ...rest })),
-      encode: SchemaGetter.transform(({ _tag: _t, ...rest }) => ({ kind: 'IssueBrokenLink' as const, ...rest })),
+      decode: SchemaGetter.transform(({ kind: _k, ...rest }) => ({ _tag: 'BrokenLink' as const, ...rest })),
+      encode: SchemaGetter.transform(({ _tag: _t, ...rest }) => ({ kind: 'broken_link' as const, ...rest })),
     },
   ),
 )
 
-export const IssueLoopOrIssueBrokenLink = Schema.Union([_IssueLoopOrIssueBrokenLinkIssueLoop, _IssueLoopOrIssueBrokenLinkIssueBrokenLink])
+export const IssueLoopOrIssueBrokenLink = Schema.Union([_IssueLoopOrIssueBrokenLinkLoopFound, _IssueLoopOrIssueBrokenLinkBrokenLink])
 export type IssueLoopOrIssueBrokenLink = Schema.Schema.Type<typeof IssueLoopOrIssueBrokenLink>
 
 const _IssueLoopFound = Schema.Struct({

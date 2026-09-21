@@ -56,7 +56,13 @@ let wireTag = (c: IR.irVariantCase): string => c.asValue->Option.getOr(c.tag)
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-let rec printType = (t: IR.irType): string => {
+// `boxed` names the types that sit on a reference cycle. A struct that holds
+// itself by value has no finite size, so such a reference goes behind a Box —
+// serde reads and writes a Box<T> exactly as it does a T. Vec and HashMap
+// already put their elements on the heap: no Box inside them.
+let rec printType = (t: IR.irType, ~boxed: string => bool=_ => false): string => {
+  let unboxed = inner => printType(inner, ~boxed=_ => false)
+  let printType = inner => printType(inner, ~boxed)
   switch t {
   | Primitive(PString) => "String"
   | Primitive(PFloat) => "f64"
@@ -64,8 +70,9 @@ let rec printType = (t: IR.irType): string => {
   | Primitive(PBool) => "bool"
   | Primitive(PUnit) => "()"
   | Option(inner) | Nullable(inner) => `Option<${printType(inner)}>`
-  | Array(inner) => `Vec<${printType(inner)}>`
-  | Dict(inner) => `std::collections::HashMap<String, ${printType(inner)}>`
+  | Array(inner) => `Vec<${unboxed(inner)}>`
+  | Dict(inner) => `std::collections::HashMap<String, ${unboxed(inner)}>`
+  | Named(name) if boxed(name) => `Box<${typeName(name)}>`
   | Named(name) => typeName(name)
   // Inline enums/records/variants in field position fall back to raw JSON
   | Enum(_) => "String"
@@ -184,7 +191,7 @@ let printValidator = (v: validator): string => {
 }
 
 // Field lines with serde attributes, at the given indentation
-let printField = (f: IR.irField, ~indent: string): string => {
+let printField = (f: IR.irField, ~indent: string, ~boxed: string => bool): string => {
   let wire = wireName(f)
   let name = rustFieldName(wire)
   let attrs = []
@@ -208,12 +215,12 @@ let printField = (f: IR.irField, ~indent: string): string => {
     attrs->Array.push(`${indent}#[serde(default, skip_serializing_if = "Option::is_none")]`)->ignore
   | _ => ()
   }
-  let lines = attrs->Array.concat([`${indent}pub ${name}: ${printType(f.type_)},`])
+  let lines = attrs->Array.concat([`${indent}pub ${name}: ${printType(f.type_, ~boxed)},`])
   lines->Array.join("\n")
 }
 
 // Variant-case fields are not `pub` (enum variants expose them implicitly)
-let printCaseField = (f: IR.irField, ~indent: string): string => {
+let printCaseField = (f: IR.irField, ~indent: string, ~boxed: string => bool): string => {
   let wire = wireName(f)
   let name = rustFieldName(wire)
   let attrs = name != wire ? [`${indent}#[serde(rename = "${wire}")]`] : []
@@ -226,40 +233,43 @@ let printCaseField = (f: IR.irField, ~indent: string): string => {
     attrs
     ->Array.concat([
       `${indent}#[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "de_double_option")]`,
-      `${indent}${name}: ${printType(f.type_)},`,
+      `${indent}${name}: ${printType(f.type_, ~boxed)},`,
     ])
     ->Array.join("\n")
   | Option(_) =>
     attrs
     ->Array.concat([
       `${indent}#[serde(default, skip_serializing_if = "Option::is_none")]`,
-      `${indent}${name}: ${printType(f.type_)},`,
+      `${indent}${name}: ${printType(f.type_, ~boxed)},`,
     ])
     ->Array.join("\n")
-  | _ => attrs->Array.concat([`${indent}${name}: ${printType(f.type_)},`])->Array.join("\n")
+  | _ => attrs->Array.concat([`${indent}${name}: ${printType(f.type_, ~boxed)},`])->Array.join("\n")
   }
 }
 
-let printVariantCase = (c: IR.irVariantCase): string => {
+let printVariantCase = (c: IR.irVariantCase, ~boxed: string => bool): string => {
   let renameAttr = wireTag(c) != c.tag ? [`    #[serde(rename = "${wireTag(c)}")]`] : []
   let decl = switch c.payload {
   | Primitive(PUnit) | InlineRecord([]) => `    ${c.tag},`
   | InlineRecord(fields) =>
-    let fieldLines = fields->Array.map(f => printCaseField(f, ~indent="        "))->Array.join("\n")
+    let fieldLines = fields->Array.map(f => printCaseField(f, ~indent="        ", ~boxed))->Array.join("\n")
     `    ${c.tag} {\n${fieldLines}\n    },`
-  | other => `    ${c.tag}(${printType(other)}),`
+  | other => `    ${c.tag}(${printType(other, ~boxed)}),`
   }
   renameAttr->Array.concat([decl])->Array.join("\n")
 }
 
 let derive = "#[derive(Debug, Clone, Serialize, Deserialize)]"
 
-let printTypeDef = (typeDef: IR.irTypeDef): string => {
+let printTypeDef = (typeDef: IR.irTypeDef, ~recursive: string => bool): string => {
   let name = typeName(typeDef.name)
+  // Only a cycle member can hold itself by value; everything else refers to
+  // the (already finite) cycle members directly
+  let boxed = recursive(typeDef.name) ? recursive : _ => false
   let listEncoded = typeDef.annotations->Array.includes(IR.ListEncoded)
   switch typeDef.kind {
   | RecordDef(fields) =>
-    let fieldLines = fields->Array.map(f => printField(f, ~indent="    "))->Array.join("\n")
+    let fieldLines = fields->Array.map(f => printField(f, ~indent="    ", ~boxed))->Array.join("\n")
     `${derive}\npub struct ${name} {\n${fieldLines}\n}`
   | AliasDef(Enum(values)) if listEncoded =>
     // Wire: single-element list ["InProgress"] (ppx_deriving_yojson default).
@@ -316,7 +326,7 @@ ${fromArms}
       | InternalTag(tagField) => [`#[serde(tag = "${tagField}")]`]
       }
     }
-    let caseLines = cases->Array.map(printVariantCase)->Array.join("\n")
+    let caseLines = cases->Array.map(c => printVariantCase(c, ~boxed))->Array.join("\n")
     [derive]
     ->Array.concat(reprAttr)
     ->Array.concat([`pub enum ${name} {\n${caseLines}\n}`])
@@ -389,7 +399,8 @@ let collectValidators = (module_: IR.irModule): array<validator> => {
 }
 
 let print = (module_: IR.irModule): string => {
-  let body = module_.types->Array.map(printTypeDef)->Array.join("\n\n")
+  let recursive = IR.recursivePredicate(module_)
+  let body = module_.types->Array.map(t => printTypeDef(t, ~recursive))->Array.join("\n\n")
   let validators = collectValidators(module_)
   let validatorBlock =
     Array.length(validators) == 0

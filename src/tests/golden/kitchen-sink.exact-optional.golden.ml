@@ -243,8 +243,8 @@ type event =
   | EventDeleted of { reason : string }
 
 type issue_loop_or_issue_broken_link =
-  | IssueLoop of { path : string list }
-  | IssueBrokenLink of { from : string; to_ : string }
+  | LoopFound of { path : string list }
+  | BrokenLink of { from : string; to_ : string }
 
 type issue =
   | LoopFound of { path : string list }
@@ -284,9 +284,9 @@ and string_or_int_of_yojson (j : Yojson.Safe.t) : (string_or_int, string) result
   let open Oj in
   ignore (let* x = Ok () in Ok x);
   (match Oj.string_ j with
-     | Ok v -> Ok (String v)
+     | Ok v -> Ok (String v : string_or_int)
      | Error _ -> (match Oj.int_ j with
-     | Ok v -> Ok (Int v)
+     | Ok v -> Ok (Int v : string_or_int)
      | Error _ -> Error ("string_or_int: no variant matched")))
 
 and string_or_array_bool_to_yojson (v : string_or_array_bool) : Yojson.Safe.t =
@@ -298,9 +298,9 @@ and string_or_array_bool_of_yojson (j : Yojson.Safe.t) : (string_or_array_bool, 
   let open Oj in
   ignore (let* x = Ok () in Ok x);
   (match Oj.string_ j with
-     | Ok v -> Ok (String v)
+     | Ok v -> Ok (String v : string_or_array_bool)
      | Error _ -> (match Oj.list_ (fun j -> Oj.bool_ j) j with
-     | Ok v -> Ok (ArrayBool v)
+     | Ok v -> Ok (ArrayBool v : string_or_array_bool)
      | Error _ -> Error ("string_or_array_bool: no variant matched")))
 
 and containers_nested_to_yojson (x : containers_nested) : Yojson.Safe.t =
@@ -556,10 +556,10 @@ and mark_of_yojson (j : Yojson.Safe.t) : (mark, string) result =
     (match tag, payload with
      | "Shine", j ->
        let* target = Oj.req_field "target" (fun j -> Oj.string_ j) j in
-       Ok (Shine { target })
+       Ok (Shine { target } : mark)
      | "Tint", j ->
        let* level = Oj.req_field "level" (fun j -> Oj.int_ j) j in
-       Ok (Tint { level })
+       Ok (Tint { level } : mark)
      | other, _ -> Error ("mark: unknown variant: " ^ other))
   | `String s ->
     (match s with
@@ -746,9 +746,9 @@ and measure_or_float_of_yojson (j : Yojson.Safe.t) : (measure_or_float, string) 
   let open Oj in
   ignore (let* x = Ok () in Ok x);
   (match measure_of_yojson j with
-     | Ok v -> Ok (Measure v)
+     | Ok v -> Ok (Measure v : measure_or_float)
      | Error _ -> (match Oj.float_ j with
-     | Ok v -> Ok (Float v)
+     | Ok v -> Ok (Float v : measure_or_float)
      | Error _ -> Error ("measure_or_float: no variant matched")))
 
 and event_to_yojson (v : event) : Yojson.Safe.t =
@@ -774,24 +774,24 @@ and event_of_yojson (j : Yojson.Safe.t) : (event, string) result =
   match tag with
   | "EventCreated" ->
     let* at = Oj.req_field "at" (fun j -> Oj.string_ j) j in
-    Ok (EventCreated { at })
+    Ok (EventCreated { at } : event)
   | "EventDeleted" ->
     let* reason = Oj.req_field "reason" (fun j -> Oj.string_ j) j in
-    Ok (EventDeleted { reason })
+    Ok (EventDeleted { reason } : event)
   | other -> Error ("event: unknown _tag: " ^ other)
 
 and issue_loop_or_issue_broken_link_to_yojson (v : issue_loop_or_issue_broken_link) : Yojson.Safe.t =
   match v with
-  | IssueLoop { path } ->
+  | LoopFound { path } ->
     `Assoc
-      (("kind", `String "IssueLoop")
+      (("kind", `String "loop_found")
        :: (List.concat
       [
         [ ("path", `List (List.map (fun x -> `String x) path)) ];
       ]))
-  | IssueBrokenLink { from; to_ } ->
+  | BrokenLink { from; to_ } ->
     `Assoc
-      (("kind", `String "IssueBrokenLink")
+      (("kind", `String "broken_link")
        :: (List.concat
       [
         [ ("from", `String from) ];
@@ -802,13 +802,13 @@ and issue_loop_or_issue_broken_link_of_yojson (j : Yojson.Safe.t) : (issue_loop_
   let open Oj in
   let* tag = Oj.req_field "kind" Oj.string_ j in
   match tag with
-  | "IssueLoop" ->
+  | "loop_found" ->
     let* path = Oj.req_field "path" (fun j -> Oj.list_ (fun j -> Oj.string_ j) j) j in
-    Ok (IssueLoop { path })
-  | "IssueBrokenLink" ->
+    Ok (LoopFound { path } : issue_loop_or_issue_broken_link)
+  | "broken_link" ->
     let* from = Oj.req_field "from" (fun j -> Oj.string_ j) j in
     let* to_ = Oj.req_field "to" (fun j -> Oj.string_ j) j in
-    Ok (IssueBrokenLink { from; to_ })
+    Ok (BrokenLink { from; to_ } : issue_loop_or_issue_broken_link)
   | other -> Error ("issue_loop_or_issue_broken_link: unknown kind: " ^ other)
 
 and issue_to_yojson (v : issue) : Yojson.Safe.t =
@@ -835,11 +835,11 @@ and issue_of_yojson (j : Yojson.Safe.t) : (issue, string) result =
   match tag with
   | "loop_found" ->
     let* path = Oj.req_field "path" (fun j -> Oj.list_ (fun j -> Oj.string_ j) j) j in
-    Ok (LoopFound { path })
+    Ok (LoopFound { path } : issue)
   | "broken_link" ->
     let* from = Oj.req_field "from" (fun j -> Oj.string_ j) j in
     let* to_ = Oj.req_field "to" (fun j -> Oj.string_ j) j in
-    Ok (BrokenLink { from; to_ })
+    Ok (BrokenLink { from; to_ } : issue)
   | other -> Error ("issue: unknown kind: " ^ other)
 
 and widget_alias_to_yojson (v : widget_alias) : Yojson.Safe.t = widget_to_yojson v

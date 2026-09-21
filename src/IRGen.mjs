@@ -286,7 +286,42 @@ function convertToIrTypeDef(namedSchema, schemasDict, tagsDict, skipSchemaSet, r
           let irCases$2 = types.map(t => {
             if (typeof t === "object" && t._tag === "Ref") {
               let name = t._0;
-              let wireTag = Core__Option.getOr(tagsDict[name], name);
+              let match = schemasDict[name];
+              let constOfDiscriminator = typeof match === "object" && match._tag === "Object" ? Core__Option.flatMap(match._0.find(f => f.name === tagName), f => {
+                  let enumName = f.type;
+                  if (typeof enumName !== "object") {
+                    return;
+                  }
+                  switch (enumName._tag) {
+                    case "Ref" :
+                      let match = schemasDict[enumName._0];
+                      if (match === undefined) {
+                        return;
+                      }
+                      if (typeof match !== "object") {
+                        return;
+                      }
+                      if (match._tag !== "Enum") {
+                        return;
+                      }
+                      let match$1 = match._0;
+                      if (match$1.length !== 1) {
+                        return;
+                      } else {
+                        return match$1[0];
+                      }
+                    case "Enum" :
+                      let match$2 = enumName._0;
+                      if (match$2.length !== 1) {
+                        return;
+                      } else {
+                        return match$2[0];
+                      }
+                    default:
+                      return;
+                  }
+                }) : undefined;
+              let wireTag = Core__Option.getOr(Core__Option.orElse(tagsDict[name], constOfDiscriminator), name);
               let other = schemasDict[name];
               let payload;
               if (other !== undefined) {

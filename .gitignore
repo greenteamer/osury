@@ -69,6 +69,7 @@ src/__generated__
 # scratch projects of the "generated ReScript compiles" tests (removed after each run)
 .rescript-compile-check/
 .rescript-pilot-check/
+.ts-parity-check/
 # Real production specs (proprietary, local-only — golden tests read them)
 openapi.json
 openapi-core.json

@@ -110,9 +110,11 @@ function wireTag(c) {
   return Core__Option.getOr(c.asValue, c.tag);
 }
 
-function printType(_t) {
+function printType(_t, _boxedOpt) {
   while (true) {
+    let boxedOpt = _boxedOpt;
     let t = _t;
+    let boxed = boxedOpt !== undefined ? boxedOpt : param => false;
     if (typeof t !== "object") {
       return "serde_json::Value";
     }
@@ -134,20 +136,26 @@ function printType(_t) {
       case "Nullable" :
         break;
       case "Array" :
-        return `Vec<` + printType(t._0) + `>`;
+        return `Vec<` + printType(t._0, param => false) + `>`;
       case "Dict" :
-        return `std::collections::HashMap<String, ` + printType(t._0) + `>`;
+        return `std::collections::HashMap<String, ` + printType(t._0, param => false) + `>`;
       case "Named" :
-        return CodegenHelpers.ucFirst(t._0);
+        let name = t._0;
+        if (boxed(name)) {
+          return `Box<` + CodegenHelpers.ucFirst(name) + `>`;
+        } else {
+          return CodegenHelpers.ucFirst(name);
+        }
       case "Enum" :
         return "String";
       case "Refined" :
+        _boxedOpt = boxed;
         _t = t._0;
         continue;
       default:
         return "serde_json::Value";
     }
-    return `Option<` + printType(t._0) + `>`;
+    return `Option<` + printType(t._0, boxed) + `>`;
   };
 }
 
@@ -220,12 +228,12 @@ function validatorFor(t) {
     if (tokens.length === 0) {
       return;
     }
-    let base = printType(inner).toLowerCase();
+    let base = printType(inner, undefined).toLowerCase();
     return {
       fnName: `de_` + (
         optional ? "opt_" : ""
       ) + base + `_` + tokens.join("_"),
-      rustType: printType(inner),
+      rustType: printType(inner, undefined),
       optional: optional,
       isInt: isInt,
       refs: refs
@@ -273,7 +281,7 @@ function printValidator(v) {
   return `fn ` + v.fnName + `<'de, D>(deserializer: D) -> Result<` + match[0] + `, D::Error>\nwhere\n    D: serde::Deserializer<'de>,\n{\n` + match[1] + `\n` + checks + `\n` + match[2] + `\n}`;
 }
 
-function printField(f, indent) {
+function printField(f, indent, boxed) {
   let wire = wireName(f);
   let name = rustFieldName(wire);
   let attrs = [];
@@ -297,11 +305,11 @@ function printField(f, indent) {
       attrs.push(indent + `#[serde(default, skip_serializing_if = "Option::is_none")]`);
     }
   }
-  let lines = attrs.concat([indent + `pub ` + name + `: ` + printType(f.type_) + `,`]);
+  let lines = attrs.concat([indent + `pub ` + name + `: ` + printType(f.type_, boxed) + `,`]);
   return lines.join("\n");
 }
 
-function printCaseField(f, indent) {
+function printCaseField(f, indent, boxed) {
   let wire = wireName(f);
   let name = rustFieldName(wire);
   let attrs = name !== wire ? [indent + `#[serde(rename = "` + wire + `")]`] : [];
@@ -317,7 +325,7 @@ function printCaseField(f, indent) {
       if (tmp.TAG === "Nullable") {
         return attrs$1.concat([
           indent + `#[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "de_double_option")]`,
-          indent + name + `: ` + printType(f.type_) + `,`
+          indent + name + `: ` + printType(f.type_, boxed) + `,`
         ]).join("\n");
       }
       exit = 2;
@@ -325,14 +333,14 @@ function printCaseField(f, indent) {
     if (exit === 2) {
       return attrs$1.concat([
         indent + `#[serde(default, skip_serializing_if = "Option::is_none")]`,
-        indent + name + `: ` + printType(f.type_) + `,`
+        indent + name + `: ` + printType(f.type_, boxed) + `,`
       ]).join("\n");
     }
   }
-  return attrs$1.concat([indent + name + `: ` + printType(f.type_) + `,`]).join("\n");
+  return attrs$1.concat([indent + name + `: ` + printType(f.type_, boxed) + `,`]).join("\n");
 }
 
-function printVariantCase(c) {
+function printVariantCase(c, boxed) {
   let renameAttr = wireTag(c) !== c.tag ? [`    #[serde(rename = "` + wireTag(c) + `")]`] : [];
   let fields = c.payload;
   let decl;
@@ -351,7 +359,7 @@ function printVariantCase(c) {
       case "InlineRecord" :
         let fields$1 = fields._0;
         if (fields$1.length !== 0) {
-          let fieldLines = fields$1.map(f => printCaseField(f, "        ")).join("\n");
+          let fieldLines = fields$1.map(f => printCaseField(f, "        ", boxed)).join("\n");
           decl = `    ` + c.tag + ` {\n` + fieldLines + `\n    },`;
         } else {
           decl = `    ` + c.tag + `,`;
@@ -362,20 +370,21 @@ function printVariantCase(c) {
     }
   }
   if (exit === 1) {
-    decl = `    ` + c.tag + `(` + printType(fields) + `),`;
+    decl = `    ` + c.tag + `(` + printType(fields, boxed) + `),`;
   }
   return renameAttr.concat([decl]).join("\n");
 }
 
 let derive = "#[derive(Debug, Clone, Serialize, Deserialize)]";
 
-function printTypeDef(typeDef) {
+function printTypeDef(typeDef, recursive) {
   let name = CodegenHelpers.ucFirst(typeDef.name);
+  let boxed = recursive(typeDef.name) ? recursive : param => false;
   let listEncoded = typeDef.annotations.includes("ListEncoded");
   let fields = typeDef.kind;
   switch (fields.TAG) {
     case "RecordDef" :
-      let fieldLines = fields._0.map(f => printField(f, "    ")).join("\n");
+      let fieldLines = fields._0.map(f => printField(f, "    ", boxed)).join("\n");
       return derive + `\npub struct ` + name + ` {\n` + fieldLines + `\n}`;
     case "VariantDef" :
       let repr = fields._1;
@@ -383,7 +392,7 @@ function printTypeDef(typeDef) {
       let reprAttr = unboxed ? ["#[serde(untagged)]"] : (
           typeof repr !== "object" ? [] : [`#[serde(tag = "` + repr._0 + `")]`]
         );
-      let caseLines = fields._0.map(printVariantCase).join("\n");
+      let caseLines = fields._0.map(c => printVariantCase(c, boxed)).join("\n");
       return [derive].concat(reprAttr).concat([`pub enum ` + name + ` {\n` + caseLines + `\n}`]).join("\n");
     case "AliasDef" :
       let values = fields._0;
@@ -428,7 +437,7 @@ impl TryFrom<Vec<String>> for ` + name + ` {
         });
         return derive + `\npub enum ` + name + ` {\n` + variants$1.join("\n") + `\n}`;
       }
-      return `pub type ` + name + ` = ` + printType(values) + `;`;
+      return `pub type ` + name + ` = ` + printType(values, undefined) + `;`;
   }
 }
 
@@ -513,7 +522,8 @@ function collectValidators(module_) {
 }
 
 function print(module_) {
-  let body = module_.types.map(printTypeDef).join("\n\n");
+  let recursive = IR.recursivePredicate(module_);
+  let body = module_.types.map(t => printTypeDef(t, recursive)).join("\n\n");
   let validators = collectValidators(module_);
   let validatorBlock = validators.length === 0 ? "" : "\n\n" + validators.map(printValidator).join("\n\n");
   let helperBlock = hasTriStateField(module_) ? "\n\n" + doubleOptionHelper : "";

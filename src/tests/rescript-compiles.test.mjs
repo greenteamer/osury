@@ -148,17 +148,24 @@ describe('Generated ReScript parses real data', () => {
 // module is a program; this proves the program accepts the data its own spec
 // describes — across every construct at once, not just the shape of the day.
 describe('Generated ReScript parses its own sample data', () => {
-    test('every type with a sury schema accepts its sample', async () => {
-        const doc = JSON.parse(fs.readFileSync(path.join(here, 'fixtures/kitchen-sink.openapi.json'), 'utf8'));
+    // recursion.spec.json: self-reference, a recursive union and a mutually
+    // recursive pair (`type rec a = … and b = …`) — the same spec
+    // targets-parity.test.mjs runs through the other three targets
+    test.each([
+        { fixture: 'kitchen-sink.openapi.json', atLeast: 20 },
+        { fixture: 'recursion.spec.json', atLeast: 5 },
+    ])('every type with a sury schema accepts its sample: $fixture', async ({ fixture, atLeast }) => {
+        const doc = JSON.parse(fs.readFileSync(path.join(here, 'fixtures', fixture), 'utf8'));
         const parsed = OpenAPIParser.parseDocument(doc);
         expect(parsed.TAG).toBe('Ok');
         const schemas = parsed._0;
         const g = Codegen.generateModuleWithDiagnostics(schemas, false, undefined);
         expect(g.TAG).toBe('Ok');
 
-        await withModule(g._0.code, 'samples', async (mod) => {
+        await withModule(g._0.code, `samples-${fixture.split('.')[0]}`, async (mod) => {
             const S = await import('sury');
             const dict = SampleData.buildSchemasDict(schemas);
+            const encodings = SampleData.buildEncodingsDict(schemas);
 
             const checked = [];
             const failures = [];
@@ -169,7 +176,7 @@ describe('Generated ReScript parses its own sample data', () => {
                 const schemaValue = mod[`${CodegenHelpers.lcFirst(s.name)}Schema`];
                 if (!schemaValue) continue;
 
-                const sample = SampleData.generate(s.schema, dict);
+                const sample = SampleData.generateNamed(s, dict, encodings);
                 checked.push(s.name);
                 try {
                     S.parser(schemaValue)(sample);
@@ -181,7 +188,7 @@ describe('Generated ReScript parses its own sample data', () => {
             expect(failures).toEqual([]);
             // Guard against a silently empty run (a rename in the export
             // convention would otherwise make this test pass by checking nothing)
-            expect(checked.length).toBeGreaterThan(20);
+            expect(checked.length).toBeGreaterThanOrEqual(atLeast);
         });
     }, 120000);
 });

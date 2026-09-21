@@ -4247,3 +4247,70 @@ describe('Sample data for recursive types', () => {
         expect(s.children[0].parent).toBe(null);
     });
 });
+
+// A field-level `discriminator` with no `mapping`: the members still say what
+// the wire carries — `kind: const "loop_found"`. The tag used to fall back to
+// the member's schema NAME ("IssueLoop"), which no payload ever contains.
+describe('Field-level discriminated union without mapping', () => {
+    const SPEC = {
+        components: {
+            schemas: {
+                IssueLoop: {
+                    type: "object",
+                    properties: { kind: { type: "string", const: "loop_found" }, path: { type: "array", items: { type: "string" } } },
+                    required: ["kind", "path"],
+                },
+                IssueBrokenLink: {
+                    type: "object",
+                    properties: { kind: { type: "string", const: "broken_link" }, from: { type: "string" } },
+                    required: ["kind", "from"],
+                },
+                Envelope: {
+                    type: "object",
+                    properties: {
+                        payload: {
+                            anyOf: [{ $ref: "#/components/schemas/IssueLoop" }, { $ref: "#/components/schemas/IssueBrokenLink" }],
+                            discriminator: { propertyName: "kind" },
+                        },
+                    },
+                    required: ["payload"],
+                },
+            },
+        },
+    };
+
+    test('the wire tag is the const of the discriminator field, on every target', () => {
+        const parsed = OpenAPIParser.parseDocument(SPEC);
+        expect(parsed.TAG).toBe('Ok');
+
+        const res = Codegen.generateModuleWithDiagnostics(parsed._0)._0.code;
+        expect(res).toContain('@as("loop_found") LoopFound(');
+        expect(res).toContain('@as("broken_link") BrokenLink(');
+
+        const rust = Codegen.generateRustWithDiagnostics(parsed._0)._0.code;
+        expect(rust).toContain('#[serde(rename = "loop_found")]\n    LoopFound {');
+
+        const ts = Codegen.generateEffectTSWithDiagnostics(parsed._0)._0.code;
+        expect(ts).toContain("kind: Schema.Literal('loop_found')");
+
+        const ml = Codegen.generateOCamlWithDiagnostics(parsed._0)._0.code;
+        expect(ml).toContain('"loop_found"');
+        expect(ml).not.toContain('`String "IssueLoop"');
+    });
+});
+
+// A document that yields no types at all is almost always the wrong file (a
+// package.json, a Postman collection). "Generated 0 types", exit 0, used to be
+// the answer.
+describe('A document without any schema', () => {
+    test.each([
+        ['an empty object', {}],
+        ['an OpenAPI shell with no schemas', { openapi: '3.1.0', info: { title: 't', version: '1' }, paths: {} }],
+    ])('%s is an error that says where schemas are looked for', (_label, doc) => {
+        const parsed = OpenAPIParser.parseDocument(doc);
+        expect(parsed.TAG).toBe('Error');
+        expect(parsed._0).toHaveLength(1);
+        expect(parsed._0[0].kind).toEqual({ TAG: 'MissingRequiredField', _0: 'components.schemas' });
+        expect(parsed._0[0].hint).toMatch(/\$defs/);
+    });
+});

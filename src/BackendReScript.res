@@ -200,7 +200,7 @@ let printAnnotations = (annotations: array<IR.annotation>): string => {
   ->Array.join("\n")
 }
 
-let printTypeDef = (typeDef: IR.irTypeDef): string => {
+let printTypeDef = (typeDef: IR.irTypeDef, ~continuation: bool=false): string => {
   let annotations = printAnnotations(typeDef.annotations)
 
   let body = switch typeDef.kind {
@@ -213,11 +213,18 @@ let printTypeDef = (typeDef: IR.irTypeDef): string => {
   }
 
   // ReScript requires `rec` for a self-reference; sury-ppx handles the schema.
-  let kw = isRecursive(typeDef.annotations) ? "type rec" : "type"
+  // A later member of a mutually recursive group continues the declaration
+  // the first one opened: `type rec a = … and b = …`
+  let kw = continuation ? "and" : isRecursive(typeDef.annotations) ? "type rec" : "type"
   `${annotations}\n${kw} ${typeDef.name} = ${body}`
 }
 
 let print = (module_: IR.irModule): string => {
-  let typeDefs = module_.types->Array.map(printTypeDef)->Array.join("\n\n")
+  let typeDefs =
+    IR.declarationGroups(module_)
+    ->Array.flatMap(group =>
+      group->Array.mapWithIndex((def, i) => printTypeDef(def, ~continuation=i > 0))
+    )
+    ->Array.join("\n\n")
   module_.preamble ++ "\n\n" ++ typeDefs
 }

@@ -440,32 +440,32 @@ function variantToYojson(name, cases, repr, unboxed) {
 ` + arms.join("\n");
 }
 
-function decCasePayload(c, j) {
+function decCasePayload(c, j, name) {
   let fields = c.payload;
   if (typeof fields === "object") {
     switch (fields.TAG) {
       case "Primitive" :
         if (fields._0 === "PUnit") {
-          return `    Ok ` + c.tag;
+          return `    Ok (` + c.tag + ` : ` + name + `)`;
         }
         break;
       case "InlineRecord" :
         let fields$1 = fields._0;
         let bindings = fields$1.map(f => "  " + decFieldBinding(f, j)).join("\n");
         let names = fields$1.map(fieldName).join("; ");
-        let construct = fields$1.length === 0 ? `Ok ` + c.tag : `Ok (` + c.tag + ` { ` + names + ` })`;
+        let construct = fields$1.length === 0 ? `Ok (` + c.tag + ` : ` + name + `)` : `Ok (` + c.tag + ` { ` + names + ` } : ` + name + `)`;
         return bindings + `
     ` + construct;
     }
   }
   return `    let* v = ` + decExpr(fields, j) + ` in
-    Ok (` + c.tag + ` v)`;
+    Ok (` + c.tag + ` v : ` + name + `)`;
 }
 
 function variantOfYojson(name, cases, repr, unboxed) {
   if (unboxed) {
     let attempts = Core__Array.reduceRight(cases, `Error ("` + name + `: no variant matched")`, (acc, c) => `(match ` + decExpr(c.payload, "j") + ` with
-     | Ok v -> Ok (` + c.tag + ` v)
+     | Ok v -> Ok (` + c.tag + ` v : ` + name + `)
      | Error _ -> ` + acc + `)`);
     return name + `_of_yojson (j : Yojson.Safe.t) : (` + name + `, string) result =
   let open Oj in
@@ -479,7 +479,7 @@ function variantOfYojson(name, cases, repr, unboxed) {
         return `     | "` + wireTag(c) + `", _ -> Ok ` + c.tag;
       }
       return `     | "` + wireTag(c) + `", j ->
-` + decCasePayload(c, "j").split("\n").map(l => "   " + l).join("\n");
+` + decCasePayload(c, "j", name).split("\n").map(l => "   " + l).join("\n");
     });
     return name + `_of_yojson (j : Yojson.Safe.t) : (` + name + `, string) result =
   let open Oj in
@@ -503,7 +503,7 @@ function variantOfYojson(name, cases, repr, unboxed) {
   }
   let tagField = repr._0;
   let arms$1 = cases.map(c => `  | "` + wireTag(c) + `" ->
-` + decCasePayload(c, "j"));
+` + decCasePayload(c, "j", name));
   return name + `_of_yojson (j : Yojson.Safe.t) : (` + name + `, string) result =
   let open Oj in
   let* tag = Oj.req_field "` + tagField + `" Oj.string_ j in
@@ -668,7 +668,13 @@ module Oj = struct
 }
 
 function print(module_) {
-  let typeDecls = module_.types.map(printTypeDecl).join("\n\n");
+  let typeDecls = IR.declarationGroups(module_).map(group => group.map((def, i) => {
+    if (i === 0) {
+      return printTypeDecl(def);
+    } else {
+      return printTypeDecl(def).replace(/^type /, "and ");
+    }
+  }).join("\n\n")).join("\n\n");
   let allCodecs = module_.types.flatMap(printCodecs);
   let first = allCodecs[0];
   let codecChain;

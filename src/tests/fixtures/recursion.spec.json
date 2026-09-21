@@ -1,0 +1,55 @@
+{
+  "$defs": {
+    "Parent": {
+      "type": "object",
+      "properties": { "root": { "$ref": "#/$defs/Category" } },
+      "required": ["root"]
+    },
+    "Category": {
+      "type": "object",
+      "properties": {
+        "label": { "type": "string" },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/Category" } },
+        "parent": { "anyOf": [{ "$ref": "#/$defs/Category" }, { "type": "null" }] },
+        "next": { "$ref": "#/$defs/Category" },
+        "byKey": { "type": "object", "additionalProperties": { "$ref": "#/$defs/Category" } }
+      },
+      "required": ["label", "children", "parent"]
+    },
+    "Tree": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": { "_tag": { "const": "Leaf" }, "v": { "type": "integer" } },
+          "required": ["_tag", "v"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "_tag": { "const": "Branch" },
+            "left": { "$ref": "#/$defs/Tree" },
+            "kids": { "type": "array", "items": { "$ref": "#/$defs/Tree" } }
+          },
+          "required": ["_tag", "left", "kids"]
+        }
+      ]
+    },
+    "Department": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "head": { "$ref": "#/$defs/Employee" }
+      },
+      "required": ["title"]
+    },
+    "Employee": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "department": { "$ref": "#/$defs/Department" },
+        "reports": { "type": "array", "items": { "$ref": "#/$defs/Employee" } }
+      },
+      "required": ["name", "department", "reports"]
+    }
+  }
+}

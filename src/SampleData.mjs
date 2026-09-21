@@ -2,6 +2,7 @@
 
 import * as Core__Array from "@rescript/core/src/Core__Array.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
+import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js";
 
 function buildSchemasDict(schemas) {
   let dict = {};
@@ -11,10 +12,24 @@ function buildSchemasDict(schemas) {
   return dict;
 }
 
-function gen(_schema, schemasDict, _visited) {
+function buildEncodingsDict(schemas) {
+  let dict = {};
+  schemas.forEach(s => {
+    let encoding = s.variantEncoding;
+    if (encoding !== undefined) {
+      dict[s.name] = encoding;
+      return;
+    }
+  });
+  return dict;
+}
+
+function gen(_schema, schemasDict, _visited, encodings, _encoding) {
   while (true) {
+    let encoding = _encoding;
     let visited = _visited;
     let schema = _schema;
+    let nested = (schema, schemasDict, visited) => gen(schema, schemasDict, visited, encodings, undefined);
     if (typeof schema !== "object") {
       switch (schema) {
         case "String" :
@@ -36,21 +51,28 @@ function gen(_schema, schemasDict, _visited) {
           break;
         case "Object" :
           let dict = {};
+          let cut = {
+            contents: false
+          };
           schema._0.forEach(field => {
-            let value = gen(field.type, schemasDict, visited);
+            let value = nested(field.type, schemasDict, visited);
             if (value !== undefined) {
               dict[field.name] = value;
               return;
             } else if (field.required) {
-              dict[field.name] = null;
+              cut.contents = true;
               return;
             } else {
               return;
             }
           });
-          return dict;
+          if (cut.contents) {
+            return;
+          } else {
+            return dict;
+          }
         case "Array" :
-          let item = gen(schema._0, schemasDict, visited);
+          let item = nested(schema._0, schemasDict, visited);
           return item !== undefined ? [item] : [];
         case "Ref" :
           let name = schema._0;
@@ -59,6 +81,7 @@ function gen(_schema, schemasDict, _visited) {
           }
           let resolved = schemasDict[name];
           if (resolved !== undefined) {
+            _encoding = encodings[name];
             _visited = visited.concat([name]);
             _schema = resolved;
             continue;
@@ -67,18 +90,19 @@ function gen(_schema, schemasDict, _visited) {
           dict$1["_ref"] = name;
           return dict$1;
         case "Enum" :
-          let v = schema._0[0];
-          if (v !== undefined) {
-            return v;
-          } else {
-            return "";
-          }
+          let value = Core__Option.getOr(schema._0[0], "");
+          return Primitive_object.equal(encoding, "List") ? [value] : value;
         case "PolyVariant" :
           let variantCase = schema._0[0];
           if (variantCase === undefined) {
             return null;
           }
-          let match = gen(variantCase.payload, schemasDict, visited);
+          if (Primitive_object.equal(encoding, "External")) {
+            let wrapper = {};
+            wrapper[variantCase._tag] = Core__Option.getOr(nested(variantCase.payload, schemasDict, visited), null);
+            return wrapper;
+          }
+          let match = nested(variantCase.payload, schemasDict, visited);
           let baseDict = match !== undefined ? (
               typeof match === "object" && match !== null && !Array.isArray(match) ? match : ({})
             ) : ({});
@@ -86,17 +110,17 @@ function gen(_schema, schemasDict, _visited) {
           return baseDict;
         case "Dict" :
           let dict$2 = {};
-          let value = gen(schema._0, schemasDict, visited);
-          if (value !== undefined) {
-            dict$2["key"] = value;
+          let value$1 = nested(schema._0, schemasDict, visited);
+          if (value$1 !== undefined) {
+            dict$2["key"] = value$1;
           }
           return dict$2;
         case "Union" :
-          return Core__Array.findMap(schema._0, t => gen(t, schemasDict, visited));
+          return Core__Array.findMap(schema._0, t => nested(t, schemasDict, visited));
         case "AllOf" :
           let dict$3 = {};
           schema._0.forEach(t => {
-            let match = gen(t, schemasDict, visited);
+            let match = nested(t, schemasDict, visited);
             if (match === undefined) {
               return;
             }
@@ -110,10 +134,10 @@ function gen(_schema, schemasDict, _visited) {
           return dict$3;
         case "Refined" :
           let refs = schema._1;
-          return Core__Option.map(gen(schema._0, schemasDict, visited), base => refineSample(base, refs));
+          return Core__Option.map(nested(schema._0, schemasDict, visited), base => refineSample(base, refs));
       }
     }
-    return Core__Option.getOr(gen(schema._0, schemasDict, visited), null);
+    return Core__Option.getOr(nested(schema._0, schemasDict, visited), null);
   };
 }
 
@@ -147,102 +171,121 @@ function refineSample(base, refs) {
   });
   if (formatSample !== undefined) {
     return formatSample;
-  } else {
-    return Core__Array.reduce(refs, base, (acc, r) => {
-      switch (r._tag) {
-        case "MinLength" :
-          if (typeof acc !== "string") {
-            return acc;
-          }
-          let n = r._0;
-          if (acc.length < n) {
-            return acc + "x".repeat(n - acc.length | 0);
-          } else {
-            return acc;
-          }
-        case "MaxLength" :
-          if (typeof acc !== "string") {
-            return acc;
-          }
-          let n$1 = r._0;
-          if (acc.length > n$1) {
-            return acc.slice(0, n$1);
-          } else {
-            return acc;
-          }
-        case "Gte" :
-          if (typeof acc !== "number") {
-            return acc;
-          }
-          let n$2 = r._0;
-          if (acc < n$2) {
-            return n$2;
-          } else {
-            return acc;
-          }
-        case "Lte" :
-          if (typeof acc !== "number") {
-            return acc;
-          }
-          let n$3 = r._0;
-          if (acc > n$3) {
-            return n$3;
-          } else {
-            return acc;
-          }
-        case "Gt" :
-          if (typeof acc !== "number") {
-            return acc;
-          }
-          let n$4 = r._0;
-          if (acc <= n$4) {
-            return n$4 + 1.0;
-          } else {
-            return acc;
-          }
-        case "Lt" :
-          if (typeof acc !== "number") {
-            return acc;
-          }
-          let n$5 = r._0;
-          if (acc >= n$5) {
-            return n$5 - 1.0;
-          } else {
-            return acc;
-          }
-        default:
-          return acc;
-      }
-    });
   }
+  let clamped = Core__Array.reduce(refs, base, (acc, r) => {
+    switch (r._tag) {
+      case "MinLength" :
+        if (typeof acc !== "string") {
+          return acc;
+        }
+        let n = r._0;
+        if (acc.length < n) {
+          return acc + "x".repeat(n - acc.length | 0);
+        } else {
+          return acc;
+        }
+      case "MaxLength" :
+        if (typeof acc !== "string") {
+          return acc;
+        }
+        let n$1 = r._0;
+        if (acc.length > n$1) {
+          return acc.slice(0, n$1);
+        } else {
+          return acc;
+        }
+      case "Gte" :
+        if (typeof acc !== "number") {
+          return acc;
+        }
+        let n$2 = r._0;
+        if (acc < n$2) {
+          return n$2;
+        } else {
+          return acc;
+        }
+      case "Lte" :
+        if (typeof acc !== "number") {
+          return acc;
+        }
+        let n$3 = r._0;
+        if (acc > n$3) {
+          return n$3;
+        } else {
+          return acc;
+        }
+      case "Gt" :
+        if (typeof acc !== "number") {
+          return acc;
+        }
+        let n$4 = r._0;
+        if (acc <= n$4) {
+          return n$4 + 1.0;
+        } else {
+          return acc;
+        }
+      case "Lt" :
+        if (typeof acc !== "number") {
+          return acc;
+        }
+        let n$5 = r._0;
+        if (acc >= n$5) {
+          return n$5 - 1.0;
+        } else {
+          return acc;
+        }
+      default:
+        return acc;
+    }
+  });
+  return Core__Array.reduce(refs, clamped, (acc, r) => {
+    if (r._tag !== "MultipleOf") {
+      return acc;
+    }
+    if (typeof acc !== "number") {
+      return acc;
+    }
+    let m = r._0;
+    if (m > 0.0 && acc - Math.floor(acc / m) * m !== 0.0) {
+      return Math.ceil(acc / m) * m;
+    } else {
+      return acc;
+    }
+  });
 }
 
-function generate(schema, schemasDict) {
-  return Core__Option.getOr(gen(schema, schemasDict, []), null);
+function generate(schema, schemasDict, encodingsOpt, encoding) {
+  let encodings = encodingsOpt !== undefined ? encodingsOpt : ({});
+  return Core__Option.getOr(gen(schema, schemasDict, [], encodings, encoding), null);
+}
+
+function generateNamed(named, schemasDict, encodings) {
+  return generate(named.schema, schemasDict, encodings, named.variantEncoding);
 }
 
 function generateAll(schemas) {
   let dict = buildSchemasDict(schemas);
+  let encodings = buildEncodingsDict(schemas);
   let result = {};
   schemas.forEach(s => {
-    result[s.name] = generate(s.schema, dict);
+    result[s.name] = generateNamed(s, dict, encodings);
   });
   return result;
 }
 
 function generateForSchema(schemas, name) {
   let dict = buildSchemasDict(schemas);
-  let schema = dict[name];
-  if (schema !== undefined) {
-    return generate(schema, dict);
-  }
+  let encodings = buildEncodingsDict(schemas);
+  return Core__Option.map(schemas.find(s => s.name === name), named => generateNamed(named, dict, encodings));
 }
 
 export {
   buildSchemasDict,
+  buildEncodingsDict,
   gen,
   refineSample,
   generate,
+  generateNamed,
   generateAll,
   generateForSchema,
 }

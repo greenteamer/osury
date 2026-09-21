@@ -662,6 +662,18 @@ let parseDocument = (json: JSON.t): result<array<namedSchema>, Errors.errors> =>
       })
       if Array.length(duplicateErrors) > 0 {
         Error(duplicateErrors)
+      } else if Array.length(all) == 0 {
+        // Nothing to generate is not a success: it is what a wrong input file
+        // looks like, and "0 types written" hides that
+        Error([
+          Errors.makeError(
+            ~kind=MissingRequiredField("components.schemas"),
+            ~hint=Some(
+              "no schemas found — osury reads components.schemas, $defs, definitions, and JSON request/response bodies under paths",
+            ),
+            (),
+          ),
+        ])
       } else {
         // After all schemas are parsed, rewrite PolyVariant case tags that point
         // to $ref payloads so they match the wire-format discriminator value.

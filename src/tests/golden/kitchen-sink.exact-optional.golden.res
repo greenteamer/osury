@@ -225,9 +225,9 @@ type event = EventCreated({
 @genType
 @tag("kind")
 @schema
-type issueLoopOrIssueBrokenLink = IssueLoop({
+type issueLoopOrIssueBrokenLink = @as("loop_found") LoopFound({
   path: array<string>
-}) | IssueBrokenLink({
+}) | @as("broken_link") BrokenLink({
   from: string,
   @as("to") to_: string
 })

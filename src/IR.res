@@ -11,8 +11,9 @@ type annotation =
   | SNull // @s.null for Nullable fields
   | As(string) // @as("originalName") for reserved keywords
   | ListEncoded // enum wire-encoded as single-element list: ["InProgress"]
-  | Recursive // self-referential type: needs `type rec`. The schema comes from
-  // sury-ppx as usual — since 11.0.0-rc.1 it emits S.recursive itself.
+  | Recursive // lies on a reference cycle (itself, or A→B→A). Each backend breaks
+  // the cycle its own way: `type rec … and …` (sury-ppx ≥ 11.0.0-rc.1 emits
+  // S.recursive itself), Box<T>, Schema.suspend — see recursivePredicate below.
 
 type rec irType =
   | Primitive(primitive)
@@ -68,6 +69,106 @@ type irModule = {
   // the honest rendering differs per target, and some of them are only exact in
   // this mode — see the `--exact-optional` section of the README.
   exactOptional: bool,
+}
+
+// ─── Recursion ───────────────────────────────────────────────────────────────
+// IRGen marks every member of a reference cycle (self-reference or A→B→A) with
+// `Recursive`. Each backend breaks the cycle its own way — `type rec`, Box,
+// Schema.suspend — and asks by name whether a reference points into one.
+let recursivePredicate = (m: irModule): (string => bool) => {
+  let names = Dict.make()
+  m.types->Array.forEach(def =>
+    if def.annotations->Array.includes(Recursive) {
+      names->Dict.set(def.name, true)
+    }
+  )
+  name => names->Dict.get(name)->Option.isSome
+}
+
+// Named references of a definition, in order of appearance.
+let defRefs = (def: irTypeDef): array<string> => {
+  let found = []
+  let rec walk = (t: irType) =>
+    switch t {
+    | Named(n) => found->Array.push(n)->ignore
+    | Option(inner) | Nullable(inner) | Array(inner) | Dict(inner) | Refined(inner, _) => walk(inner)
+    | InlineRecord(fields) => fields->Array.forEach(f => walk(f.type_))
+    | InlineVariant(cases) => cases->Array.forEach(c => walk(c.payload))
+    | Primitive(_) | Enum(_) | JSON => ()
+    }
+  switch def.kind {
+  | RecordDef(fields) => fields->Array.forEach(f => walk(f.type_))
+  | VariantDef(cases, _) => cases->Array.forEach(c => walk(c.payload))
+  | AliasDef(t) => walk(t)
+  }
+  found
+}
+
+// Definitions grouped for targets that declare mutually recursive types in one
+// statement (`type a = … and b = …`). A module without mutual recursion keeps
+// its order, one definition per group. With it, the groups are the strongly
+// connected components of the reference graph, dependencies first (Tarjan):
+// the flat topological order cannot be reused, since it may seat an unrelated
+// type between two members of a cycle.
+let declarationGroups = (m: irModule): array<array<irTypeDef>> => {
+  let byName = Dict.make()
+  m.types->Array.forEach(def => byName->Dict.set(def.name, def))
+
+  let index = Dict.make()
+  let low = Dict.make()
+  let onStack = Dict.make()
+  let stack = []
+  let counter = ref(0)
+  let groups = []
+  let get = (d, k) => d->Dict.get(k)->Option.getOr(0)
+
+  let rec connect = (def: irTypeDef) => {
+    index->Dict.set(def.name, counter.contents)
+    low->Dict.set(def.name, counter.contents)
+    counter := counter.contents + 1
+    stack->Array.push(def)->ignore
+    onStack->Dict.set(def.name, true)
+
+    defRefs(def)->Array.forEach(refName =>
+      switch byName->Dict.get(refName) {
+      | None => ()
+      | Some(target) =>
+        if index->Dict.get(refName)->Option.isNone {
+          connect(target)
+          low->Dict.set(def.name, Math.Int.min(get(low, def.name), get(low, refName)))
+        } else if onStack->Dict.get(refName)->Option.getOr(false) {
+          low->Dict.set(def.name, Math.Int.min(get(low, def.name), get(index, refName)))
+        }
+      }
+    )
+
+    if get(low, def.name) == get(index, def.name) {
+      let group = []
+      let rec popUntilSelf = () =>
+        switch stack->Array.pop {
+        | None => ()
+        | Some(member) =>
+          onStack->Dict.set(member.name, false)
+          group->Array.push(member)->ignore
+          if member.name != def.name {
+            popUntilSelf()
+          }
+        }
+      popUntilSelf()
+      // Members in module order, not in the order the search left them
+      let position = d => m.types->Array.findIndex(t => t.name == d.name)
+      group->Array.sort((a, b) => Int.compare(position(a), position(b)))
+      groups->Array.push(group)->ignore
+    }
+  }
+
+  m.types->Array.forEach(def =>
+    if index->Dict.get(def.name)->Option.isNone {
+      connect(def)
+    }
+  )
+
+  groups->Array.some(g => Array.length(g) > 1) ? groups : m.types->Array.map(def => [def])
 }
 
 // ─── Refinement reporting ────────────────────────────────────────────────────

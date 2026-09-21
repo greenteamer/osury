@@ -8,10 +8,12 @@ Huge thanks to the [ReScript](https://rescript-lang.org/) team for an amazing la
 
 ## Project Status
 
-Now at **v1.0.0**. The codegen is in production use against real-world OpenAPI specs
-(both Pydantic/FastAPI and Django/DRF generated). The pipeline is feature-complete
-for the OpenAPI 3.x patterns most code-first generators emit; edge cases beyond that
-are added on demand. Issues and PRs welcome.
+In production use against real-world OpenAPI specs (both Pydantic/FastAPI and
+Django/DRF generated). The pipeline is feature-complete for the OpenAPI 3.x patterns
+most code-first generators emit; edge cases beyond that are added on demand.
+Four targets share one IR: **ReScript + Sury** (primary), **Effect TS**, **OCaml**,
+**Rust**. Every target is compiled by its own toolchain in the test suite and must
+decode sample data generated from the same spec. Issues and PRs welcome.
 
 ## Features
 
@@ -317,6 +319,7 @@ For the generated code to compile, your project needs:
 | `oneOf` + `discriminator` | poly variant with tags from `discriminator.mapping` |
 | `allOf` | merged object type |
 | `additionalProperties` | `Dict.t<T>` |
+| recursive `$ref` (self or mutual, A→B→A) | `type rec a = … and b = …` — OCaml: `type … and …`; Rust: `Box<T>`; Effect TS: `Schema.suspend` + explicit `X` / `XEncoded` interfaces |
 | `default` value | ignored for requiredness — optionality follows `required[]` only |
 | `parameters[]` (query + path) | synthetic `<method><Path>Params` record |
 | `responses[200].schema` | `<method><Path>Response` type |

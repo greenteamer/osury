@@ -717,6 +717,14 @@ function parseDocument(json) {
             TAG: "Error",
             _0: duplicateErrors
           };
+        } else if (all.length === 0) {
+          return {
+            TAG: "Error",
+            _0: [Errors.makeError({
+                TAG: "MissingRequiredField",
+                _0: "components.schemas"
+              }, undefined, "no schemas found — osury reads components.schemas, $defs, definitions, and JSON request/response bodies under paths", undefined)]
+          };
         } else {
           return {
             TAG: "Ok",

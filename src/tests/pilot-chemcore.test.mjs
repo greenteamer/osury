@@ -22,7 +22,7 @@ const FIXTURES = [
     { file: 'request_advance.json', type: 'TransitionRequest' },
     { file: 'request_validate.json', type: 'ValidateRequest' },
     { file: 'response_scene_campus.json', type: 'TransitionResponse' },
-    { file: 'response_scene_subscene.json', type: 'TransitionResponse' },
+    { file: 'response_scene_interior.json', type: 'TransitionResponse' },
     { file: 'response_advance.json', type: 'TransitionResponse' },
     { file: 'response_set_engagement.json', type: 'TransitionResponse' },
     { file: 'response_violations.json', type: 'ValidateResponse' },
