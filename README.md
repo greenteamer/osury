@@ -233,17 +233,21 @@ This repository also includes a local demo for development:
 ### Run locally
 
 ```bash
+npm ci --prefix demo   # once
 npm run demo
 ```
 
-Open [http://localhost:4173/demo/](http://localhost:4173/demo/).
+Open the URL Vite prints (by default [http://localhost:5173/](http://localhost:5173/)).
 
 ### What it supports
 
 - Upload OpenAPI JSON as a file
 - Paste OpenAPI JSON into a text area
-- Formatted ReScript output
-- Formatted TypeScript output (derived from osury AST and matching generated ReScript structures)
+- All four targets side by side — ReScript, Effect TS, OCaml, Rust — produced by the same generators the CLI calls
+- `--refinements` and `--exact-optional` toggles
+- Generator warnings and structured errors (path + kind + hint) in the log pane
+- Sample JSON for every schema (`Preview.json`)
+- `LOAD_SAMPLE` loads the synthetic kitchen-sink spec from `src/tests/fixtures/`
 
 ### Helper Files
 

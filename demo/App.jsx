@@ -1,26 +1,42 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import * as OpenAPIParser from "../src/OpenAPIParser.res.mjs";
-import * as Codegen from "../src/Codegen.res.mjs";
-import * as SampleData from "../src/SampleData.res.mjs";
+import * as OpenAPIParser from "../src/OpenAPIParser.mjs";
+import * as Codegen from "../src/Codegen.mjs";
+import * as Errors from "../src/Errors.mjs";
+import * as SampleData from "../src/SampleData.mjs";
 import {
-  generateTypeScriptModule,
   linesCount,
-  formatMetrics,
   maybeTrim,
   normalizeJson,
-  normalizeStatusMessage,
-  normalizeRescriptOutput,
   parseJsonSafe,
   summarizeGeneration,
   withLineNumbersAndHighlight,
   toClipboardPayload,
-} from "./tsGenerator.js";
+} from "./codeView.js";
 import { WindowFrame } from "./components/WindowFrame.jsx";
 import { TerminalButton } from "./components/TerminalButton.jsx";
 import { CodeEditor } from "./components/CodeEditor.jsx";
 
 const SAMPLE_URL = "/openapi.json";
-const TAB = { RESCRIPT: "RESCRIPT", TYPESCRIPT: "TYPESCRIPT", PREVIEW: "PREVIEW" };
+const PREVIEW = "preview";
+
+// Same table as TARGETS in bin/osury.mjs: the demo calls the very generators the CLI does
+const TARGETS = [
+  { id: "rescript", label: "ReScript.res", file: "api.res", language: "rescript", generate: "generateModuleWithDiagnostics" },
+  { id: "effect-ts", label: "EffectTS.ts", file: "api.ts", language: "typescript", generate: "generateEffectTSWithDiagnostics" },
+  { id: "ocaml", label: "OCaml.ml", file: "api.ml", language: "ocaml", generate: "generateOCamlWithDiagnostics" },
+  { id: "rust", label: "Rust.rs", file: "api.rs", language: "rust", generate: "generateRustWithDiagnostics" },
+];
+
+const EMPTY_OUTPUTS = { rescript: "", "effect-ts": "", ocaml: "", rust: "", [PREVIEW]: "" };
+
+function formatErrors(errors) {
+  return errors
+    .map((e) => {
+      const hint = e.hint ? ` (hint: ${e.hint})` : "";
+      return `[${Errors.formatPath(e.location)}] ${Errors.formatKind(e.kind)}${hint}`;
+    })
+    .join(" | ");
+}
 
 function logId() {
   return Math.random().toString(36).substring(2, 9);
@@ -35,12 +51,15 @@ const LOG_COLORS = {
   success: "text-[#a6d189]",
   system: "text-[#8caaee]",
   info: "text-[#c6d0f5]",
+  warning: "text-[#e5c890]",
 };
 
 export function App() {
   const [input, setInput] = useState("");
-  const [outputs, setOutputs] = useState({ rescript: "", typescript: "", preview: "" });
-  const [activeTab, setActiveTab] = useState(TAB.TYPESCRIPT);
+  const [outputs, setOutputs] = useState(EMPTY_OUTPUTS);
+  const [activeTab, setActiveTab] = useState("rescript");
+  const [refinements, setRefinements] = useState(false);
+  const [exactOptional, setExactOptional] = useState(false);
   const [activePane, setActivePane] = useState("input");
   const [isLoading, setIsLoading] = useState(false);
   const [logs, setLogs] = useState([
@@ -71,11 +90,11 @@ export function App() {
 
   // --- Core conversion ---
   const generate = useCallback(
-    (rawInput) => {
+    (rawInput, options = { refinements, exactOptional }) => {
       const trimmed = maybeTrim(rawInput);
 
       if (!trimmed) {
-        setOutputs({ rescript: "", typescript: "", preview: "" });
+        setOutputs(EMPTY_OUTPUTS);
         addLog("Input buffer is empty. Paste OpenAPI JSON or upload a file.", "system");
         return;
       }
@@ -87,7 +106,7 @@ export function App() {
       const parsedJson = parseJsonSafe(trimmed);
 
       if (!parsedJson.ok) {
-        setOutputs({ rescript: "", typescript: "", preview: "" });
+        setOutputs(EMPTY_OUTPUTS);
         addLog(`Invalid JSON: ${parsedJson.message}`, "error");
         setIsLoading(false);
         return;
@@ -96,48 +115,60 @@ export function App() {
       const parsed = OpenAPIParser.parseDocument(parsedJson.value);
 
       if (parsed.TAG !== "Ok") {
-        setOutputs({ rescript: "", typescript: "", preview: "" });
-        const errors = parsed._0
-          .map((e) => {
-            const loc = e?.location?.path?.length
-              ? e.location.path.join(".")
-              : "root";
-            const kind = e?.kind;
-            if (typeof kind === "object" && kind !== null)
-              return `[${loc}] ${kind.TAG}: ${kind._0 ?? ""}`;
-            return `[${loc}] ${String(kind ?? "Unknown")}`;
-          })
-          .join(" | ");
-        addLog(`Parse failed: ${errors}`, "error");
+        setOutputs(EMPTY_OUTPUTS);
+        addLog(`Parse failed: ${formatErrors(parsed._0)}`, "error");
         setIsLoading(false);
         return;
       }
 
       const schemas = parsed._0;
-      const rescriptCode = normalizeRescriptOutput(
-        Codegen.generateModule(schemas),
-      );
-      const typescriptCode = generateTypeScriptModule(schemas);
+      const nextOutputs = { ...EMPTY_OUTPUTS };
+      const warnings = new Set();
+      let failed = false;
+
+      for (const target of TARGETS) {
+        const result = Codegen[target.generate](
+          schemas,
+          options.refinements,
+          options.exactOptional,
+          undefined,
+        );
+        if (result.TAG !== "Ok") {
+          failed = true;
+          addLog(`Codegen failed (${target.id}): ${formatErrors(result._0)}`, "error");
+          continue;
+        }
+        nextOutputs[target.id] = result._0.code;
+        result._0.warnings.forEach((w) => warnings.add(`${target.id}: ${w.replace(/^⚠\s*/, "")}`));
+      }
 
       // Generate sample data from AST
       const sampleDataDict = SampleData.generateAll(schemas);
-      const previewJson = JSON.stringify(sampleDataDict, null, 2);
+      nextOutputs[PREVIEW] = JSON.stringify(sampleDataDict, null, 2);
 
-      setOutputs({ rescript: rescriptCode, typescript: typescriptCode, preview: previewJson });
+      setOutputs(nextOutputs);
 
-      const summary = summarizeGeneration(schemas);
-      const metrics = formatMetrics({
-        schemasCount: schemas.length,
-        rescriptLines: linesCount(rescriptCode),
-        typescriptLines: linesCount(typescriptCode),
-      });
-
-      addLog(`Success. ${summary}`, "success");
-      addLog(metrics, "info");
+      warnings.forEach((w) => addLog(w, "warning"));
+      if (!failed) addLog(`Success. ${summarizeGeneration(schemas)}`, "success");
+      addLog(
+        `Schemas: ${schemas.length} | ` +
+          TARGETS.map((t) => `${t.id}: ${linesCount(nextOutputs[t.id])} lines`).join(" | "),
+        "info",
+      );
       setActivePane("output");
       setIsLoading(false);
     },
-    [addLog],
+    [addLog, refinements, exactOptional],
+  );
+
+  const toggleFlag = useCallback(
+    (flag) => {
+      const next = { refinements, exactOptional, [flag]: !{ refinements, exactOptional }[flag] };
+      setRefinements(next.refinements);
+      setExactOptional(next.exactOptional);
+      if (maybeTrim(input)) generate(input, next);
+    },
+    [refinements, exactOptional, input, generate],
   );
 
   // --- Actions ---
@@ -160,7 +191,7 @@ export function App() {
 
   const handleClear = useCallback(() => {
     setInput("");
-    setOutputs({ rescript: "", typescript: "", preview: "" });
+    setOutputs(EMPTY_OUTPUTS);
     addLog("Input buffer cleared.", "system");
   }, [addLog]);
 
@@ -200,15 +231,14 @@ export function App() {
   );
 
   const copyToClipboard = useCallback(async () => {
-    const code =
-      activeTab === TAB.RESCRIPT ? outputs.rescript : outputs.typescript;
+    const code = outputs[activeTab];
     if (!code) {
       addLog("Nothing to copy yet.", "system");
       return;
     }
     try {
       await navigator.clipboard.writeText(toClipboardPayload(code));
-      addLog(`Copied ${activeTab.toLowerCase()} source to clipboard.`, "success");
+      addLog(`Copied ${activeTab} source to clipboard.`, "success");
     } catch {
       addLog("Clipboard access is not available.", "error");
     }
@@ -219,21 +249,11 @@ export function App() {
   }, []);
 
   // --- Highlighted output ---
-  const currentCode =
-    activeTab === TAB.RESCRIPT
-      ? outputs.rescript
-      : activeTab === TAB.PREVIEW
-        ? outputs.preview
-        : outputs.typescript;
-  const currentLang =
-    activeTab === TAB.RESCRIPT
-      ? "rescript"
-      : activeTab === TAB.PREVIEW
-        ? "json"
-        : "typescript";
+  const currentTarget = TARGETS.find((t) => t.id === activeTab);
+  const currentCode = outputs[activeTab] ?? "";
   const highlightedHtml =
-    currentCode.trim() && activeTab !== TAB.PREVIEW
-      ? withLineNumbersAndHighlight(currentCode, currentLang)
+    currentCode.trim() && currentTarget
+      ? withLineNumbersAndHighlight(currentCode, currentTarget.language)
       : "";
 
   const stats = {
@@ -256,11 +276,11 @@ export function App() {
             osury<span className="text-[#c6d0f5]">_term</span>
           </h1>
           <p className="text-sm text-[#a5adce] mt-1">
-            &gt; OpenAPI to ReScript / TypeScript Transpiler
+            &gt; OpenAPI to ReScript / Effect TS / OCaml / Rust
           </p>
         </div>
         <div className="text-xs text-[#51576d] hidden sm:block">
-          v1.0.0 [STABLE]
+          v{__OSURY_VERSION__}
         </div>
       </header>
 
@@ -304,6 +324,25 @@ export function App() {
             </TerminalButton>
           </div>
 
+          <div className="flex gap-4 text-xs text-[#a5adce] px-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={refinements}
+                onChange={() => toggleFlag("refinements")}
+              />
+              --refinements
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={exactOptional}
+                onChange={() => toggleFlag("exactOptional")}
+              />
+              --exact-optional
+            </label>
+          </div>
+
           <WindowFrame
             title="~/openapi_source.json"
             active={activePane === "input"}
@@ -326,34 +365,26 @@ export function App() {
           className="flex flex-col gap-2 min-h-0 overflow-hidden"
         >
           <div className="flex gap-2 mb-1 justify-between">
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {TARGETS.map((target) => (
+                <TerminalButton
+                  key={target.id}
+                  onClick={() => setActiveTab(target.id)}
+                  variant={activeTab === target.id ? "secondary" : "ghost"}
+                  className={
+                    activeTab === target.id
+                      ? "border-[#8caaee] text-[#8caaee]"
+                      : ""
+                  }
+                >
+                  {target.label}
+                </TerminalButton>
+              ))}
               <TerminalButton
-                onClick={() => setActiveTab(TAB.TYPESCRIPT)}
-                variant={activeTab === TAB.TYPESCRIPT ? "secondary" : "ghost"}
+                onClick={() => setActiveTab(PREVIEW)}
+                variant={activeTab === PREVIEW ? "secondary" : "ghost"}
                 className={
-                  activeTab === TAB.TYPESCRIPT
-                    ? "border-[#8caaee] text-[#8caaee]"
-                    : ""
-                }
-              >
-                TypeScript.ts
-              </TerminalButton>
-              <TerminalButton
-                onClick={() => setActiveTab(TAB.RESCRIPT)}
-                variant={activeTab === TAB.RESCRIPT ? "secondary" : "ghost"}
-                className={
-                  activeTab === TAB.RESCRIPT
-                    ? "border-[#8caaee] text-[#8caaee]"
-                    : ""
-                }
-              >
-                ReScript.res
-              </TerminalButton>
-              <TerminalButton
-                onClick={() => setActiveTab(TAB.PREVIEW)}
-                variant={activeTab === TAB.PREVIEW ? "secondary" : "ghost"}
-                className={
-                  activeTab === TAB.PREVIEW
+                  activeTab === PREVIEW
                     ? "border-[#a6d189] text-[#a6d189]"
                     : ""
                 }
@@ -371,7 +402,7 @@ export function App() {
           </div>
 
           <WindowFrame
-            title={`~/generated/${activeTab === TAB.TYPESCRIPT ? "api.ts" : activeTab === TAB.PREVIEW ? "sample_data.json" : "api.res"}`}
+            title={`~/generated/${currentTarget ? currentTarget.file : "sample_data.json"}`}
             active={activePane === "output"}
             className="flex-1 relative"
             rightControls={
@@ -402,7 +433,7 @@ export function App() {
                   Run EXECUTE to generate code.
                 </p>
               </div>
-            ) : activeTab === TAB.PREVIEW && currentCode ? (
+            ) : activeTab === PREVIEW && currentCode ? (
               <pre className="code-view h-full overflow-auto p-4 whitespace-pre text-[#e5c890]">
                 {currentCode}
               </pre>
