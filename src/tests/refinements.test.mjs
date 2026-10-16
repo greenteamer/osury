@@ -83,7 +83,7 @@ describe('Refinements end-to-end', () => {
         // reject it. Rejection is reported per field so a regression names the
         // keyword that stopped working, not just "something failed".
         const script = `import * as Gen from './src/Gen.mjs';
-import * as S from 'sury/src/S.mjs';
+import * as S from 'sury';
 
 const VALID = ${JSON.stringify(VALID)};
 

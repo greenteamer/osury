@@ -53,28 +53,40 @@ function reLit(pattern) {
 }
 
 function formatSchema(f) {
+  let base;
   switch (f) {
     case "Uuid" :
-      return "S.uuid";
+      base = "S.uuid";
+      break;
     case "Email" :
-      return "S.email";
+      base = "S.email";
+      break;
     case "Uri" :
-      return "S.uri";
+      base = "S.uri";
+      break;
     case "IsoDate" :
-      return "S.isoDate";
+      base = "S.isoDate";
+      break;
     case "IsoDateTime" :
-      return "S.isoDateTime";
+      base = "S.isoDateTime";
+      break;
     case "IsoTime" :
-      return "S.isoTime";
+      base = "S.isoTime";
+      break;
     case "Duration" :
-      return "S.duration";
+      base = "S.duration";
+      break;
     case "Ipv4" :
-      return "S.ipv4";
+      base = "S.ipv4";
+      break;
     case "Ipv6" :
-      return "S.ipv6";
+      base = "S.ipv6";
+      break;
     case "Hostname" :
-      return "S.hostname";
+      base = "S.hostname";
+      break;
   }
+  return base + `->S.to(S.string)`;
 }
 
 function refinementAttr(r, isInt) {
@@ -173,6 +185,14 @@ function printFieldType(t) {
   }
 }
 
+function printRecord(fields) {
+  if (fields.length === 0) {
+    return "{}";
+  }
+  let fieldStrs = fields.map(printField);
+  return `{\n  ` + fieldStrs.join(",\n  ") + `\n}`;
+}
+
 function printVariantCases(cases) {
   let caseStrs = cases.map(c => {
     let tag = `#` + quoteTag(c.tag);
@@ -183,14 +203,6 @@ function printVariantCases(cases) {
     return tag + `(` + printType(payload) + `)`;
   });
   return `[` + caseStrs.join(" | ") + `]`;
-}
-
-function printRecord(fields) {
-  if (fields.length === 0) {
-    return "{}";
-  }
-  let fieldStrs = fields.map(printField);
-  return `{\n  ` + fieldStrs.join(",\n  ") + `\n}`;
 }
 
 function printVariantCase(c) {

@@ -162,8 +162,8 @@ describe('Generated ReScript tells the three states apart', () => {
         fs.rmSync(scratch, { recursive: true, force: true });
     });
 
-    const parse = (wire) => S.parser(mod.shipmentUpdateSchema)(wire);
-    const encode = (value) => S.parser(S.reverse(mod.shipmentUpdateSchema))(value);
+    const parse = (wire) => S.parseOrThrow(mod.shipmentUpdateSchema)(wire);
+    const encode = (value) => S.parseOrThrow(S.reverse(mod.shipmentUpdateSchema))(value);
 
     test('an absent key decodes to None, a null to Some(None), a value to Some(Some(v))', () => {
         // ReScript's option is undefined/value at runtime; Nullable.t is the
@@ -195,8 +195,8 @@ describe('Generated ReScript tells the three states apart', () => {
         const plain = await import(
             pathToFileURL(path.join(scratch, 'Generated.mjs')).href + '?plain'
         );
-        const parsePlain = (wire) => S.parser(plain.shipmentUpdateSchema)(wire);
-        const encodePlain = (value) => S.parser(S.reverse(plain.shipmentUpdateSchema))(value);
+        const parsePlain = (wire) => S.parseOrThrow(plain.shipmentUpdateSchema)(wire);
+        const encodePlain = (value) => S.parseOrThrow(S.reverse(plain.shipmentUpdateSchema))(value);
 
         // One schema accepts both wire forms — the field is not optional, so a
         // writer must pass something, and undefined and null are equally legal

@@ -29,13 +29,13 @@
     "gentype": "^4.5.0",
     "jest": "^30.2.0",
     "rescript": "^12.1.0",
-    "sury": "^11.0.0-rc.2",
-    "sury-ppx": "^11.0.0-rc.2",
+    "sury": "^11.0.0",
+    "sury-ppx": "^11.0.0",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "sury": ">=11.0.0-rc.2",
-    "sury-ppx": ">=11.0.0-rc.2"
+    "sury": ">=11.0.0",
+    "sury-ppx": ">=11.0.0"
   },
   "peerDependenciesMeta": {
     "sury": {

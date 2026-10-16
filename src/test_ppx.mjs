@@ -3,7 +3,7 @@
 import * as Sury from "sury";
 
 let userSchema = Sury.$schema(s => ({
-  id: s.m(Sury.int),
+  id: s.m(Sury.int32),
   name: s.m(Sury.string)
 }));
 

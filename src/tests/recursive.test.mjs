@@ -138,7 +138,7 @@ describe('Recursive types', () => {
     // error) and the ppx-built schema actually decodes a recursive tree.
     test('compiles with ReScript and the schema round-trips a nested tree', () => {
         const out = compileAndRun(genReScript(), `import * as Gen from './src/Gen.mjs';
-import * as S from 'sury/src/S.mjs';
+import * as S from 'sury';
 const wire = { value: 'root', label: 'Root', count: 10, children: [
   { value: 'a', label: 'A', count: 3, children: null },
   { value: 'b', label: 'B', count: 7, children: [ { value: 'b1', label: 'B1', count: 1, children: null } ] },
@@ -159,7 +159,7 @@ console.log('REC ROUNDTRIP OK');
         expect(annotationsAbove(code, 'type rec tree =')).toContain('@schema');
 
         const out = compileAndRun(code, `import * as Gen from './src/Gen.mjs';
-import * as S from 'sury/src/S.mjs';
+import * as S from 'sury';
 const wire = { _tag: 'Branch', kids: [ { _tag: 'Leaf', v: 1 }, { _tag: 'Branch', kids: [ { _tag: 'Leaf', v: 2 } ] } ] };
 const d = S.parseOrThrow(wire, Gen.treeSchema);
 if (d.kids[1].kids[0].v !== 2) { console.error('BAD', JSON.stringify(d)); process.exit(1); }

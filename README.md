@@ -228,7 +228,7 @@ The library uses **sury-ppx** for code-first approach — `@schema` annotation a
 
 ## Demo Playground
 
-Try it online: **[osury-production.up.railway.app](https://osury-production.up.railway.app/)**
+Try it online: **[osury.coreofkeen.com](https://osury.coreofkeen.com/)**
 
 This repository also includes a local demo for development:
 

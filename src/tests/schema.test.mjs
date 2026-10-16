@@ -3246,17 +3246,19 @@ describe('Refinements', () => {
 
         expect(code).toContain('id: string');
         expect(code).toContain('age: int');
-        expect(code).not.toContain('@s.matches(S.uuid)');
+        expect(code).not.toContain('@s.matches(S.uuid');
         expect(code).not.toContain('@s.with(');
     });
 
     test('with refinements: formats replace the schema, bounds wrap it', () => {
         const code = genWith(true);
 
-        // format → @s.matches, the ReScript type stays what it was
-        expect(code).toContain('id: @s.matches(S.uuid) string');
-        expect(code).toContain('email: @s.matches(S.email) string');
-        expect(code).toContain('created_at: @s.matches(S.isoDateTime) string');
+        // format → @s.matches, the ReScript type stays what it was. Since sury
+        // 11.0.0 a format schema decodes to its own branded type (S.uuid, not
+        // string), so the generator converts it back with S.to(S.string)
+        expect(code).toContain('id: @s.matches(S.uuid->S.to(S.string)) string');
+        expect(code).toContain('email: @s.matches(S.email->S.to(S.string)) string');
+        expect(code).toContain('created_at: @s.matches(S.isoDateTime->S.to(S.string)) string');
 
         // string bounds and pattern wrap the base schema
         expect(code).toContain(

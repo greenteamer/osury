@@ -54,10 +54,10 @@ type scalars = {
 @genType
 @schema
 type refined = {
-  id: @s.matches(S.uuid) string,
-  email: @s.matches(S.email) string,
-  site: @s.matches(S.uri) string,
-  created_at: @s.matches(S.isoDateTime) string,
+  id: @s.matches(S.uuid->S.to(S.string)) string,
+  email: @s.matches(S.email->S.to(S.string)) string,
+  site: @s.matches(S.uri->S.to(S.string)) string,
+  created_at: @s.matches(S.isoDateTime->S.to(S.string)) string,
   slug: @s.with(S.minLength(_, 3)) @s.with(S.maxLength(_, 32)) @s.with(S.pattern(_, %re("/^[a-z-]+$/"))) string,
   ratio: @s.with(S.gte(_, 0.)) @s.with(S.lte(_, 1.)) float,
   count: @s.with(S.gt(_, 0)) @s.with(S.multipleOf(_, 5)) int
@@ -133,7 +133,7 @@ type postV1WidgetsResponse202 = {
 @genType
 @schema
 type getV1Widgets_widget_idParams = {
-  widget_id: @s.matches(S.uuid) string
+  widget_id: @s.matches(S.uuid->S.to(S.string)) string
 }
 
 @genType

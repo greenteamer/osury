@@ -123,7 +123,7 @@ describe('Generated ReScript parses real data', () => {
 
         await withModule(g._0.code, 'union', async (mod) => {
             const S = await import('sury');
-            const parse = S.parser(mod.filterSchema);
+            const parse = S.parseOrThrow(mod.filterSchema);
 
             const wire = [
                 { kind: 'multi', key: 'a' },
@@ -179,7 +179,7 @@ describe('Generated ReScript parses its own sample data', () => {
                 const sample = SampleData.generateNamed(s, dict, encodings);
                 checked.push(s.name);
                 try {
-                    S.parser(schemaValue)(sample);
+                    S.parseOrThrow(schemaValue)(sample);
                 } catch (e) {
                     failures.push(`${s.name}: ${String(e.message).split('\n')[0]}\n  sample: ${JSON.stringify(sample)}`);
                 }

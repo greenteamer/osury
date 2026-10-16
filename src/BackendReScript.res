@@ -50,8 +50,11 @@ let reLit = (pattern: string): string =>
 
 // Sury schema for a `format`. These REPLACE the base schema (S.uuid instead of
 // S.string) rather than wrapping it, hence @s.matches and not @s.with.
+// Since sury 11.0.0 a format schema decodes to its own branded type (t<uuid>,
+// t<email>, ...), so `->S.to(S.string)` brings the output back to string:
+// --refinements adds checks, it never changes the field's type (Rule 14).
 let formatSchema = (f: Schema.stringFormat): string => {
-  switch f {
+  let base = switch f {
   | Uuid => "S.uuid"
   | Email => "S.email"
   | Uri => "S.uri"
@@ -63,6 +66,7 @@ let formatSchema = (f: Schema.stringFormat): string => {
   | Ipv6 => "S.ipv6"
   | Hostname => "S.hostname"
   }
+  `${base}->S.to(S.string)`
 }
 
 // Attribute for one refinement. `isInt` picks the literal flavour for bounds:
@@ -99,7 +103,7 @@ let rec printType = (t: IR.irType): string => {
   // letting any enclosing record/variant still get @schema instead of being
   // poisoned by an Unknown leaf.
   | JSON => "@s.matches(S.json) JSON.t"
-  // Attributes sit in front of the base type: `@s.matches(S.uuid) string`.
+  // Attributes sit in front of the base type: `@s.matches(S.uuid->S.to(S.string)) string`.
   // The type itself is untouched — only the sury schema gains checks.
   | Refined(inner, refs) =>
     let isInt = switch inner {
