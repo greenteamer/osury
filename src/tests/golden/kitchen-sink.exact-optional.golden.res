@@ -81,7 +81,7 @@ type phase = [#Draft | #Done]
 
 @genType
 @schema
-type visibility = [#"open" | #"private" | #hidden]
+type visibility = [#"open" | #"private" | #hidden | #"3rd_party"]
 
 @genType
 @schema

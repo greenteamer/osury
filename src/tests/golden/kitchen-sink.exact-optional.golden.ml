@@ -145,6 +145,7 @@ type visibility =
   | Open
   | Private
   | Hidden
+  | V3rd_party
 
 type measure = {
   value : float;
@@ -468,12 +469,14 @@ and visibility_to_yojson (v : visibility) : Yojson.Safe.t =
   | Open -> `String "open"
   | Private -> `String "private"
   | Hidden -> `String "hidden"
+  | V3rd_party -> `String "3rd_party"
 
 and visibility_of_yojson (j : Yojson.Safe.t) : (visibility, string) result =
   match j with
   | `String "open" -> Ok Open
   | `String "private" -> Ok Private
   | `String "hidden" -> Ok Hidden
+  | `String "3rd_party" -> Ok V3rd_party
   | j -> Error ("visibility: unexpected " ^ Yojson.Safe.to_string j)
 
 and measure_to_yojson (x : measure) : Yojson.Safe.t =

@@ -143,6 +143,8 @@ pub enum Visibility {
     Private,
     #[serde(rename = "hidden")]
     Hidden,
+    #[serde(rename = "3rd_party")]
+    V3rdParty,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

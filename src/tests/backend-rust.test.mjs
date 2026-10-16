@@ -111,6 +111,24 @@ describe('BackendRust', () => {
         expect(code).not.toContain('#[serde(rename = "Spend")]');
         expect(code).toContain('Spend,');
     });
+
+    test('names that start with a digit get a prefix and keep the wire name', () => {
+        // "3pl" is all [A-Za-z0-9] yet not an identifier: a Rust name cannot
+        // start with a digit. Found on a production spec (EntityType).
+        const code = gen({
+            EntityType: { type: "string", enum: ["warehouse", "3pl"] },
+            Shipment: {
+                type: "object",
+                properties: { "3d_model": { type: "string" } },
+                required: ["3d_model"]
+            }
+        });
+
+        expect(code).toContain('#[serde(rename = "3pl")]\n    V3pl,');
+        expect(code).toContain('#[serde(rename = "3d_model")]');
+        expect(code).toContain('pub _3d_model: String,');
+        expect(code).not.toMatch(/^\s+3pl,/m);
+    });
 });
 
 // ─── Compile + round-trip against real cargo toolchain ──────────────────────

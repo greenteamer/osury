@@ -27,18 +27,30 @@ let isValidIdent = (s: string): bool => {
   })
 }
 
-// Wire field name → Rust field name (keyword → suffix, non-ident → sanitize)
+// Replacing the non-identifier characters is not enough: "3pl" is all
+// [A-Za-z0-9] yet still not an identifier, because it starts with a digit.
+let startsWithDigit = (s: string): bool => {
+  let code = s->String.charCodeAt(0)
+  code >= 48.0 && code <= 57.0
+}
+
+// Wire field name → Rust field name (keyword → suffix, non-ident → sanitize,
+// leading digit → "_" prefix: "3d_model" → _3d_model)
 let rustFieldName = (wire: string): string => {
   let sanitized = isValidIdent(wire) ? wire : wire->String.replaceRegExp(/[^A-Za-z0-9_]/g, "_")
+  let sanitized = startsWithDigit(sanitized) ? "_" ++ sanitized : sanitized
   rustKeywords->Array.includes(sanitized) ? sanitized ++ "_" : sanitized
 }
 
 let typeName = (name: string): string => CodegenHelpers.ucFirst(name)
 
 // Enum/variant wire value → Rust variant name: "ad_sales" → AdSales
+// A leading digit gets a "V" prefix: "3pl" → V3pl (the wire value survives
+// through #[serde(rename)], since the name now differs from it)
 let variantName = (value: string): string => {
   let sanitized = isValidIdent(value) ? value : value->String.replaceRegExp(/[^A-Za-z0-9_]/g, "_")
-  CodegenHelpers.ucFirst(CodegenTransforms.camelize(sanitized))
+  let name = CodegenHelpers.ucFirst(CodegenTransforms.camelize(sanitized))
+  startsWithDigit(name) ? "V" ++ name : name
 }
 
 // Wire name of a field (@as holds the original JSON key when IRGen renamed it)

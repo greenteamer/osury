@@ -80,12 +80,22 @@ function isValidIdent(s) {
   }
 }
 
+function startsWithDigit(s) {
+  let code = s.charCodeAt(0);
+  if (code >= 48.0) {
+    return code <= 57.0;
+  } else {
+    return false;
+  }
+}
+
 function rustFieldName(wire) {
   let sanitized = isValidIdent(wire) ? wire : wire.replace(/[^A-Za-z0-9_]/g, "_");
-  if (rustKeywords.includes(sanitized)) {
-    return sanitized + "_";
+  let sanitized$1 = startsWithDigit(sanitized) ? "_" + sanitized : sanitized;
+  if (rustKeywords.includes(sanitized$1)) {
+    return sanitized$1 + "_";
   } else {
-    return sanitized;
+    return sanitized$1;
   }
 }
 
@@ -93,7 +103,12 @@ let typeName = CodegenHelpers.ucFirst;
 
 function variantName(value) {
   let sanitized = isValidIdent(value) ? value : value.replace(/[^A-Za-z0-9_]/g, "_");
-  return CodegenHelpers.ucFirst(CodegenTransforms.camelize(sanitized));
+  let name = CodegenHelpers.ucFirst(CodegenTransforms.camelize(sanitized));
+  if (startsWithDigit(name)) {
+    return "V" + name;
+  } else {
+    return name;
+  }
 }
 
 function wireName(field) {
@@ -550,6 +565,7 @@ function droppedRefinements(m) {
 export {
   rustKeywords,
   isValidIdent,
+  startsWithDigit,
   rustFieldName,
   typeName,
   variantName,

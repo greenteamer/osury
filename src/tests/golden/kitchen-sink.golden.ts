@@ -71,7 +71,7 @@ export const Phase = Schema.Tuple([Schema.Literals(['Draft', 'Done'])]).pipe(
 )
 export type Phase = Schema.Schema.Type<typeof Phase>
 
-export const Visibility = Schema.Literals(['open', 'private', 'hidden'])
+export const Visibility = Schema.Literals(['open', 'private', 'hidden', '3rd_party'])
 export type Visibility = Schema.Schema.Type<typeof Visibility>
 
 export const Measure = Schema.Struct({

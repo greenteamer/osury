@@ -371,11 +371,12 @@
       },
       "Visibility": {
         "type": "string",
-        "description": "values that are ReScript keywords: #open / #private are syntax errors unless quoted",
+        "description": "values that are not plain identifiers: #open / #private are ReScript keywords, 3rd_party starts with a digit (a Rust variant cannot)",
         "enum": [
           "open",
           "private",
-          "hidden"
+          "hidden",
+          "3rd_party"
         ]
       },
       "Nullables": {
