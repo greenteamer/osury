@@ -32,6 +32,7 @@ build/
 !bin/**/*.js
 !scripts/**/*.js
 !demo/**/*.js
+!jest.config.js
 
 # VSCode
 .vscode/
