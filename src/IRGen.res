@@ -437,7 +437,7 @@ let stageNames = (~refinements: bool, ~exactOptional: bool=false): array<string>
   Array.concat(normalizeStages(~refinements), expandStages(~exactOptional))->Array.map(s => s.name)
 
 // Externally-tagged unions and list-encoded enums get a type but no sury codec
-// — tell the user why.
+// — tell the user why. ReScript-only: see IR.surySchemaWarnings.
 let encodingWarnings = (schemas: array<OpenAPIParser.namedSchema>): array<string> =>
   schemas->Array.filterMap(s =>
     switch s.variantEncoding {
@@ -469,10 +469,8 @@ let generate = (
     // Diagnostics are collected here, between the halves: on the normalized AST
     // (so collapsed unions no longer warn) but before promotion and extraction
     // turn inline constructs into refs.
-    let warnings = Array.concat(
-      CodegenTransforms.collectUnionWarnings(normalized),
-      encodingWarnings(normalized),
-    )
+    let warnings = CodegenTransforms.collectUnionWarnings(normalized)
+    let surySchemaWarnings = encodingWarnings(normalized)
 
     switch runStages(normalized, expandStages(~exactOptional)) {
     | Error(errs) => Error(errs)
@@ -509,6 +507,7 @@ let generate = (
         IR.preamble: "",
         types: irTypes,
         warnings,
+        surySchemaWarnings,
         exactOptional,
       })
     }

@@ -3169,6 +3169,27 @@ describe('Sample Data Generator', () => {
         expect(code).toContain('@genType\ntype status = [#InProgress | #Mastered]');
         expect(warnings.some(w => w.includes('status') && w.includes('list-encoded'))).toBe(true);
     });
+
+    test('sury-ppx skip warnings belong to ReScript only — other targets encode these forms', () => {
+        // "@schema skipped (sury-ppx …)" is a ReScript limitation. OCaml, Rust and
+        // Effect TS print codecs for both encodings, so the warning there is
+        // false — and the CLI with --target rust used to print it anyway.
+        const doc = {
+            "$defs": {
+                Status: { type: "string", enum: ["InProgress", "Mastered"], "x-variant-encoding": "list" },
+            }
+        };
+        const schemas = OpenAPIParser.parseDocument(doc)._0;
+
+        const rescript = Codegen.generateModuleWithDiagnostics(schemas)._0.warnings;
+        expect(rescript.some(w => w.includes('sury-ppx'))).toBe(true);
+
+        for (const generate of ['generateOCamlWithDiagnostics', 'generateEffectTSWithDiagnostics', 'generateRustWithDiagnostics']) {
+            const g = Codegen[generate](schemas, false, false, undefined);
+            expect(g.TAG).toBe('Ok');
+            expect(g._0.warnings.filter(w => w.includes('sury-ppx'))).toEqual([]);
+        }
+    });
 });
 
 // Refinements: OpenAPI validation keywords (format, minLength, minimum, ...).

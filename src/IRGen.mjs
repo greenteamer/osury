@@ -594,7 +594,8 @@ function generate(schemas, refinementsOpt, exactOptionalOpt, param) {
     };
   }
   let normalized = errs._0;
-  let warnings = CodegenTransforms.collectUnionWarnings(normalized).concat(encodingWarnings(normalized));
+  let warnings = CodegenTransforms.collectUnionWarnings(normalized);
+  let surySchemaWarnings = encodingWarnings(normalized);
   let errs$1 = runStages(normalized, expandStages(exactOptional));
   if (errs$1.TAG !== "Ok") {
     return {
@@ -622,6 +623,7 @@ function generate(schemas, refinementsOpt, exactOptionalOpt, param) {
       preamble: "",
       types: irTypes,
       warnings: warnings,
+      surySchemaWarnings: surySchemaWarnings,
       exactOptional: exactOptional
     }
   };

@@ -26,7 +26,7 @@ function generateModuleWithDiagnostics(schemas, refinementsOpt, exactOptionalOpt
     TAG: "Ok",
     _0: {
       code: code,
-      warnings: irModule$1.warnings
+      warnings: irModule$1.warnings.concat(irModule$1.surySchemaWarnings)
     }
   };
 }

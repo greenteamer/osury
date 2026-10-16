@@ -58,7 +58,7 @@ let generateModuleWithDiagnostics = (
   switch IRGen.generate(schemas, ~refinements, ~exactOptional, ()) {
   | Ok(irModule) =>
     let code = BackendReScript.print(irModule)
-    Ok({code, warnings: irModule.warnings})
+    Ok({code, warnings: Array.concat(irModule.warnings, irModule.surySchemaWarnings)})
   | Error(e) => Error(e)
   }
 }

@@ -63,7 +63,10 @@ type irTypeDef = {
 type irModule = {
   preamble: string, // "module S = Sury"
   types: array<irTypeDef>, // topo-sorted
-  warnings: array<string>,
+  warnings: array<string>, // target-neutral: every backend reports these
+  // Types printed without @schema because sury-ppx cannot express their wire
+  // form. A ReScript-only limitation: the other backends emit codecs for them.
+  surySchemaWarnings: array<string>,
   // Presence and nullability are printed as separate axes (Option(Nullable(t))
   // for a field that is neither required nor non-null). Backends need to know:
   // the honest rendering differs per target, and some of them are only exact in
