@@ -786,7 +786,7 @@ describe('Schema Parser', () => {
         expect(result._0._tag).toBe('Object');
 
         const fields = result._0._0;
-        expect(fields.length).toBe(1);  // только name, без _tag
+        expect(fields.length).toBe(1);  // only name, no _tag
         expect(fields[0].name).toBe('name');
     });
 
@@ -801,7 +801,7 @@ describe('Schema Parser', () => {
             properties: {
                 count: { type: "integer", default: 0 }
             }
-            // count НЕ в required[] — default не влияет на обязательность
+            // count is NOT in required[] — a default does not make a field required
         };
         const result = Schema.parse(input);
 
@@ -824,7 +824,7 @@ describe('Schema Parser', () => {
                             color:    { type: "string",  title: "Color",    default: "" },
                             asins:    { type: "array", items: { type: "string" }, title: "Asins" }
                         }
-                        // ключа required нет — все четыре поля optional
+                        // no required key — all four fields are optional
                     }
                 }
             }
