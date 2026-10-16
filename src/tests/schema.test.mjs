@@ -1938,6 +1938,24 @@ describe('Code Generator', () => {
         expect(code).toContain('[#"20ft" | #"40hc" | #plain | #"No Sales"]');
     });
 
+    test('enum values that are ReScript keywords are quoted', () => {
+        // "open" is a well-formed identifier, yet `#open` is a syntax error:
+        // keywords must be escaped as #"open". Found on a live contract whose
+        // element kind enum had an "open" value.
+        const doc = {
+            openapi: "3.1.0",
+            components: {
+                schemas: {
+                    Kind: { type: "string", enum: ["open", "closed", "type", "await"] }
+                }
+            }
+        };
+        const parseResult = OpenAPIParser.parseDocument(doc);
+        const code = Codegen.generateModule(parseResult._0);
+
+        expect(code).toContain('[#"open" | #closed | #"type" | #"await"]');
+    });
+
     test('mixed union (primitive + Dict) lowers to @unboxed — the shapes differ', () => {
         const doc = {
             openapi: "3.0.0",

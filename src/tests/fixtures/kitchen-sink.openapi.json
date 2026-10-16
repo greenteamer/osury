@@ -369,6 +369,15 @@
         ],
         "x-variant-encoding": "list"
       },
+      "Visibility": {
+        "type": "string",
+        "description": "values that are ReScript keywords: #open / #private are syntax errors unless quoted",
+        "enum": [
+          "open",
+          "private",
+          "hidden"
+        ]
+      },
       "Nullables": {
         "type": "object",
         "properties": {

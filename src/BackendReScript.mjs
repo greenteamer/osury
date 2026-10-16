@@ -3,6 +3,7 @@
 import * as IR from "./IR.mjs";
 import * as Core__Array from "@rescript/core/src/Core__Array.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
+import * as CodegenHelpers from "./CodegenHelpers.mjs";
 
 function quoteTag(tag) {
   let isIdentChar = (c, allowDigit) => {
@@ -15,7 +16,7 @@ function quoteTag(tag) {
       return false;
     }
   };
-  let isValidIdent = tag !== "" && isIdentChar(tag.charAt(0), false) && tag.split("").every(c => isIdentChar(c, true));
+  let isValidIdent = tag !== "" && isIdentChar(tag.charAt(0), false) && tag.split("").every(c => isIdentChar(c, true)) && !CodegenHelpers.isReservedKeyword(tag);
   if (isValidIdent) {
     return tag;
   } else {

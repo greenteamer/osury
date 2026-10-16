@@ -141,6 +141,11 @@ type phase =
   | Draft
   | Done
 
+type visibility =
+  | Open
+  | Private
+  | Hidden
+
 type measure = {
   value : float;
   unit : string;
@@ -457,6 +462,19 @@ and phase_of_yojson (j : Yojson.Safe.t) : (phase, string) result =
   | `List [ `String "Draft" ] -> Ok Draft
   | `List [ `String "Done" ] -> Ok Done
   | j -> Error ("phase: unexpected " ^ Yojson.Safe.to_string j)
+
+and visibility_to_yojson (v : visibility) : Yojson.Safe.t =
+  match v with
+  | Open -> `String "open"
+  | Private -> `String "private"
+  | Hidden -> `String "hidden"
+
+and visibility_of_yojson (j : Yojson.Safe.t) : (visibility, string) result =
+  match j with
+  | `String "open" -> Ok Open
+  | `String "private" -> Ok Private
+  | `String "hidden" -> Ok Hidden
+  | j -> Error ("visibility: unexpected " ^ Yojson.Safe.to_string j)
 
 and measure_to_yojson (x : measure) : Yojson.Safe.t =
   `Assoc

@@ -133,6 +133,16 @@ impl TryFrom<Vec<String>> for Phase {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Visibility {
+    #[serde(rename = "open")]
+    Open,
+    #[serde(rename = "private")]
+    Private,
+    #[serde(rename = "hidden")]
+    Hidden,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Measure {
     pub value: f64,
     pub unit: String,

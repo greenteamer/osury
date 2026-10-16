@@ -81,6 +81,10 @@ type phase = [#Draft | #Done]
 
 @genType
 @schema
+type visibility = [#"open" | #"private" | #hidden]
+
+@genType
+@schema
 type measure = {
   value: float,
   unit: string

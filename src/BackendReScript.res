@@ -1,10 +1,12 @@
 // BackendReScript.res - Pure printer: IR → ReScript code
-// No decisions, no lookups, no calls to CodegenHelpers.
-// All decisions are already captured in the IR.
+// No decisions, no lookups. All decisions are already captured in the IR.
+// The one CodegenHelpers use is the keyword list (Rule 10): it is lexical
+// syntax, like the identifier check below, and must have a single source.
 
 // Quote poly variant tag unless it's a valid ReScript identifier.
 // A per-character check is not enough: every char of "20ft" is in
 // [A-Za-z0-9_], yet a leading digit still makes #20ft a syntax error.
+// A keyword is well-formed yet still a syntax error: #open must be #"open".
 let quoteTag = (tag: string): string => {
   let isIdentChar = (c: string, ~allowDigit: bool) => {
     let code = c->String.charCodeAt(0)
@@ -16,7 +18,8 @@ let quoteTag = (tag: string): string => {
   let isValidIdent =
     tag !== "" &&
     isIdentChar(tag->String.charAt(0), ~allowDigit=false) &&
-    tag->String.split("")->Array.every(c => isIdentChar(c, ~allowDigit=true))
+    tag->String.split("")->Array.every(c => isIdentChar(c, ~allowDigit=true)) &&
+    !CodegenHelpers.isReservedKeyword(tag)
   if isValidIdent {
     tag
   } else {
