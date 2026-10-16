@@ -126,6 +126,18 @@ type mark = Shine({
 
 @genType
 @schema
+type rowA = {
+  sku: string
+}
+
+@genType
+@schema
+type rowB = {
+  sku: string
+}
+
+@genType
+@schema
 type postV1WidgetsResponse202 = {
   job_id: string
 }
@@ -187,7 +199,8 @@ type nullables = {
   maybe_list: @s.null Nullable.t<array<string>>,
   only_one: string,
   inline_enum: inlineEnum,
-  literal_union: literalUnion
+  literal_union: literalUnion,
+  open_literal: option<@s.null Nullable.t<string>>
 }
 
 @genType
@@ -224,6 +237,15 @@ type event = EventCreated({
   at: string
 }) | EventDeleted({
   reason: string
+})
+
+@genType
+@tag("_tag")
+@schema
+type rowAOrRowB = RowA({
+  sku: string
+}) | RowB({
+  sku: string
 })
 
 @genType
@@ -279,6 +301,12 @@ type postV1WidgetsRequest = widget
 type shapeDistinct = {
   amount: measureOrFloat,
   mixed_list: array<stringOrInt>
+}
+
+@genType
+@schema
+type rows = {
+  rows: array<rowAOrRowB>
 }
 
 @genType

@@ -184,6 +184,16 @@ pub enum Mark {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RowA {
+    pub sku: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RowB {
+    pub sku: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostV1WidgetsResponse202 {
     pub job_id: String,
 }
@@ -240,6 +250,8 @@ pub struct Nullables {
     pub only_one: String,
     pub inline_enum: InlineEnum,
     pub literal_union: LiteralUnion,
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "de_double_option")]
+    pub open_literal: Option<Option<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -281,6 +293,17 @@ pub enum Event {
     },
     EventDeleted {
         reason: String,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "_tag")]
+pub enum RowAOrRowB {
+    RowA {
+        sku: String,
+    },
+    RowB {
+        sku: String,
     },
 }
 
@@ -330,6 +353,11 @@ pub type PostV1WidgetsRequest = Widget;
 pub struct ShapeDistinct {
     pub amount: MeasureOrFloat,
     pub mixed_list: Vec<StringOrInt>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Rows {
+    pub rows: Vec<RowAOrRowB>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

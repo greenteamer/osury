@@ -381,11 +381,14 @@ function collapseLiteralUnionsInType(schemasDict, schema) {
     case "Union" :
       let arms = schema._0.map(extra => collapseLiteralUnionsInType(schemasDict, extra));
       let literalSets = Core__Array.filterMap(arms, extra => armLiteralValues(schemasDict, extra));
+      let plainStrings = arms.filter(arm => arm === "String").length;
       if (literalSets.length === arms.length) {
         return {
           _tag: "Enum",
           _0: mergeLiteralValues(literalSets)
         };
+      } else if (plainStrings > 0 && (literalSets.length + plainStrings | 0) === arms.length) {
+        return "String";
       } else {
         return {
           _tag: "Union",

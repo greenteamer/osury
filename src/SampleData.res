@@ -5,11 +5,23 @@
 // Lookup table: schema name -> schemaType (for resolving Ref)
 type schemasDict = Dict.t<Schema.schemaType>
 
+// A schema's shape on the wire. The parser moves a `_tag` const out of the
+// object into discriminatorTag (the generators key unions on it), so the
+// schemaType alone has no `_tag` field. Pydantic gives `_tag` a default, which
+// keeps it out of required[] — yet it is always sent, and a sample without it
+// is one the real API never produces. The tag goes back in as a first AllOf arm.
+let wireShape = (s: OpenAPIParser.namedSchema): Schema.schemaType =>
+  switch (s.discriminatorTag, s.schema) {
+  | (Some(tag), Object(_)) =>
+    AllOf([Object([{name: "_tag", type_: Enum([tag]), required: true}]), s.schema])
+  | _ => s.schema
+  }
+
 // Build lookup dict from named schemas
 let buildSchemasDict = (schemas: array<OpenAPIParser.namedSchema>): schemasDict => {
   let dict = Dict.make()
   schemas->Array.forEach(s => {
-    dict->Dict.set(s.name, s.schema)
+    dict->Dict.set(s.name, wireShape(s))
   })
   dict
 }
@@ -239,7 +251,7 @@ let generateNamed = (
   named: OpenAPIParser.namedSchema,
   schemasDict: schemasDict,
   encodings: encodingsDict,
-): JSON.t => generate(named.schema, schemasDict, ~encodings, ~encoding=?named.variantEncoding)
+): JSON.t => generate(wireShape(named), schemasDict, ~encodings, ~encoding=?named.variantEncoding)
 
 // Public API: generate sample data for all named schemas
 let generateAll = (schemas: array<OpenAPIParser.namedSchema>): Dict.t<JSON.t> => {

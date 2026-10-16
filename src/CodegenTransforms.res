@@ -275,6 +275,8 @@ let resolveEnumNames = (occurrences: array<enumOccurrence>, topLevelNames: array
 // Collapse it to a single merged Enum (dedup, order preserved): no
 // discriminator is needed or possible for scalar arms, and the merged inline
 // Enum is then promoted to a named type by the regular enum-extraction pass.
+// A Union of literal sets plus a plain `string` arm collapses to String: the
+// literals add nothing a string does not already accept.
 
 let mergeLiteralValues = (valueSets: array<array<string>>): array<string> => {
   let seen = Dict.make()
@@ -338,8 +340,14 @@ let rec collapseLiteralUnionsInType = (
   | Union(types) =>
     let arms = types->Array.map(collapseLiteralUnionsInType(~schemasDict, ...))
     let literalSets = arms->Array.filterMap(armLiteralValues(~schemasDict, ...))
+    let plainStrings = arms->Array.filter(arm => arm == Schema.String)->Array.length
     if Array.length(literalSets) == Array.length(arms) {
       Enum(mergeLiteralValues(literalSets))
+    } else if plainStrings > 0 && Array.length(literalSets) + plainStrings == Array.length(arms) {
+      // Literals plus a plain string (Pydantic's `Literal[...] | str`): every
+      // literal is a string, and nothing on the wire tells the arms apart, so
+      // the union is exactly `string`.
+      String
     } else {
       Union(arms)
     }

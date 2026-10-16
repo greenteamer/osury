@@ -149,6 +149,16 @@ const _MarkTint = Schema.Struct({
 export const Mark = Schema.Union([_MarkShine, _MarkTint])
 export type Mark = Schema.Schema.Type<typeof Mark>
 
+export const RowA = Schema.Struct({
+  sku: Schema.String,
+})
+export type RowA = Schema.Schema.Type<typeof RowA>
+
+export const RowB = Schema.Struct({
+  sku: Schema.String,
+})
+export type RowB = Schema.Schema.Type<typeof RowB>
+
 export const PostV1WidgetsResponse202 = Schema.Struct({
   job_id: Schema.String,
 })
@@ -203,6 +213,7 @@ export const Nullables = Schema.Struct({
   only_one: Schema.String,
   inline_enum: InlineEnum,
   literal_union: LiteralUnion,
+  open_literal: Schema.optionalKey(Schema.NullOr(Schema.String)),
 })
 export type Nullables = Schema.Schema.Type<typeof Nullables>
 
@@ -240,6 +251,19 @@ const _EventEventDeleted = Schema.Struct({
 
 export const Event = Schema.Union([_EventEventCreated, _EventEventDeleted])
 export type Event = Schema.Schema.Type<typeof Event>
+
+const _RowAOrRowBRowA = Schema.Struct({
+  _tag: Schema.Literal('RowA'),
+  sku: Schema.String,
+})
+
+const _RowAOrRowBRowB = Schema.Struct({
+  _tag: Schema.Literal('RowB'),
+  sku: Schema.String,
+})
+
+export const RowAOrRowB = Schema.Union([_RowAOrRowBRowA, _RowAOrRowBRowB])
+export type RowAOrRowB = Schema.Schema.Type<typeof RowAOrRowB>
 
 const _IssueLoopOrIssueBrokenLinkLoopFound = Schema.Struct({
   kind: Schema.Literal('loop_found'),
@@ -341,6 +365,11 @@ export const ShapeDistinct = Schema.Struct({
   mixed_list: Schema.Array(StringOrInt),
 })
 export type ShapeDistinct = Schema.Schema.Type<typeof ShapeDistinct>
+
+export const Rows = Schema.Struct({
+  rows: Schema.Array(RowAOrRowB),
+})
+export type Rows = Schema.Schema.Type<typeof Rows>
 
 export const Envelope = Schema.Struct({
   payload: IssueLoopOrIssueBrokenLink,

@@ -438,6 +438,24 @@
                 "const": "no"
               }
             ]
+          },
+          "open_literal": {
+            "description": "Literal[...] | str | None: the literals are a subset of string, so the field is just a nullable string",
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "manual"
+                ]
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -833,6 +851,61 @@
           "event",
           "phase",
           "mark"
+        ]
+      },
+      "RowA": {
+        "type": "object",
+        "description": "_tag has a default (Pydantic), so it is not in required[] — but it is always on the wire",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "const": "RowA",
+            "default": "RowA"
+          },
+          "sku": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku"
+        ]
+      },
+      "RowB": {
+        "type": "object",
+        "description": "_tag has a default (Pydantic), so it is not in required[] — but it is always on the wire",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "const": "RowB",
+            "default": "RowB"
+          },
+          "sku": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku"
+        ]
+      },
+      "Rows": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/RowA"
+                },
+                {
+                  "$ref": "#/components/schemas/RowB"
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "rows"
         ]
       }
     }

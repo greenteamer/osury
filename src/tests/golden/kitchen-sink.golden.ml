@@ -166,6 +166,14 @@ type mark =
   | Shine of { target : string }
   | Tint of { level : int }
 
+type row_a = {
+  sku : string;
+}
+
+type row_b = {
+  sku : string;
+}
+
 type post_v1_widgets_response202 = {
   job_id : string;
 }
@@ -212,6 +220,7 @@ type nullables = {
   only_one : string;
   inline_enum : inline_enum;
   literal_union : literal_union;
+  open_literal : string option;
 }
 
 type shipment_update = {
@@ -239,6 +248,10 @@ type event =
   | EventCreated of { at : string }
   | EventDeleted of { reason : string }
 
+type row_a_or_row_b =
+  | RowA of { sku : string }
+  | RowB of { sku : string }
+
 type issue_loop_or_issue_broken_link =
   | LoopFound of { path : string list }
   | BrokenLink of { from : string; to_ : string }
@@ -264,6 +277,10 @@ type post_v1_widgets_request = widget
 type shape_distinct = {
   amount : measure_or_float;
   mixed_list : string_or_int list;
+}
+
+type rows = {
+  rows : row_a_or_row_b list;
 }
 
 type envelope = {
@@ -579,6 +596,30 @@ and mark_of_yojson (j : Yojson.Safe.t) : (mark, string) result =
      | other -> Error ("mark: unknown variant: " ^ other))
   | _ -> Error ("mark: expected single-key object")
 
+and row_a_to_yojson (x : row_a) : Yojson.Safe.t =
+  `Assoc
+    (List.concat
+    [
+      [ ("sku", `String x.sku) ];
+    ])
+
+and row_a_of_yojson (j : Yojson.Safe.t) : (row_a, string) result =
+  let open Oj in
+  let* sku = Oj.req_field "sku" (fun j -> Oj.string_ j) j in
+  Ok ({ sku } : row_a)
+
+and row_b_to_yojson (x : row_b) : Yojson.Safe.t =
+  `Assoc
+    (List.concat
+    [
+      [ ("sku", `String x.sku) ];
+    ])
+
+and row_b_of_yojson (j : Yojson.Safe.t) : (row_b, string) result =
+  let open Oj in
+  let* sku = Oj.req_field "sku" (fun j -> Oj.string_ j) j in
+  Ok ({ sku } : row_b)
+
 and post_v1_widgets_response202_to_yojson (x : post_v1_widgets_response202) : Yojson.Safe.t =
   `Assoc
     (List.concat
@@ -695,6 +736,7 @@ and nullables_to_yojson (x : nullables) : Yojson.Safe.t =
       [ ("only_one", `String x.only_one) ];
       [ ("inline_enum", inline_enum_to_yojson x.inline_enum) ];
       [ ("literal_union", literal_union_to_yojson x.literal_union) ];
+      [ ("open_literal", (match x.open_literal with Some x -> `String x | None -> `Null)) ];
     ])
 
 and nullables_of_yojson (j : Yojson.Safe.t) : (nullables, string) result =
@@ -705,7 +747,8 @@ and nullables_of_yojson (j : Yojson.Safe.t) : (nullables, string) result =
   let* only_one = Oj.req_field "only_one" (fun j -> Oj.string_ j) j in
   let* inline_enum = Oj.req_field "inline_enum" (fun j -> inline_enum_of_yojson j) j in
   let* literal_union = Oj.req_field "literal_union" (fun j -> literal_union_of_yojson j) j in
-  Ok ({ maybe_text; maybe_size; maybe_list; only_one; inline_enum; literal_union } : nullables)
+  let* open_literal = Oj.req_field "open_literal" (fun j -> Oj.nullable_ (fun j -> Oj.string_ j) j) j in
+  Ok ({ maybe_text; maybe_size; maybe_list; only_one; inline_enum; literal_union; open_literal } : nullables)
 
 and shipment_update_to_yojson (x : shipment_update) : Yojson.Safe.t =
   `Assoc
@@ -791,6 +834,35 @@ and event_of_yojson (j : Yojson.Safe.t) : (event, string) result =
     let* reason = Oj.req_field "reason" (fun j -> Oj.string_ j) j in
     Ok (EventDeleted { reason } : event)
   | other -> Error ("event: unknown _tag: " ^ other)
+
+and row_a_or_row_b_to_yojson (v : row_a_or_row_b) : Yojson.Safe.t =
+  match v with
+  | RowA { sku } ->
+    `Assoc
+      (("_tag", `String "RowA")
+       :: (List.concat
+      [
+        [ ("sku", `String sku) ];
+      ]))
+  | RowB { sku } ->
+    `Assoc
+      (("_tag", `String "RowB")
+       :: (List.concat
+      [
+        [ ("sku", `String sku) ];
+      ]))
+
+and row_a_or_row_b_of_yojson (j : Yojson.Safe.t) : (row_a_or_row_b, string) result =
+  let open Oj in
+  let* tag = Oj.req_field "_tag" Oj.string_ j in
+  match tag with
+  | "RowA" ->
+    let* sku = Oj.req_field "sku" (fun j -> Oj.string_ j) j in
+    Ok (RowA { sku } : row_a_or_row_b)
+  | "RowB" ->
+    let* sku = Oj.req_field "sku" (fun j -> Oj.string_ j) j in
+    Ok (RowB { sku } : row_a_or_row_b)
+  | other -> Error ("row_a_or_row_b: unknown _tag: " ^ other)
 
 and issue_loop_or_issue_broken_link_to_yojson (v : issue_loop_or_issue_broken_link) : Yojson.Safe.t =
   match v with
@@ -895,6 +967,18 @@ and shape_distinct_of_yojson (j : Yojson.Safe.t) : (shape_distinct, string) resu
   let* amount = Oj.req_field "amount" (fun j -> measure_or_float_of_yojson j) j in
   let* mixed_list = Oj.req_field "mixed_list" (fun j -> Oj.list_ (fun j -> string_or_int_of_yojson j) j) j in
   Ok ({ amount; mixed_list } : shape_distinct)
+
+and rows_to_yojson (x : rows) : Yojson.Safe.t =
+  `Assoc
+    (List.concat
+    [
+      [ ("rows", `List (List.map (fun x -> row_a_or_row_b_to_yojson x) x.rows)) ];
+    ])
+
+and rows_of_yojson (j : Yojson.Safe.t) : (rows, string) result =
+  let open Oj in
+  let* rows = Oj.req_field "rows" (fun j -> Oj.list_ (fun j -> row_a_or_row_b_of_yojson j) j) j in
+  Ok ({ rows } : rows)
 
 and envelope_to_yojson (x : envelope) : Yojson.Safe.t =
   `Assoc

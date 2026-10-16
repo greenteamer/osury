@@ -2378,6 +2378,48 @@ describe('Literal unions (anyOf/oneOf of string literals)', () => {
         expect(code).not.toContain('OrSelectedChannel');
     });
 
+    // Pydantic's `Literal[...] | str`: the literals are a subset of string and
+    // nothing on the wire tells the arms apart, so the field is just a string.
+    // It used to become a tagged variant expecting {"_tag": "String", ...},
+    // and every real value failed to decode. Found on a production spec.
+    test('anyOf of inline enum + string (+ null) collapses to string in every target', () => {
+        const doc = docWithSelectedChannel({
+            anyOf: [
+                { type: "string", enum: ["nyle_workflow", "amazon_redirect"] },
+                { type: "string" },
+                { type: "null" }
+            ]
+        });
+
+        const schemas = OpenAPIParser.parseDocument(doc)._0;
+        const gen = (fn) => {
+            const g = Codegen[fn](schemas, false, false, undefined);
+            expect(g.TAG).toBe('Ok');
+            return g._0.code;
+        };
+
+        const res = gen('generateModuleWithDiagnostics');
+        expect(res).toContain('selected_channel: @s.null Nullable.t<string>');
+        expect(res).not.toMatch(/OrString|String\(string\)/);
+
+        expect(gen('generateRustWithDiagnostics')).toContain('pub selected_channel: Option<String>,');
+        expect(gen('generateEffectTSWithDiagnostics')).toContain('selected_channel: Schema.NullOr(Schema.String)');
+        expect(gen('generateOCamlWithDiagnostics')).toContain('selected_channel : string option;');
+    });
+
+    test('anyOf of $ref-to-enum + string collapses to string', () => {
+        const doc = docWithSelectedChannel(
+            { anyOf: [{ $ref: "#/components/schemas/Channel" }, { type: "string" }] },
+            { Channel: { type: "string", enum: ["amazon", "shopify"] } }
+        );
+
+        const code = Codegen.generateModuleWithDiagnostics(OpenAPIParser.parseDocument(doc)._0)._0.code;
+        expect(code).toContain('selected_channel: string');
+        // The named enum is still declared; only the field widens
+        expect(code).toContain('type channel = [#amazon | #shopify]');
+        expect(code).not.toContain('ChannelOrString');
+    });
+
     test('anyOf of inline enum + const collapses to merged enum', () => {
         const doc = docWithSelectedChannel({
             anyOf: [
@@ -2495,6 +2537,41 @@ describe('Literal unions (anyOf/oneOf of string literals)', () => {
 });
 
 describe('Sample Data Generator', () => {
+    // The parser moves a `_tag` const out of the object into discriminatorTag,
+    // and the generated decoders of an untagged anyOf then key on it. Pydantic
+    // gives `_tag` a default, so it is not in required[] — yet it is always on
+    // the wire. A sample without it is not one the real API would send.
+    test('a _tag const is written even when it is not required', () => {
+        const tagged = (name) => ({
+            type: "object",
+            properties: {
+                _tag: { type: "string", const: name, default: name },
+                asin: { type: "string" }
+            },
+            required: ["asin"]
+        });
+        const doc = {
+            openapi: "3.1.0",
+            components: {
+                schemas: {
+                    Sales: tagged("Sales"),
+                    UserSales: tagged("UserSales"),
+                    Bucket: {
+                        type: "object",
+                        properties: {
+                            asins: { type: "array", items: { anyOf: [{ $ref: "#/components/schemas/Sales" }, { $ref: "#/components/schemas/UserSales" }] } }
+                        },
+                        required: ["asins"]
+                    }
+                }
+            }
+        };
+        const all = SampleData.generateAll(OpenAPIParser.parseDocument(doc)._0);
+
+        expect(all.Sales._tag).toBe('Sales');
+        expect(all.Bucket.asins[0]).toEqual({ _tag: 'Sales', asin: 'sample' });
+    });
+
     test('generate primitives', () => {
         expect(SampleData.generate('String', {})).toBe('sample');
         expect(SampleData.generate('Number', {})).toBe(3.14);

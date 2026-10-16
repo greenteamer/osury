@@ -4,10 +4,36 @@ import * as Core__Array from "@rescript/core/src/Core__Array.mjs";
 import * as Core__Option from "@rescript/core/src/Core__Option.mjs";
 import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js";
 
+function wireShape(s) {
+  let match = s.discriminatorTag;
+  let match$1 = s.schema;
+  if (match !== undefined && typeof match$1 === "object" && match$1._tag === "Object") {
+    return {
+      _tag: "AllOf",
+      _0: [
+        {
+          _tag: "Object",
+          _0: [{
+              name: "_tag",
+              type: {
+                _tag: "Enum",
+                _0: [match]
+              },
+              required: true
+            }]
+        },
+        s.schema
+      ]
+    };
+  } else {
+    return s.schema;
+  }
+}
+
 function buildSchemasDict(schemas) {
   let dict = {};
   schemas.forEach(s => {
-    dict[s.name] = s.schema;
+    dict[s.name] = wireShape(s);
   });
   return dict;
 }
@@ -260,7 +286,7 @@ function generate(schema, schemasDict, encodingsOpt, encoding) {
 }
 
 function generateNamed(named, schemasDict, encodings) {
-  return generate(named.schema, schemasDict, encodings, named.variantEncoding);
+  return generate(wireShape(named), schemasDict, encodings, named.variantEncoding);
 }
 
 function generateAll(schemas) {
@@ -280,6 +306,7 @@ function generateForSchema(schemas, name) {
 }
 
 export {
+  wireShape,
   buildSchemasDict,
   buildEncodingsDict,
   gen,
