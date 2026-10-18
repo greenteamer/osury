@@ -22,6 +22,11 @@ import { execSync } from 'child_process';
 import esbuild from 'esbuild';
 import { fileURLToPath } from 'url';
 
+// effect is re-exported from the same bundle and the test decodes through it:
+// since effect 4.0 stable, a schema checked by another copy of the library
+// fails its filters ("Expected an integer" for 42). A real app has one copy.
+const WITH_EFFECT = "\nexport * as __effect from 'effect';\n";
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const load = (fixture) => {
     const spec = JSON.parse(fs.readFileSync(path.join(here, 'fixtures', fixture), 'utf8'));
@@ -83,7 +88,7 @@ describe('Effect TS: kitchen-sink evaluates and decodes its own samples', () => 
         try {
             const modPath = path.join(dir, 'generated.mjs');
             await esbuild.build({
-                stdin: { contents: code, loader: 'ts', resolveDir: path.resolve(here, '../..') },
+                stdin: { contents: code + WITH_EFFECT, loader: 'ts', resolveDir: path.resolve(here, '../..') },
                 bundle: true,
                 format: 'esm',
                 platform: 'node',
@@ -91,7 +96,7 @@ describe('Effect TS: kitchen-sink evaluates and decodes its own samples', () => 
                 logLevel: 'silent',
             });
             const mod = await import(modPath);
-            const { Schema } = await import('effect');
+            const { Schema } = mod.__effect;
             const failures = [];
             for (const s of samples) {
                 const schema = mod[BackendEffectTS.tsName(irName(s.name))];

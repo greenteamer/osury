@@ -11,6 +11,11 @@ import { execSync } from 'child_process';
 import esbuild from 'esbuild';
 import { fileURLToPath } from 'url';
 
+// effect is re-exported from the same bundle and the test decodes through it:
+// since effect 4.0 stable, a schema checked by another copy of the library
+// fails its filters ("Expected an integer" for 42). A real app has one copy.
+const WITH_EFFECT = "\nexport * as __effect from 'effect';\n";
+
 const CHEMCORE = process.env.CHEMCORE_CONTRACTS ?? '/Users/alex/dev/chemcore/contracts';
 const hasChemcore = fs.existsSync(path.join(CHEMCORE, 'wire.schema.json'));
 
@@ -144,7 +149,7 @@ ${checks}
         try {
             const modPath = path.join(dir, 'generated.mjs');
             await esbuild.build({
-                stdin: { contents: genResult._0.code, loader: 'ts', resolveDir: path.resolve(import.meta.dirname, '../..') },
+                stdin: { contents: genResult._0.code + WITH_EFFECT, loader: 'ts', resolveDir: path.resolve(import.meta.dirname, '../..') },
                 bundle: true,
                 format: 'esm',
                 platform: 'node',
@@ -152,7 +157,7 @@ ${checks}
                 logLevel: 'silent',
             });
             const mod = await import(modPath);
-            const { Schema } = await import('effect');
+            const { Schema } = mod.__effect;
 
             for (const { file, type } of FIXTURES) {
                 const wire = JSON.parse(readFixture(file));

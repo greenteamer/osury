@@ -10,6 +10,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import esbuild from 'esbuild';
 
+// effect is re-exported from the same bundle and the test decodes through it:
+// since effect 4.0 stable, a schema checked by another copy of the library
+// fails its filters ("Expected an integer" for 42). A real app has one copy.
+const WITH_EFFECT = "\nexport * as __effect from 'effect';\n";
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 const gen = (defs) => {
@@ -141,7 +146,7 @@ describe('BackendEffectTS: runtime round-trip', () => {
             // Bundle so 'effect' is inlined — the temp module lives outside
             // the project's node_modules resolution scope
             await esbuild.build({
-                stdin: { contents: genResult._0.code, loader: 'ts', resolveDir: path.resolve(here, '../..') },
+                stdin: { contents: genResult._0.code + WITH_EFFECT, loader: 'ts', resolveDir: path.resolve(here, '../..') },
                 bundle: true,
                 format: 'esm',
                 platform: 'node',
@@ -149,7 +154,7 @@ describe('BackendEffectTS: runtime round-trip', () => {
                 logLevel: 'silent',
             });
             const mod = await import(modPath);
-            const { Schema } = await import('effect');
+            const { Schema } = mod.__effect;
 
             const roundtrip = (schemaName, file) => {
                 const wire = JSON.parse(fs.readFileSync(path.join(here, 'fixtures/wire', file), 'utf8'));
@@ -207,7 +212,7 @@ describe('BackendEffectTS: refinements are enforced at decode', () => {
         try {
             const modPath = path.join(dir, 'generated.mjs');
             await esbuild.build({
-                stdin: { contents: genResult._0.code, loader: 'ts', resolveDir: path.resolve(here, '../..') },
+                stdin: { contents: genResult._0.code + WITH_EFFECT, loader: 'ts', resolveDir: path.resolve(here, '../..') },
                 bundle: true,
                 format: 'esm',
                 platform: 'node',
@@ -215,7 +220,7 @@ describe('BackendEffectTS: refinements are enforced at decode', () => {
                 logLevel: 'silent',
             });
             const mod = await import(modPath);
-            const { Schema } = await import('effect');
+            const { Schema } = mod.__effect;
             const decode = (v) => Schema.decodeUnknownSync(mod.Bounded)(v);
 
             const valid = {
